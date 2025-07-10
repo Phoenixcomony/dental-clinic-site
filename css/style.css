@@ -1,0 +1,329 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background: linear-gradient(to bottom, #044079, #ffffff);
+  color: #0c010a;  /* العنوان*/
+  line-height: 1.8;
+}
+
+/* الحاوية الأساسية */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* الهيدر */
+header {
+  background: linear-gradient(to right, #002748, #00487c);
+  padding: 20px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+nav ul {
+  list-style: none;
+  display: flex;
+  gap: 25px;
+}
+
+nav ul li a {
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: 0.3s ease;
+}
+
+nav ul li a:hover,
+nav ul li a.active {
+  background-color: #ffffff;
+  color: #00487c;
+  box-shadow: 0 2px 8px rgba(0, 72, 124, 0.3);
+}
+
+/* قسم الهيرو */
+.hero {
+  background: url('../images/clinic-banner.jpg') no-repeat center center/cover;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  text-align: center;
+  position: relative;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 72, 124, 0.5);
+  z-index: 1;
+}
+
+.hero h2,
+.hero p,
+.hero a.btn {
+  position: relative;
+  z-index: 2;
+}
+
+.hero h2 {
+  font-size: 42px;
+  margin-bottom: 15px;
+}
+
+.hero p {
+  font-size: 18px;
+  max-width: 600px;
+  margin-bottom: 25px;
+}
+
+.btn {
+  background-color: #ff7f50;
+  color: white;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 4px 10px rgba(255, 127, 80, 0.4);
+}
+
+.btn:hover {
+  background-color: #ff5722;
+}
+
+/* قسم الخدمات */
+.services-preview {
+  background-color: #f7fbfd;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.services-preview h3 {
+  font-size: 36px;
+  margin-bottom: 40px;
+  color: #0c5c91;
+}
+
+.services-preview .service {
+  display: inline-block;
+  width: 300px;
+  background: white;
+  margin: 15px;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(12, 92, 145, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.service:hover {
+  transform: translateY(-10px);
+}
+
+.service img {
+  width: 100%;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
+
+.service p {
+  font-weight: 600;
+  color: #0c5c91;
+  font-size: 18px;
+}
+
+/* قسم آراء العملاء */
+.customer-reviews {
+  background-color: #f0f4f8;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.customer-reviews h2 {
+  font-size: 32px;
+  color: #2c3e50;
+  margin-bottom: 30px;
+}
+
+.reviews-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.review-card {
+  background: white;
+  padding: 20px;
+  max-width: 300px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.review-card:hover {
+  transform: translateY(-5px);
+}
+
+.review-card img {
+  border-radius: 10px;
+  width: 100%;
+}
+
+/* قسم الحجز */
+section form {
+  max-width: 500px;
+  margin: 40px auto;
+  background-color: #f9f9f9;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(12, 92, 145, 0.1);
+  font-weight: 600;
+  color: #0c5c91;
+}
+
+section h2 {
+  text-align: center;
+  font-size: 30px;
+  margin-bottom: 25px;
+}
+
+form label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+
+form input,
+form select {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: 2px solid #cfdce6;
+  font-size: 16px;
+  outline: none;
+  transition: 0.3s;
+}
+
+form input:focus,
+form select:focus {
+  border-color: #ff7f50;
+  box-shadow: 0 0 8px rgba(255, 127, 80, 0.3);
+}
+
+form input[type="submit"] {
+  background-color: #ff7f50;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s ease;
+  border: none;
+}
+
+form input[type="submit"]:hover {
+  background-color: #ff5722;
+}
+
+/* معلومات التواصل */
+.contact-info {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 25px;
+  background-color: #eef6fb;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,72,124,0.1);
+}
+
+.contact-info h2 {
+  font-size: 24px;
+  color: #00487c;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #ff7f50;
+  display: inline-block;
+  padding-bottom: 8px;
+}
+
+.contact-info p {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.contact-info strong {
+  color: #ff7f50;
+}
+
+/* الخريطة */
+.map-section {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.google-map {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+}
+
+.google-map iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* الفوتر */
+footer {
+  background-color: #002748;
+  color: white;
+  text-align: center;
+  padding: 20px 0;
+  font-weight: 600;
+}
+
+/* إضافة تنسيق للشعار في أعلى اليسار */
+.header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1px;
+}
+
+.logo-container {
+  flex-shrink: 0;
+}
+
+.logo-img {
+  width: 130px;
+  height: auto;
+}
+

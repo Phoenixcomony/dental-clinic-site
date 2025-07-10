@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>عيادة مجمع فينيكس الطبي</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <header>
+    
+    <h1> مجمع فينيكس الطبي</h1>
+    <nav>
+      <ul>
+        <li><a href="index.html">الرئيسية</a></li>
+        <li><a href="about.html">من نحن</a></li>
+        <li><a href="services.html">الخدمات</a></li>
+        <li><a href="appointment.html">احجز موعد</a></li>
+        <li><a href="contact.html">اتصل بنا</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section>
+    <h2>احجز موعدك الآن</h2>
+    <link rel="stylesheet" href="css/style.css" />
+    <form id="appointmentForm">
+      <label for="name">الاسم:</label><br />
+      <input type="text" id="name" name="name" required /><br />
+      <label for="phone">رقم الجوال:</label><br />
+      <input type="tel" id="phone" name="phone" required /><br />
+      <label for="clinic">اختر الخدمة المطلوبة:</label><br />
+      <select id="clinic" name="clinic" required>
+        <option value="">-- اختر الخدمة --</option>
+        <option value="ابتسامة هوليوود">ابتسامة هوليوود</option>
+        <option value="زراعة أسنان">زراعة أسنان</option>
+        <option value="تقويم الأسنان">تقويم الأسنان</option>
+        <option value="تلبيسات وتركيبات الأسنان">تلبيسات وتركيبات الأسنان</option>
+        <option value="تنظيف وتبييض الأسنان">تنظيف وتبييض الأسنان</option>
+        <option value="معالجات الأسنان">معالجات الأسنان</option>
+      </select><br /><br />
+
+      <label for="date">التاريخ:</label><br />
+      <input type="date" id="date" name="date" required /><br /><br />
+
+      <input type="submit" value="إرسال" />
+    </form>
+    <p id="verificationMessage" style="color: green; font-weight: bold; margin-top: 10px;"></p>
+  </section>
+
+<script>
+  const form = document.getElementById('appointmentForm');
+  const phoneInput = form.elements['phone'];
+  const verificationMessage = document.getElementById('verificationMessage');
+
+  form.addEventListener('submit', function(event) {
+    event.preventDefault(); // منع الإرسال الافتراضي
+
+    const phone = phoneInput.value.trim();
+    const phonePattern = /^05\d{8}$/; // نمط رقم جوال سعودي يبدأ بـ 05 وطوله 10 أرقام
+
+    if (!phonePattern.test(phone)) {
+      alert('تحقق من رقم الجوال');
+      phoneInput.focus();
+      verificationMessage.textContent = '';
+      return;
+    }
+
+    // عرض رسالة التحقق بدون إرسال الفورم (يمكنك تعديلها للإرسال فعليًا إذا تريد)
+    verificationMessage.textContent = "سيتم إرسال رقم التحقق على هاتفك للأمان.";
+  });
+</script>
+
+</body>
+</html>
