@@ -3,28 +3,29 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// بيانات mywhats.cloud
+// بيانات جهازك من mywhats.cloud
 const INSTANCE_ID = '660F18AC0A49E';
 const ACCESS_TOKEN = '65bbe08452619';
 
 // بيانات Google Sheet
 const SPREADSHEET_ID = '1c3XE-74QYs-2qe6U1IwJbdfkHvy5On77NnPkE6eN5tA';
-const SHEET_NAME = 'الورقة1';
+const SHEET_NAME = 'الورقة1'; // اسم الورقة بالضبط كما في جوجل شيت
+const CREDENTIALS_PATH = path.join(__dirname, 'google-credentials.json');
 
-// اقرأ بيانات الاعتماد من متغير البيئة (وليس من ملف)
-const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+const otpStore = {}; // تخزين رموز OTP مؤقتًا
+
+// إعداد Google Sheets API
 const auth = new google.auth.GoogleAuth({
-  credentials,
+  keyFile: CREDENTIALS_PATH,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets('v4');
-
-const otpStore = {}; // تخزين رموز OTP مؤقتًا
 
 // إرسال رمز التحقق عبر واتساب
 app.post('/send-otp', async (req, res) => {
@@ -49,6 +50,7 @@ app.post('/send-otp', async (req, res) => {
 async function updateSheet({ service, serviceType, date, time, name, phone }) {
   const client = await auth.getClient();
 
+  // جلب كل الصفوف
   const getRows = await sheets.spreadsheets.values.get({
     auth: client,
     spreadsheetId: SPREADSHEET_ID,
@@ -77,7 +79,7 @@ async function updateSheet({ service, serviceType, date, time, name, phone }) {
       row[idx.date] === date &&
       row[idx.time] === time
     ) {
-      rowIndex = i + 1;
+      rowIndex = i + 1; // الصفوف تبدأ من 1 في جوجل شيت
       break;
     }
   }
@@ -112,6 +114,7 @@ app.post('/verify-otp', async (req, res) => {
   if (otpStore[phone] && otpStore[phone].toString() === otp.toString()) {
     delete otpStore[phone];
 
+    // رسالة تأكيد الحجز
     const confirmMsg = `تم تأكيد حجزك في مجمع فينكس الطبي ✅\nالاسم: ${name}\nالخدمة: ${service}\nنوع الخدمة: ${serviceType}\nالتاريخ: ${date}\nالوقت: ${time}`;
     const confirmUrl = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(confirmMsg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
 
@@ -120,19 +123,15 @@ app.post('/verify-otp', async (req, res) => {
       await updateSheet({ service, serviceType, date, time, name, phone });
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({
-        success: false,
-        message: "فشل إرسال رسالة التأكيد أو تحديث الشيت",
-        error: err.message,
-        stack: err.stack
-      });
-      console.error('خطأ أثناء تحديث الشيت أو إرسال رسالة التأكيد:', err);
+      // هنا نطبع تفاصيل الخطأ بالكامل في لوج Render
+      console.error("تفاصيل الخطأ أثناء تحديث الشيت أو إرسال الرسالة:", err, err.response && err.response.data);
+      res.status(500).json({ success: false, message: "فشل إرسال رسالة التأكيد أو تحديث الشيت", error: err.message });
     }
   } else {
     res.json({ success: false, message: "رمز التحقق غير صحيح!" });
   }
 });
 
-app.listen(3000, () => {
+app.listen(3000, '0.0.0.0', () => {
   console.log('Server running...');
 });
