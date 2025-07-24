@@ -219,7 +219,7 @@
       messageDiv.textContent = "جاري الإرسال ...";
       messageDiv.style.color = "#2187bf";
       setTimeout(() => {
-        fetch('http://localhost:3000/send-otp', {
+        fetch('https://dental-clinic-site-dc3h.onrender.com/send-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ phone })
@@ -263,7 +263,7 @@
       messageDiv.textContent = "جاري التحقق ...";
       messageDiv.style.color = "#2187bf";
       setTimeout(() => {
-        fetch('http://localhost:3000/verify-otp', {
+        fetch('https://dental-clinic-site-dc3h.onrender.com/verify-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ phone, otp, name, service, serviceType, date, time })

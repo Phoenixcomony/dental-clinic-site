@@ -60,6 +60,6 @@ app.post('/api/verify-otp', (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`✅ الخادم يعمل على http://localhost:${port}`);
+app.listen(3000, '0.0.0.0', () => {
+  console.log('Server running...');
 });
