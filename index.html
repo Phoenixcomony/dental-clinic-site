@@ -1,45 +1,258 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>مجمع فينيكس الطبي</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مجمع فينكس الطبي</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .blur-bg-home {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/فينكس الشعر الرسمي.png') center center/cover no-repeat;
+      filter: blur(-100px) brightness(0.97);
+      opacity: 0.;
+      z-index: 0;
+      pointer-events: none;
+    }
+    body > *:not(.blur-bg-home) {
+      position: relative;
+      z-index: 1;
+    }
+    .social-icons {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin-right: 24px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.4em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      background: #000000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #000000b6;
+      margin-left: 3px;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
+    .social-icon.snap  { color: #ffffff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon:hover {
+      background: #000001;
+      box-shadow: 0 2px 14px #000000;
+      opacity: 0.95;
+    }
+    @media (max-width: 768px) {
+      .social-icons { gap: 6px; margin-right: 4px; }
+      .social-icons .social-icon { width: 32px; height: 32px; font-size: 1.05em;}
+    }
+
+    /* السلايدر الجانبي المُحسن */
+    .hero-slider-relative {
+      position: relative;
+      width: 100%;
+      min-height: 390px;
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .hero-slider-img {
+      position: absolute;
+      top: 50%;
+      width: 210px;
+      height: 370px;
+      object-fit: cover;
+      border-radius: 28px;
+      box-shadow: 0 3px 30px #4e3f3f38;
+      background: #f6f7fa;
+      transition: transform 0.7s, opacity 0.7s;
+      z-index: 2;
+      opacity: 1;
+    }
+    #rightSlideImg { right: 7vw; transform: translateY(-50%) translateX(0); }
+    #leftSlideImg  { left: 7vw;  transform: translateY(-50%) translateX(0);}
+    .hero-slider-content {
+      position: relative;
+      z-index: 3;
+      text-align: center;
+      min-width: 240px;
+      max-width: 420px;
+      margin: 0 24vw;
+    }
+    @media (max-width: 1200px) {
+      .hero-slider-img { width: 120px; height: 210px;}
+      .hero-slider-content { min-width: 120px; margin: 0 17vw;}
+      #rightSlideImg { right: 2vw; }
+      #leftSlideImg { left: 2vw; }
+    }
+    @media (max-width: 700px) {
+      .hero-slider-relative { min-height: 170px;}
+      .hero-slider-img { width: 60px; height: 95px; }
+      .hero-slider-content { margin: 0 8vw; min-width: 90px;}
+      #rightSlideImg, #leftSlideImg { top: 54%;}
+    }
+  </style>
 </head>
 <body>
 
-  <header>
-    <header>
-  <div class="container header-flex">
-    <div class="logo-container">
-      <img src="images/Screenshot 2025-07-09 195921.png" alt="شعار العيادة" class="logo-img">
-    </div>
-    <h1>مجمع فينيكس الطبي </h1>
-    <nav>
-      <ul>
-        <li><a href="index.html">الرئيسية</a></li>
-        <li><a href="about.html">من نحن</a></li>
-        <li><a href="services.html">الخدمات</a></li>
-        <li><a href="appointment.html">احجز موعد</a></li>
-        <li><a href="contact.html">اتصل بنا</a></li>
-      </ul>
-    </nav>
-  </div>
-</header>
+  <div class="blur-bg-home"></div>
 
+  <!-- الهيدر -->
+  <header>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img" />
+      </div>
+      <h1>   </h1>
+      <nav>
+        <ul>
+          <li><a href="index.html" class="active">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
   </header>
 
-  <section class="hero">
-    <h2>ابتسامتك تبدأ من هنا</h2>
-    <p>نقدم خدمات طب الأسنان بأعلى جودة واهتمام</p>
-    <a href="appointment.html" class="btn">احجز الآن</a>
+  <!-- الهيرو وصور السلايدر المتغير -->
+  <section class="hero fade-in" data-aos="fade-in" style="position:relative;overflow:hidden;padding-top:35px;">
+    <div class="hero-slider-relative">
+      <!-- صورة يمين -->
+      <img id="rightSlideImg"
+        src="images/1.jpg"
+        class="hero-slider-img"
+        alt="اعلان يمين">
+
+      <!-- النص وزر احجز الآن -->
+      <div class="hero-slider-content">
+        <h2 data-aos="fade-down">نرحب بكم في مجمع فينكس الطبي</h2>
+        <p data-aos="fade-up">رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
+        <a href="appointment.html" class="btn" data-aos="zoom-in" style="margin-top: 12px; font-size:1.18em;">احجز الآن</a>
+      </div>
+
+      <!-- صورة يسار -->
+      <img id="leftSlideImg"
+        src="images/2.jpg"
+        class="hero-slider-img"
+        alt="اعلان يسار">
+    </div>
   </section>
 
-  
+  <!-- قسم الباقات -->
+  <section class="services-preview" data-aos="fade-up">
+    <h3>باقاتنا المميزة</h3>
+    <div class="reviews-container">
+      <div class="review-card" data-aos="zoom-in"><img src="images/1.jpg" alt="باقة 1" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/2.jpg" alt="باقة 2" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/3.jpg" alt="باقة 3" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/4.jpg" alt="باقة 4" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/5.jpg" alt="باقة 5" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/6.jpg" alt="باقة 6" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/7.jpg" alt="باقة 7" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/8.jpg" alt="باقة 8" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/10.jpg" alt="باقة 10" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/11.jpg" alt="باقة 11" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/13.jpg" alt="باقة 12" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/14.jpg" alt="باقة 13" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/22.jpg" alt="باقة 14" /></div>
+      <div class="review-card" data-aos="zoom-in"><img src="images/9.jpg" alt="باقة 9" /></div>
+    </div>
+  </section>
 
-  <footer>
-    <p>© 2025 جميع الحقوق محفوظة لعياده مجمع فينيكس الطبي </p>
+  <!-- ما الجديد -->
+  <section class="services-preview" data-aos="fade-up">
+    <h3>ما الجديد</h3>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/new image pro.jpg" alt="ما الجديد 1" />
+      <p>جهاز سبلندر اكس الأمريكي</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/new image pro2.jpg" alt="ما الجديد 2" />
+      <p>جهاز سبلندر اكس الأمريكي</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/البروفايلو.jpg" alt="ما الجديد 1" />
+      <p>علاج البروفايلو</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/ابره السالمون.jpg" alt="ما الجديد 1" />
+      <p>ابرة السالمون</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/فراكشنال ليزر .jpg" alt="ما الجديد 1" />
+      <p>فراكشنال ليزر</p>
+    </div>
+     <div class="service" data-aos="zoom-in">
+      <img src="images/الحشوه التجميليه.jpg" alt="ما الجديد 1" />
+      <p> الحشوة التجميلية</p>
+    </div>
+  </section>
+
+  <footer data-aos="fade-up">
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
   </footer>
+
+  <!-- سكربت AOS للأنميشن -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 1000, once: true });
+
+    // سلايدر جانبي متغير (يمين ويسار) مع حركة خارج الشاشة
+    const rightSlideImgs = [
+      'images/كوب القهوه.jpg',
+      'images/علاج العصب.jpg',
+      'images/ابتسامه فينكس.jpg',
+      'images/المركز الاول فينكس.jpg'
+    ];
+    const leftSlideImgs = [
+      'images/تمارا.jpg',
+      'images/صحه الاسنان.jpg',
+      'images/بطاقه المناسبات.jpg',
+      'images/حب الشباب.jpg',
+      'images/تابعو فينكس.jpg'
+    ];
+    let rightIndex = 0, leftIndex = 0;
+    const rightImg = document.getElementById('rightSlideImg');
+    const leftImg = document.getElementById('leftSlideImg');
+
+    function nextSideImages() {
+      // اسحب الصور خارج الشاشة
+      rightImg.style.transform = "translateY(-50%) translateX(190%)";
+      rightImg.style.opacity = "0";
+      leftImg.style.transform = "translateY(-50%) translateX(-190%)";
+      leftImg.style.opacity = "0";
+
+      setTimeout(() => {
+        // غير الصورة
+        rightIndex = (rightIndex + 1) % rightSlideImgs.length;
+        leftIndex = (leftIndex + 1) % leftSlideImgs.length;
+        rightImg.src = rightSlideImgs[rightIndex];
+        leftImg.src = leftSlideImgs[leftIndex];
+
+        // أرجع الصور من الخارج
+        rightImg.style.transform = "translateY(-50%) translateX(0)";
+        rightImg.style.opacity = "1";
+        leftImg.style.transform = "translateY(-50%) translateX(0)";
+        leftImg.style.opacity = "1";
+      }, 750);
+    }
+    setInterval(nextSideImages, 3700);
+  </script>
 
 </body>
 </html>

@@ -1,54 +1,173 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> مجمع فينيكس الطبي</title>
+  <title>مجمع فينكس الطبي</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .blur-bg-contact {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/اطباء مجمع فينكس.png') center center/cover no-repeat;
+      filter: blur(14px) brightness(0.97);
+      opacity: 0.38;
+      z-index: 0;
+      pointer-events: none;
+    }
+    body > *:not(.blur-bg-contact) {
+      position: relative;
+      z-index: 1;
+    }
+    /* أيقونات السوشيال داخل القوائم */
+    .social-icons {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin-right: 22px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.3em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: #000000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #000000b6;
+      margin-left: 2.5px;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
+    .social-icon.snap  { color: #fff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon:hover {
+      background: #111;
+      box-shadow: 0 2px 14px #000000;
+      opacity: 0.96;
+    }
+    @media (max-width: 768px) {
+      .social-icons {
+        gap: 6px;
+        margin-right: 4px;
+      }
+      .social-icons .social-icon { width: 29px; height: 29px; font-size: 1em;}
+    }
+  </style>
 </head>
 <body>
 
+  <div class="blur-bg-contact"></div>
+
+  <!-- الهيدر -->
   <header>
-    
-    <h1> مجمع فينيكس الطبي</h1>
-    <nav>
-      <ul>
-        <li><a href="index.html">الرئيسية</a></li>
-        <li><a href="about.html">من نحن</a></li>
-        <li><a href="services.html">الخدمات</a></li>
-        <li><a href="appointment.html">احجز موعد</a></li>
-        <li><a href="contact.html" class="active">اتصل بنا</a></li>
-      </ul>
-    </nav>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img">
+      </div>
+      <h1> </h1>
+      <nav>
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html" class="active">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
   </header>
 
+  <!-- بيانات التواصل -->
   <section class="contact-info">
     <h2>بيانات التواصل</h2>
-    <p><strong>الهاتف:</strong> 0500000000</p>
-    <p><strong>البريد الإلكتروني:</strong> info@phoenix-dental.sa</p>
-    <p><strong>ساعات العمل:</strong> الأحد–الخميس: 9ص–9م</p>
+    <p><strong>الجوال:</strong> 0559904222</p>
+    <p><strong>الجوال 2:</strong> 0531422555</p>
+    <p><strong>الهاتف:</strong> 0116227222</p>
+    <p><strong>البريد الإلكتروني:</strong> ph.clinic@outlook.sa</p>
+    <p><strong>ساعات العمل:</strong> عيادة الأسنان 1 (د. عبير):
+من السبت إلى الخميس
+9:00 ص – 12:00 م
+4:00 م – 9:00 م
+
+عيادة الأسنان 2 (د. ريان):
+من السبت إلى الخميس
+8:00 ص – 11:00 ص
+4:00 م – 9:00 م
+
+عيادة الأسنان 3 (د. معاذ):
+من السبت إلى الخميس
+12:00 م – 8:00 م
+
+عيادة الأسنان 4 (د. رونالدو):
+من السبت إلى الخميس
+2:00 م – 10:00 م
+
+عيادة الجلدية والتجميل (د. ولاء):
+من الأحد إلى الخميس
+3:30 م – 10:30 م
+
+عيادة التشقير وتنظيف البشرة (أخصائية هدى):
+من السبت إلى الخميس
+2:00 م – 10:00 م
+
+عيادة الطب العام والطوارئ (د. هنادي):
+من السبت إلى الخميس
+10:00 ص – 12:00 م
+4:00 م – 10:00 م
+
+عيادة النساء والولادة (د. حسناء):
+من السبت إلى الخميس
+10:00 ص – 12:00 م
+4:00 م – 10:00 م
+
+عيادة الليزر 1:
+من السبت إلى الخميس
+8:00 ص – 11:00 م
+
+عيادة الليزر 2:
+من السبت إلى الخميس
+8:00 ص – 11:00 م
+
+يوم الجمعة:
+
+طبيب أسنان مناوب (غالبًا د. معاذ).
+
+عيادات الليزر مفتوحة.
+
+التشقير وتنظيف البشرة (حسب التوفر).
+
+ الدوام من 2:00 م إلى 10:00 م حسب العيادة.</p>
+  </section>
+  
+  <!-- الخريطة -->
+  <section class="map-section">
+    <h2>موقع العيادة</h2>
+    <div class="google-map">
+      <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.637294418528!2d45.2621617!3d25.2312078!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2a6971af1a9585%3A0xafede48b7960cc4a!2z2YXYr9mK2YXYuSDYp9mE2K3YqSDYp9mE2YXZitmE2Kkg2KfZhNmF2YbZiNin2YTZhNmK!5e0!3m2!1sar!2ssa!4v1720523413549!5m2!1sar!2ssa"
+        width="100%" height="350"
+        style="border:0; border-radius:12px;"
+        allowfullscreen=""
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
   </section>
 
-  <section class="map-section">
-  <h2>موقع العيادة</h2>
-  <div class="google-map">
-    <iframe
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.637294418528!2d45.2621617!3d25.2312078!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2a6971af1a9585%3A0xafede48b7960cc4a!2z2YXYr9mK2YXYuSDYp9mE2K3YqSDYp9mE2YXZitmE2Kkg2KfZhNmF2YbZiNin2YTZhNmK!5e0!3m2!1sar!2ssa!4v1720523413549!5m2!1sar!2ssa"
-      width="100%" height="350"
-      style="border:0; border-radius:12px;"
-      allowfullscreen=""
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade">
-    </iframe>
-  </div>
-</section>
-
-
+  <!-- الفوتر -->
   <footer>
-    <p>جميع الحقوق محفوظة ©مجمع فينيكس الطبي 2025</p>
+    <p>جميع الحقوق محفوظة ©مجمع فينكس الطبي 2025</p>
   </footer>
 
 </body>
 </html>
-

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>صفحة اختبار الإرسال</title>
+</head>
+<body>
+
+  <h2>نموذج اختبار الإرسال</h2>
+
+  <form id="myForm">
+    <label>الاسم:</label><br>
+    <input type="text" name="name" required><br><br>
+
+    <label>رقم الجوال:</label><br>
+    <input type="tel" name="phone" required><br><br>
+
+    <input type="submit" value="إرسال">
+  </form>
+
+  <p id="message" style="color: green; font-weight: bold;"></p>
+
+  <script>
+    const form = document.getElementById('myForm');
+    const message = document.getElementById('message');
+
+    form.addEventListener('submit', function(event) {
+      event.preventDefault(); // ✅ لازم نمنع الإرسال التلقائي
+
+      message.textContent = "✅ زر الإرسال يعمل!";
+    });
+  </script>
+
+</body>
+</html>
