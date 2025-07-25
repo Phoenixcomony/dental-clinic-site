@@ -53,51 +53,82 @@
       .social-icons { gap: 6px; margin-right: 4px; }
       .social-icons .social-icon { width: 32px; height: 32px; font-size: 1.05em;}
     }
-
-    /* السلايدر الجانبي المُحسن */
-    .hero-slider-relative {
-      position: relative;
-      width: 100%;
-      min-height: 390px;
-      margin-bottom: 32px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    /* زر البرغر */
+    .nav-burger {
+      display: none;
     }
-    .hero-slider-img {
-      position: absolute;
-      top: 50%;
-      width: 210px;
-      height: 370px;
-      object-fit: cover;
-      border-radius: 28px;
-      box-shadow: 0 3px 30px #4e3f3f38;
-      background: #f6f7fa;
-      transition: transform 0.7s, opacity 0.7s;
-      z-index: 2;
-      opacity: 1;
+    @media (max-width: 820px) {
+      .nav-burger {
+        display: block;
+        font-size: 1.7em;
+        background: none;
+        border: none;
+        color: #2a2a2a;
+        cursor: pointer;
+        z-index: 1100;
+        margin-right: 10px;
+        margin-left: 6px;
+      }
+      nav ul {
+        display: none !important;
+        position: absolute;
+        top: 65px;
+        right: 10px;
+        width: 88vw;
+        background: #fff;
+        box-shadow: 0 10px 35px #0001;
+        border-radius: 20px;
+        flex-direction: column !important;
+        padding: 18px 0;
+        z-index: 1001;
+        transition: all .25s cubic-bezier(.72,.01,.42,1);
+      }
+      nav ul.show {
+        display: flex !important;
+      }
+      nav ul li {
+        width: 100%;
+        text-align: center !important;
+        margin: 0 !important;
+        padding: 5px 0 !important;
+      }
+      nav ul li a {
+        padding: 12px 0 !important;
+        font-size: 1.1em !important;
+        color: #087c72 !important;
+        border-radius: 18px !important;
+        background: none !important;
+        margin: 0 !important;
+      }
+      .social-icons {
+        justify-content: center !important;
+        margin-top: 10px;
+        gap: 10px !important;
+      }
+      .logo-container {
+        width: 100%;
+        text-align: center;
+        position: static !important;
+        margin-bottom: 7px !important;
+      }
+      .logo-img {
+        max-width: 90px !important;
+        width: 90px !important;
+        margin: 0 auto !important;
+        display: block !important;
+      }
     }
-    #rightSlideImg { right: 7vw; transform: translateY(-50%) translateX(0); }
-    #leftSlideImg  { left: 7vw;  transform: translateY(-50%) translateX(0);}
-    .hero-slider-content {
+    .logo-container {
       position: relative;
-      z-index: 3;
+      z-index: 10;
       text-align: center;
-      min-width: 240px;
-      max-width: 420px;
-      margin: 0 24vw;
     }
-    @media (max-width: 1200px) {
-      .hero-slider-img { width: 120px; height: 210px;}
-      .hero-slider-content { min-width: 120px; margin: 0 17vw;}
-      #rightSlideImg { right: 2vw; }
-      #leftSlideImg { left: 2vw; }
-    }
-    @media (max-width: 700px) {
-      .hero-slider-relative { min-height: 170px;}
-      .hero-slider-img { width: 60px; height: 95px; }
-      .hero-slider-content { margin: 0 8vw; min-width: 90px;}
-      #rightSlideImg, #leftSlideImg { top: 54%;}
+    .logo-img {
+      width: 130px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
     }
   </style>
 </head>
@@ -113,11 +144,11 @@
       </div>
       <h1>   </h1>
       <nav>
-          <!-- زر البرغر (سيظهر فقط في الجوال) -->
-  <button class="nav-burger" onclick="toggleMenu()">
-    <i class="fas fa-bars"></i>
-  </button>
-        <ul>
+        <!-- زر البرغر (سيظهر فقط في الجوال) -->
+        <button class="nav-burger" onclick="toggleMenu()">
+          <i class="fas fa-bars"></i>
+        </button>
+        <ul id="mainNav">
           <li><a href="index.html" class="active">الرئيسية</a></li>
           <li><a href="about.html">من نحن</a></li>
           <li><a href="services.html">الخدمات</a></li>
@@ -258,22 +289,20 @@
     setInterval(nextSideImages, 3700);
   </script>
   <script>
-  function toggleMenu() {
-    var navList = document.getElementById('mainNav');
-    navList.classList.toggle('show');
-  }
-  // يغلق القائمة إذا ضغط المستخدم خارجها
-  document.addEventListener('click', function(event){
-    var navList = document.getElementById('mainNav');
-    var burger = document.querySelector('.nav-burger');
-    if(navList && navList.classList.contains('show')){
-      if(!navList.contains(event.target) && !burger.contains(event.target)){
-        navList.classList.remove('show');
-      }
+    function toggleMenu() {
+      var navList = document.getElementById('mainNav');
+      navList.classList.toggle('show');
     }
-  });
-</script>
-
-
+    // يغلق القائمة إذا ضغط المستخدم خارجها
+    document.addEventListener('click', function(event){
+      var navList = document.getElementById('mainNav');
+      var burger = document.querySelector('.nav-burger');
+      if(navList && navList.classList.contains('show')){
+        if(!navList.contains(event.target) && !burger.contains(event.target)){
+          navList.classList.remove('show');
+        }
+      }
+    });
+  </script>
 </body>
 </html>
