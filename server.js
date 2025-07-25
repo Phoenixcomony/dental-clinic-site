@@ -14,7 +14,7 @@ const ACCESS_TOKEN = '65bbe08452619';
 
 // بيانات Google Sheet
 const SPREADSHEET_ID = '1c3XE-74QYs-2qe6U1IwJbdfkHvy5On77NnPkE6eN5tA';
-const SHEET_NAME = 'الورقة1'; // اسم الورقة
+const SHEET_NAME = 'الورقة1'; // اسم الورقة بالضبط (يجب مطابقته في Google Sheet)
 
 const otpStore = {}; // تخزين رموز OTP مؤقتًا
 
@@ -43,11 +43,11 @@ app.post('/send-otp', async (req, res) => {
   const msg = `رمز التحقق الخاص بك في مجمع فينكس الطبي: ${otp}`;
   const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
   try {
-    await axios.get(url);
-    console.log("تم إرسال الطلب إلى mywhats.cloud بنجاح!");
+    const result = await axios.get(url);
+    console.log("تم إرسال الطلب إلى mywhats.cloud بنجاح!", result.data);
     res.json({ success: true });
   } catch (err) {
-    console.error("فشل إرسال الرسالة:", err.message);
+    console.error("فشل إرسال الرسالة:", err.response?.data || err.message);
     res.status(500).json({ success: false, message: "فشل إرسال الرسالة", error: err.message });
   }
 });
@@ -141,16 +141,18 @@ app.post('/verify-otp', async (req, res) => {
   if (otpStore[phone] && otpStore[phone].toString() === otp.toString()) {
     delete otpStore[phone];
 
-    // رسالة التأكيد
-    const confirmMsg = `تم تأكيد حجزك في مجمع فينكس الطبي ✅\nالاسم: ${name}\nالخدمة: ${service}\nنوع الخدمة: ${serviceType}\nالتاريخ: ${date}\nالوقت: ${time}`;
+    // رسالة التأكيد (بسيطة - من غير رموز أو أسطر كثيرة للتجربة)
+    const confirmMsg = `تم تأكيد حجزك في مجمع فينكس الطبي. الاسم: ${name}، الخدمة: ${service}، النوع: ${serviceType}، التاريخ: ${date}، الوقت: ${time}`;
     const confirmUrl = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(confirmMsg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
 
     try {
-      await axios.get(confirmUrl);
+      console.log('سيتم إرسال رسالة تأكيد الحجز...', confirmUrl);
+      const result = await axios.get(confirmUrl);
+      console.log('نتيجة الإرسال:', result.data);
       await updateSheet({ service, serviceType, date, time, name, phone });
       res.json({ success: true });
     } catch (err) {
-      console.error("خطأ أثناء إرسال رسالة التأكيد أو تحديث الشيت:", err);
+      console.error("خطأ أثناء إرسال رسالة التأكيد أو تحديث الشيت:", err.response?.data || err.message);
       res.status(500).json({ success: false, message: "فشل إرسال رسالة التأكيد أو تحديث الشيت", error: err.message });
     }
   } else {

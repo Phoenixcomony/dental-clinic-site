@@ -534,3 +534,67 @@ footer {
   z-index: 2;
   opacity: 1;
 }
+
+
+/* ================== Responsive (الجوال) ================== */
+
+@media (max-width: 700px) {
+  body, html {
+    font-size: 15px !important;
+    padding: 0;
+    margin: 0;
+  }
+  .header-flex, .container, nav ul, .appointments-title, .appointments-table-container {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 6px !important;
+    width: 100% !important;
+  }
+  .logo-img, .phoenix-logo, .logo-container img {
+    max-width: 70px !important;
+    width: 70px !important;
+    height: auto !important;
+    margin: 0 0 10px 0 !important;
+  }
+  nav ul {
+    flex-direction: column !important;
+    width: 100%;
+    gap: 3px;
+  }
+  nav ul li {
+    width: 100%;
+    text-align: right;
+    margin: 0 0 5px 0;
+    padding: 0 !important;
+  }
+  .confirm-main, .appointments-table-container {
+    max-width: 99vw !important;
+    padding: 8px 2vw 8px 2vw !important;
+    box-sizing: border-box;
+    margin: 11px 0 22px 0;
+    border-radius: 11px !important;
+  }
+  .appointments-title {
+    font-size: 1.13em !important;
+    padding: 6px 10px !important;
+    border-radius: 14px;
+  }
+  .appointments-table th, .appointments-table td {
+    font-size: 0.96em !important;
+    padding: 7px 2px !important;
+    word-break: break-word;
+  }
+  .social-icons {
+    gap: 7px !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+  }
+  .social-icon {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 1.1em !important;
+    padding: 0 !important;
+  }
+  /* اخفي خلفية البلور إذا سببت مشاكل على الجوال */
+  .blur-bg-appointment { display: none !important;}
+}

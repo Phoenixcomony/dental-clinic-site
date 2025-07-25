@@ -33,6 +33,22 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets('v4');
 // -------------------------------------------------------------------
 
+// Endpoint جديد يجلب المواعيد مباشر من الشيت بدون كاش ولا تأخير
+app.get('/slots', async (req, res) => {
+  try {
+    const client = await auth.getClient();
+    const getRows = await sheets.spreadsheets.values.get({
+      auth: client,
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1:Z`,
+    });
+    res.json({ rows: getRows.data.values });
+  } catch (err) {
+    console.error("❌ خطأ في جلب المواعيد من الشيت:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // إرسال OTP عبر واتساب
 app.post('/send-otp', async (req, res) => {
   const { phone } = req.body;
