@@ -7,6 +7,13 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
+    body, html { 
+      overflow-x: hidden; 
+      background: #f9f9f9;
+      min-height: 100vh;
+      position: relative;
+      padding-bottom: 70px; /* مساحة للفوتر للجوال */
+    }
     .blur-bg-home {
       position: fixed;
       top: 0; right: 0; bottom: 0; left: 0;
@@ -20,84 +27,246 @@
       position: relative;
       z-index: 1;
     }
+    .container.header-flex {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 14px 0 6px 0;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .logo-container img.logo-img {
+      height: 64px;
+      width: auto;
+      max-width: 155px;
+      border-radius: 14px;
+    }
+    nav ul {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      align-items: center;
+      margin: 0; padding: 0;
+      list-style: none;
+      background: transparent;
+    }
+    nav ul li {
+      display: inline-block;
+      margin: 0 2px;
+      padding: 0 6px;
+    }
+    nav ul li a {
+      font-size: 1.05em;
+      text-decoration: none;
+      color: #1b252b;
+      border-radius: 10px;
+      transition: background 0.18s, color 0.18s;
+      padding: 4px 8px;
+    }
+    nav ul li a.active,
+    nav ul li a:hover {
+      background: #11bfae17;
+      color: #06968d;
+    }
     .social-icons {
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-right: 24px;
+      gap: 8px;
+      margin: 0 0 0 6px;
     }
     .social-icons .social-icon {
-      font-size: 1.4em;
-      padding: 0 2px;
+      font-size: 1.18em;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
+      width: 29px;
+      height: 29px;
       background: #000000;
       transition: background 0.2s, box-shadow 0.2s;
       box-shadow: 0 1px 6px #000000b6;
-      margin-left: 3px;
       text-decoration: none;
+      border: 1.5px solid #000000;
     }
-    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
-    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
-    .social-icon.snap  { color: #ffffff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon.wa    { color: #3cff00; }
+    .social-icon.insta { color: #ff0055; }
+    .social-icon.snap  { color: #fff; background: #181818; }
     .social-icon:hover {
-      background: #000001;
+      background: #1b1b1b;
       box-shadow: 0 2px 14px #000000;
       opacity: 0.95;
     }
-    @media (max-width: 768px) {
-      .social-icons { gap: 6px; margin-right: 4px; }
-      .social-icons .social-icon { width: 32px; height: 32px; font-size: 1.05em;}
-    }
 
-    /* السلايدر الجانبي المُحسن */
     .hero-slider-relative {
       position: relative;
       width: 100%;
-      min-height: 390px;
-      margin-bottom: 32px;
+      min-height: 290px;
+      margin-bottom: 30px;
       display: flex;
       justify-content: center;
       align-items: center;
     }
     .hero-slider-img {
       position: absolute;
-      top: 50%;
-      width: 210px;
-      height: 370px;
+      top: 54%;
+      width: 135px;
+      height: 205px;
       object-fit: cover;
-      border-radius: 28px;
-      box-shadow: 0 3px 30px #4e3f3f38;
+      border-radius: 18px;
+      box-shadow: 0 3px 20px #3d3d3d18;
       background: #f6f7fa;
       transition: transform 0.7s, opacity 0.7s;
       z-index: 2;
       opacity: 1;
     }
-    #rightSlideImg { right: 7vw; transform: translateY(-50%) translateX(0); }
-    #leftSlideImg  { left: 7vw;  transform: translateY(-50%) translateX(0);}
+    #rightSlideImg { right: 6vw; transform: translateY(-50%) translateX(0); }
+    #leftSlideImg  { left: 6vw;  transform: translateY(-50%) translateX(0);}
     .hero-slider-content {
       position: relative;
       z-index: 3;
       text-align: center;
-      min-width: 240px;
-      max-width: 420px;
-      margin: 0 24vw;
+      min-width: 185px;
+      max-width: 400px;
+      margin: 0 12vw;
+      background: rgba(255,255,255,0.97);
+      border-radius: 25px;
+      box-shadow: 0 2px 17px #a2ccc70f;
+      padding: 16px 2vw 13px 2vw;
     }
-    @media (max-width: 1200px) {
-      .hero-slider-img { width: 120px; height: 210px;}
-      .hero-slider-content { min-width: 120px; margin: 0 17vw;}
-      #rightSlideImg { right: 2vw; }
-      #leftSlideImg { left: 2vw; }
+    .hero-slider-content h2 {
+      font-size: 1.38em;
+      margin-bottom: 8px;
+      color: #0a8074;
+    }
+    .hero-slider-content p {
+      font-size: 1em;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    .hero-slider-content .btn {
+      font-size: 1em;
+      background: #11bfae;
+      color: #fff;
+      border: none;
+      padding: 11px 24px;
+      border-radius: 17px;
+      cursor: pointer;
+      box-shadow: 0 1px 7px #0a807433;
+      transition: background 0.2s;
+    }
+    .hero-slider-content .btn:hover { background: #0a8074; }
+
+    .services-preview h3 {
+      margin-bottom: 13px;
+      font-size: 1.13em;
+      color: #0a8074;
+      letter-spacing: 1px;
+      text-align: center;
+      margin-top: 14px;
+    }
+    .reviews-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 11px;
+      padding: 4px 0;
+      margin-bottom: 20px;
+    }
+    .review-card {
+      border-radius: 13px;
+      overflow: hidden;
+      box-shadow: 0 1px 10px #4441;
+      background: #fff;
+      transition: transform 0.18s, box-shadow 0.18s;
+      cursor: pointer;
+    }
+    .review-card img {
+      width: 100%;
+      height: 82px;
+      object-fit: cover;
+      border-radius: 12px;
+      transition: filter 0.2s;
+    }
+    .review-card:hover {
+      transform: scale(1.06);
+      box-shadow: 0 5px 18px #11bfae22;
+    }
+    .review-card img:hover {
+      filter: brightness(1.09) contrast(1.04);
+    }
+
+    .service {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      background: #fff;
+      box-shadow: 0 1px 8px #0001;
+      border-radius: 13px;
+      margin: 0 0 10px 0;
+      padding: 8px 7px;
+      max-width: 430px;
+      width: 98%;
+      margin-inline: auto;
+    }
+    .service img {
+      width: 47px;
+      height: 36px;
+      border-radius: 7px;
+      object-fit: cover;
+      margin-left: 0;
+    }
+    .service p {
+      flex: 1;
+      margin: 0;
+      font-size: 0.98em;
+      font-weight: 600;
+      color: #1b252b;
+    }
+
+    /* فوتر ثابت بأسفل الصفحة */
+    footer {
+      position: fixed;
+      right: 0; left: 0; bottom: 0;
+      width: 100vw;
+      background: linear-gradient(90deg,#11bfae14 20%,#0a80740d 80%);
+      z-index: 20;
+      box-shadow: 0 -2px 14px #0002;
+    }
+    footer p {
+      font-size: 1em;
+      color: #0a8074;
+      padding: 13px 0 6px 0;
+      text-align: center;
+      margin: 0;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    /* استجابة الشاشات الصغيرة */
+    @media (max-width: 900px) {
+      .logo-container img.logo-img { height: 48px; max-width: 82px;}
+      .hero-slider-img { width: 90px; height: 135px;}
+      .hero-slider-content { margin: 0 5vw; min-width: 115px; padding: 8px 2vw;}
+      .reviews-container { gap: 7px;}
+      .review-card img { height: 54px;}
     }
     @media (max-width: 700px) {
-      .hero-slider-relative { min-height: 170px;}
-      .hero-slider-img { width: 60px; height: 95px; }
-      .hero-slider-content { margin: 0 8vw; min-width: 90px;}
-      #rightSlideImg, #leftSlideImg { top: 54%;}
+      .container.header-flex { flex-direction: column; gap: 8px;}
+      nav ul { flex-wrap: wrap; gap: 3px;}
+      .hero-slider-relative { min-height: 80px;}
+      .hero-slider-img { width: 60px; height: 75px; }
+      .hero-slider-content { margin: 0 1vw; min-width: unset;}
+      .reviews-container { grid-template-columns: repeat(2, 1fr); }
+      .review-card img { height: 34px;}
+      .service img { width: 36px; height: 26px;}
+      .service { gap: 6px; padding: 6px 2px;}
+    }
+    @media (max-width: 440px) {
+      .reviews-container { grid-template-columns: 1fr;}
+      .review-card img { height: 20vw;}
+      .hero-slider-content { padding: 4px 1vw;}
+      footer p { font-size: 0.96em;}
     }
   </style>
 </head>
@@ -142,7 +311,7 @@
       <div class="hero-slider-content">
         <h2 data-aos="fade-down">نرحب بكم في مجمع فينكس الطبي</h2>
         <p data-aos="fade-up">رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
-        <a href="appointment.html" class="btn" data-aos="zoom-in" style="margin-top: 12px; font-size:1.18em;">احجز الآن</a>
+        <a href="appointment.html" class="btn" data-aos="zoom-in" style="margin-top: 12px;">احجز الآن</a>
       </div>
 
       <!-- صورة يسار -->
@@ -204,7 +373,7 @@
   </section>
 
   <footer data-aos="fade-up">
-    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+    <p>© 2025 جميع الحقوق محفوظة لدى مجمع فينكس الطبي</p>
   </footer>
 
   <!-- سكربت AOS للأنميشن -->
