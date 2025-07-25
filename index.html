@@ -113,6 +113,10 @@
       </div>
       <h1>   </h1>
       <nav>
+          <!-- زر البرغر (سيظهر فقط في الجوال) -->
+  <button class="nav-burger" onclick="toggleMenu()">
+    <i class="fas fa-bars"></i>
+  </button>
         <ul>
           <li><a href="index.html" class="active">الرئيسية</a></li>
           <li><a href="about.html">من نحن</a></li>
@@ -253,6 +257,23 @@
     }
     setInterval(nextSideImages, 3700);
   </script>
+  <script>
+  function toggleMenu() {
+    var navList = document.getElementById('mainNav');
+    navList.classList.toggle('show');
+  }
+  // يغلق القائمة إذا ضغط المستخدم خارجها
+  document.addEventListener('click', function(event){
+    var navList = document.getElementById('mainNav');
+    var burger = document.querySelector('.nav-burger');
+    if(navList && navList.classList.contains('show')){
+      if(!navList.contains(event.target) && !burger.contains(event.target)){
+        navList.classList.remove('show');
+      }
+    }
+  });
+</script>
+
 
 </body>
 </html>

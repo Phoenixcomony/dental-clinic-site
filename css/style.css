@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
 @import url('https://unpkg.com/aos@2.3.1/dist/aos.css');
@@ -471,6 +472,8 @@ footer {
   background-color: #ff5722;
 }
 
+
+
 .slot {
   padding: 12px;
   margin: 11px auto;
@@ -515,6 +518,9 @@ footer {
   background-color: #c13584;
 }
 
+
+
+
 .hero-slider-img {
   position: absolute;
   top: 50%;
@@ -528,6 +534,7 @@ footer {
   z-index: 2;
   opacity: 1;
 }
+
 
 /* ================== Responsive (الجوال) ================== */
 
@@ -590,114 +597,57 @@ footer {
   }
   /* اخفي خلفية البلور إذا سببت مشاكل على الجوال */
   .blur-bg-appointment { display: none !important;}
-  .logo-container {
-    position: static !important;
-    width: 100%;
-    display: flex !important;
-    justify-content: center !important;
-    margin: 0 0 14px 0 !important;
-  }
-  header .container {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    padding: 7px 3vw !important;
-  }
-  nav ul {
-    flex-direction: column !important;
-    gap: 6px !important;
-    width: 100% !important;
-    margin: 0 auto !important;
-  }
-  nav ul li {
-    width: 100% !important;
-    text-align: center !important;
-    margin: 0 0 4px 0 !important;
-  }
-  nav ul li a {
-    font-size: 1.08em !important;
-    padding: 11px 0 !important;
-    display: block !important;
-    border-radius: 22px !important;
-  }
-  .hero {
-    height: 44vh !important;
-    min-height: 190px !important;
-    padding: 9vw 2vw 2vw 2vw !important;
-    border-radius: 22px !important;
-    background-size: cover !important;
-  }
-  .hero h2 { font-size: 1.34em !important;}
-  .hero p { font-size: 0.98em !important; max-width: 92vw !important;}
-  .btn {
-    padding: 9px 18vw !important;
-    font-size: 1em !important;
-    border-radius: 19px !important;
-  }
-  .services-preview {
-    padding: 23px 1vw !important;
-  }
-  .services-preview .service {
-    width: 98vw !important;
-    max-width: 330px !important;
-    margin: 7px auto !important;
-    padding: 8px !important;
-    font-size: 0.98em !important;
-  }
-  .service img {
-    height: 110px !important;
-    object-fit: cover !important;
-  }
-  .customer-reviews {
-    padding: 27px 2vw !important;
-  }
-  .reviews-container {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 7px !important;
-  }
-  .review-card {
-    max-width: 97vw !important;
-    margin: 0 auto !important;
-    padding: 1px !important;
-  }
-  .review-card img {
-    height: 95px !important;
-    object-fit: cover !important;
-  }
-  section form {
-    max-width: 99vw !important;
-    padding: 13px 4vw !important;
-  }
-  .contact-info {
-    max-width: 99vw !important;
-    padding: 12px 3vw !important;
-    font-size: 0.99em !important;
-  }
-  .map-section {
-    max-width: 99vw !important;
-    padding: 4vw !important;
-  }
-  .slot {
-    max-width: 98vw !important;
-    font-size: 0.98em !important;
-  }
-  footer {
-    font-size: 0.97em !important;
-    padding: 8px 0 !important;
-  }
-  .whatsapp-float, .instagram-float {
-    bottom: 20px !important;
-    left: 12px !important;
-    padding: 7px !important;
-    font-size: 22px !important;
-  }
 }
 
-@media (max-width: 450px) {
-  .hero h2 { font-size: 1em !important;}
-  .logo-img { max-width: 70px !important;}
-  .services-preview h3 { font-size: 1.17em !important;}
-  .service img, .review-card img { height: 65px !important;}
-  .main-card, .review-card { padding: 2px !important;}
-  .slot { font-size: 0.93em !important;}
+/* البرغر يظهر فقط في الشاشات الصغيرة */
+.nav-burger {
+  display: none;
+}
+@media (max-width: 820px) {
+  .nav-burger {
+    display: block;
+    font-size: 2em;
+    background: none;
+    border: none;
+    color: #2a2a2a;
+    cursor: pointer;
+    z-index: 1100;
+    margin-right: 10px;
+  }
+  nav ul {
+    display: none !important; /* تخفي القائمة الأساسية */
+    position: absolute;
+    top: 65px;
+    right: 10px;
+    width: 88vw;
+    background: #fff;
+    box-shadow: 0 10px 35px #0001;
+    border-radius: 20px;
+    flex-direction: column !important;
+    padding: 18px 0;
+    z-index: 1001;
+    transition: all .25s cubic-bezier(.72,.01,.42,1);
+  }
+  nav ul.show {
+    display: flex !important; /* تظهر القائمة عند الضغط */
+  }
+  nav ul li {
+    width: 100%;
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 5px 0 !important;
+  }
+  nav ul li a {
+    padding: 12px 0 !important;
+    font-size: 1.1em !important;
+    color: #087c72 !important;
+    border-radius: 18px !important;
+    background: none !important;
+    margin: 0 !important;
+  }
+  .social-icons {
+    justify-content: center !important;
+    margin-top: 10px;
+    gap: 10px !important;
+  }
 }
