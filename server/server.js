@@ -3,29 +3,40 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
-const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// بيانات جهازك من mywhats.cloud
+// بيانات mywhats.cloud
 const INSTANCE_ID = '660F18AC0A49E';
 const ACCESS_TOKEN = '65bbe08452619';
 
 // بيانات Google Sheet
 const SPREADSHEET_ID = '1c3XE-74QYs-2qe6U1IwJbdfkHvy5On77NnPkE6eN5tA';
-const SHEET_NAME = 'الورقة1'; // اسم الورقة بالضبط كما في جوجل شيت
-const CREDENTIALS_PATH = path.join(__dirname, 'google-credentials.json');
+const SHEET_NAME = 'الورقة1'; // اسم الورقة بالضبط
 
-const otpStore = {}; // تخزين رموز OTP مؤقتًا
+// 1- قراءة google credentials من متغير البيئة
+let googleCredentials = null;
+try {
+  if (process.env.GOOGLE_CREDENTIALS) {
+    googleCredentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    console.log("✔️ تم تحميل Google Credentials من متغير البيئة.");
+  } else {
+    throw new Error("GOOGLE_CREDENTIALS environment variable not set!");
+  }
+} catch (err) {
+  console.error("❌ خطأ في قراءة google credentials:", err);
+}
 
-// إعداد Google Sheets API
+// 2- إعداد Google Sheets API
 const auth = new google.auth.GoogleAuth({
-  keyFile: CREDENTIALS_PATH,
+  credentials: googleCredentials,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 const sheets = google.sheets('v4');
+
+const otpStore = {}; // تخزين رموز OTP مؤقتًا
 
 // إرسال رمز التحقق عبر واتساب
 app.post('/send-otp', async (req, res) => {
@@ -48,18 +59,35 @@ app.post('/send-otp', async (req, res) => {
 
 // تحديث بيانات الحجز في Google Sheet
 async function updateSheet({ service, serviceType, date, time, name, phone }) {
-  const client = await auth.getClient();
+  console.log("بدأ تحديث الشيت...");
+  let client;
+  try {
+    client = await auth.getClient();
+    console.log("تم الحصول على العميل بنجاح");
+  } catch (err) {
+    console.error("فشل الحصول على Google API Client:", err);
+    throw err;
+  }
 
-  // جلب كل الصفوف
-  const getRows = await sheets.spreadsheets.values.get({
-    auth: client,
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A1:Z`,
-  });
+  let getRows;
+  try {
+    getRows = await sheets.spreadsheets.values.get({
+      auth: client,
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A1:Z`,
+    });
+    console.log("تم جلب الصفوف من الشيت");
+  } catch (err) {
+    console.error("فشل جلب الصفوف من الشيت:", err);
+    throw err;
+  }
+
   const rows = getRows.data.values;
-  if (!rows || rows.length === 0) return;
+  if (!rows || rows.length === 0) {
+    console.error("لا يوجد بيانات في الشيت");
+    throw new Error("لا يوجد بيانات في الشيت");
+  }
 
-  // الأعمدة: الخدمة | نوع الخدمة | التاريخ | الوقت | الحالة | الاسم | رقم
   const idx = {
     service: 0,
     serviceType: 1,
@@ -67,7 +95,7 @@ async function updateSheet({ service, serviceType, date, time, name, phone }) {
     time: 3,
     status: 4,
     name: 5,
-    phone: 6,
+    phone: 6, // عمود رقم
   };
 
   let rowIndex = -1;
@@ -79,7 +107,7 @@ async function updateSheet({ service, serviceType, date, time, name, phone }) {
       row[idx.date] === date &&
       row[idx.time] === time
     ) {
-      rowIndex = i + 1; // الصفوف تبدأ من 1 في جوجل شيت
+      rowIndex = i + 1;
       break;
     }
   }
@@ -93,16 +121,22 @@ async function updateSheet({ service, serviceType, date, time, name, phone }) {
       name,
       phone
     ];
-    await sheets.spreadsheets.values.update({
-      auth: client,
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A${rowIndex}:G${rowIndex}`,
-      valueInputOption: "USER_ENTERED",
-      resource: { values: [newRow] },
-    });
-    console.log("تم تحديث الحجز في الشيت بنجاح");
+    try {
+      await sheets.spreadsheets.values.update({
+        auth: client,
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A${rowIndex}:G${rowIndex}`,
+        valueInputOption: "USER_ENTERED",
+        resource: { values: [newRow] },
+      });
+      console.log("تم تحديث الحجز في الشيت بنجاح");
+    } catch (err) {
+      console.error("فشل تحديث بيانات الشيت:", err);
+      throw err;
+    }
   } else {
     console.log("لم يتم العثور على الصف لتحديثه");
+    throw new Error("لم يتم العثور على الصف لتحديثه");
   }
 }
 
@@ -120,11 +154,11 @@ app.post('/verify-otp', async (req, res) => {
 
     try {
       await axios.get(confirmUrl);
+      // تحديث بيانات الشيت بعد نجاح الحجز
       await updateSheet({ service, serviceType, date, time, name, phone });
       res.json({ success: true });
     } catch (err) {
-      // هنا نطبع تفاصيل الخطأ بالكامل في لوج Render
-      console.error("تفاصيل الخطأ أثناء تحديث الشيت أو إرسال الرسالة:", err, err.response && err.response.data);
+      console.error("خطأ أثناء إرسال رسالة التأكيد أو تحديث الشيت:", err);
       res.status(500).json({ success: false, message: "فشل إرسال رسالة التأكيد أو تحديث الشيت", error: err.message });
     }
   } else {
@@ -132,6 +166,8 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
-app.listen(3000, '0.0.0.0', () => {
-  console.log('Server running...');
+// استمع على كل الشبكات (مهم لـ Render)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
