@@ -598,3 +598,131 @@ footer {
   /* اخفي خلفية البلور إذا سببت مشاكل على الجوال */
   .blur-bg-appointment { display: none !important;}
 }
+
+
+@media (max-width: 768px) {
+  /* قائمة التنقل (Navbar) */
+  nav ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: flex-start;
+    padding: 0;
+    background: #fff;
+    box-shadow: 0 2px 8px #00000016;
+    border-radius: 16px;
+    position: relative;
+    z-index: 999;
+  }
+  nav ul li {
+    width: 100%;
+    margin: 0 0 6px 0 !important;
+    padding: 2px 8px;
+    text-align: right;
+  }
+  nav ul li.social-icons {
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+  .logo-container img.logo-img {
+    width: 100px !important;
+    max-width: 40vw;
+    height: auto;
+  }
+
+  /* السلايدر الرئيسي والصور */
+  .hero-slider-relative {
+    min-height: 120px !important;
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  .hero-slider-img {
+    width: 54px !important;
+    height: 80px !important;
+    border-radius: 14px !important;
+  }
+  .hero-slider-content {
+    min-width: unset !important;
+    max-width: 98vw !important;
+    margin: 0 1vw !important;
+    padding: 6px 2vw !important;
+    font-size: 1em;
+  }
+  .hero-slider-content h2 {
+    font-size: 1.1em !important;
+    margin: 0 0 6px 0 !important;
+  }
+  .hero-slider-content p {
+    font-size: 0.98em !important;
+    margin-bottom: 5px !important;
+  }
+  .hero-slider-content .btn {
+    font-size: 1em !important;
+    padding: 9px 16px !important;
+  }
+
+  /* قسم الباقات (reviews-container) */
+  .reviews-container {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 0 2vw !important;
+  }
+  .review-card {
+    flex: 0 0 45% !important;
+    margin-bottom: 8px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 8px #00000012;
+    background: #fff;
+  }
+  .review-card img {
+    width: 100% !important;
+    height: 70px !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+  }
+
+  /* قسم الجديد */
+  .service {
+    width: 97vw !important;
+    max-width: 420px;
+    margin: 0 auto 10px auto !important;
+    text-align: center !important;
+    background: #fff;
+    border-radius: 16px;
+    padding: 8px 4px 10px 4px;
+    box-shadow: 0 2px 7px #0000000c;
+  }
+  .service img {
+    width: 95vw !important;
+    max-width: 400px;
+    height: 70px !important;
+    object-fit: cover !important;
+    border-radius: 10px !important;
+    margin-bottom: 3px !important;
+  }
+  .service p {
+    font-size: 0.93em;
+    margin: 0;
+  }
+
+  /* الفوتر */
+  footer p {
+    font-size: 0.9em !important;
+    padding: 8px 2vw !important;
+    text-align: center;
+  }
+}
+
+/* تحسين للهوامش في الشاشات الصغيرة جداً */
+@media (max-width: 440px) {
+  .hero-slider-content {
+    padding: 4px 1vw !important;
+    font-size: 0.98em !important;
+  }
+  .review-card {
+    flex: 0 0 97% !important;
+  }
+}
