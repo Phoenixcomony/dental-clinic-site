@@ -6,7 +6,9 @@
   <title>مجمع فينكس الطبي</title>
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
   <style>
+    /* أبقيت الخلفية كما هي */
     .blur-bg-home {
       position: fixed;
       top: 0; right: 0; bottom: 0; left: 0;
@@ -20,14 +22,79 @@
       position: relative;
       z-index: 1;
     }
-    .social-icons {
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(to bottom, #ffffff00, #ffffff);
+      color: #0c010a;
+      line-height: 1.8;
+      scroll-behavior: smooth;
+      margin: 0;
+    }
+    header {
+      background: linear-gradient(to right, #f0f4f7, #80724ed2);
+      padding: 18px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      position: sticky;
+      top: 0;
+      z-index: 9;
+    }
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .logo-container img {
+      width: 120px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      margin: 0;
+      padding: 0;
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-right: 12px;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 8px 17px;
+      font-weight: 700;
+      border-radius: 899px;
+      font-size: 1.06em;
+      transition: 0.3s;
+      display: inline-block;
+      background: transparent;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 0 8px;
     }
     .social-icons .social-icon {
-      font-size: 1.3em;
+      font-size: 1.2em;
       padding: 0 2px;
       border-radius: 50%;
       display: inline-flex;
@@ -35,113 +102,166 @@
       justify-content: center;
       width: 33px;
       height: 33px;
-      background: #000000;
+      background: #000;
       transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #000000b6;
-      margin-left: 2px;
+      box-shadow: 0 1px 6px #0000004d;
       text-decoration: none;
     }
     .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
     .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
-    .social-icon.snap  { color: #ffffff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon.snap  { color: #fff; border: 1.5px solid #000; background: #181818; }
     .social-icon:hover {
-      background: #000001;
-      box-shadow: 0 2px 14px #000000;
-      opacity: 0.95;
+      background: #111;
+      opacity: 0.93;
     }
-    /* القائمة العلوية أفقية في كل الشاشات */
-    nav ul {
-      list-style: none;
-      display: flex !important;
-      flex-direction: row !important;
-      gap: 12px;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      padding: 0 5px;
-      background: transparent;
-    }
-    nav ul li {
-      display: flex;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-    }
-    nav ul li a {
-      color: #000000;
-      text-decoration: none;
-      padding: 8px 16px;
-      font-weight: 700;
-      border-radius: 20px;
-      transition: 0.3s;
-      font-size: 1em;
+    /* البانر */
+    .hero {
       background: none;
+      padding: 36px 10px 25px 10px;
+      text-align: center;
+      position: relative;
     }
-    nav ul li a:hover,
-    nav ul li a.active {
-      background-color: #fff;
-      color: #00487c;
-      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.09);
+    .hero h2 {
+      font-size: 2.1em;
+      color: #fff;
+      margin-bottom: 12px;
+      background: rgba(0,0,0,0.31);
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 15px;
     }
-    @media (max-width: 900px) {
-      .header-flex, header .container {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 7px;
-      }
-      nav ul {
-        gap: 5px;
-        padding: 0 1vw;
-        font-size: 0.95em;
-      }
-      .logo-container {
-        text-align: center !important;
-      }
-      .logo-img {
-        width: 95px !important;
-        margin-bottom: 8px !important;
-      }
-      .social-icons .social-icon {
-        width: 27px;
-        height: 27px;
-        font-size: 1em;
-      }
+    .hero p {
+      font-size: 1.07em;
+      color: #fff;
+      margin-bottom: 17px;
+      background: rgba(0,0,0,0.25);
+      display: inline-block;
+      padding: 5px 18px;
+      border-radius: 15px;
     }
-    @media (max-width: 570px) {
-      nav ul {
-        gap: 2.7vw;
-        padding: 0 0.5vw;
-      }
-      .logo-img {
-        width: 61px !important;
-      }
-      nav ul li a {
-        padding: 5px 8px;
-        font-size: 0.98em;
-      }
-      .social-icons .social-icon {
-        width: 21px;
-        height: 21px;
-        font-size: 0.98em;
-      }
+    .btn {
+      background-color: #f76d3b;
+      color: #000;
+      padding: 9px 24px;
+      border: none;
+      border-radius: 30px;
+      font-size: 1.12em;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 6px;
+      transition: background 0.3s;
+      box-shadow: 0 4px 10px rgba(39, 16, 7, 0.09);
+      display: inline-block;
     }
-    .logo-container {
+    .btn:hover {
+      background-color: #fffcfa;
+    }
+    /* إعلان متحرك */
+    .main-slider-banner {
+      margin: 16px auto 0 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      max-width: 540px;
+      min-height: 150px;
+      border-radius: 15px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 15px #f0b88e55;
+    }
+    .main-slider-banner img {
+      width: 100%;
+      max-height: 170px;
+      object-fit: cover;
+      border-radius: 15px;
+      display: block;
+      transition: opacity 0.8s;
+    }
+    /* أقسام الصفحة */
+    .services-preview, .customer-reviews {
+      background-color: #000000b2;
+      padding: 55px 16px;
       text-align: center;
     }
-    .logo-img {
-      width: 120px;
-      height: auto;
-      object-fit: contain;
-      display: block;
-      margin: 0 auto;
+    .services-preview h3, .customer-reviews h2 {
+      color: #fff;
+      font-size: 2em;
+      margin-bottom: 24px;
+    }
+    /* صور الباقات */
+    .reviews-container, .services-preview .services-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+    .review-card, .service {
+      background: rgb(205, 190, 159); /* اللون البني نفس كودك */
+      border-radius: 14px;
+      box-shadow: 0 2px 8px #0001;
+      margin: 7px 5px;
+      padding: 7px 5px 14px 5px;
+      max-width: 220px;
+      min-width: 120px;
+      flex: 1 1 150px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 0.2s;
+    }
+    .review-card img, .service img {
+      width: 95%;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      object-fit: cover;
+      max-height: 140px;
+      min-height: 60px;
+    }
+    .service p, .review-card p {
+      color: #000;
+      font-size: 0.97em;
+      margin-top: 0;
+      text-align: center;
+      font-weight: 600;
+    }
+    /* Responsive */
+    @media (max-width: 800px) {
+      .header-flex { flex-direction: column; gap: 9px; }
+      nav ul { gap: 3px; }
+      .logo-container { margin-bottom: 5px; }
+      .main-slider-banner { max-width: 97vw; }
+    }
+    @media (max-width: 600px) {
+      .header-flex { flex-direction: column; padding: 0 5px; }
+      nav ul {
+        gap: 1vw !important;
+        flex-wrap: wrap !important;
+        padding: 2px 0 !important;
+      }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.8em !important;
+        padding: 4px 3px !important;
+      }
+      .social-icons { gap: 3px !important; }
+      .hero h2 { font-size: 1.04em !important; }
+      .btn { font-size: 0.85em !important; padding: 5px 11px !important; }
+      .services-preview h3, .customer-reviews h2 { font-size: 1em; }
+      .review-card, .service { max-width: 99vw; min-width: 43vw; padding: 5px 2px 8px 2px; }
+      .review-card img, .service img { max-height: 80px; min-height: 30px; }
+      .main-slider-banner { min-height: 65px; max-height: 97vw; }
+    }
+    footer {
+      background-color: #dac6a28e;
+      color: #000;
+      text-align: center;
+      padding: 10px 0;
+      font-weight: 600;
     }
   </style>
 </head>
 <body>
-
   <div class="blur-bg-home"></div>
-
-  <!-- الهيدر -->
   <header>
     <div class="container header-flex">
       <div class="logo-container">
@@ -163,31 +283,34 @@
       </nav>
     </div>
   </header>
-
-  <!-- الهيرو وصور السلايدر المتغير -->
-  <section class="hero fade-in" data-aos="fade-in" style="position:relative;overflow:hidden;padding-top:35px;">
-    <div class="hero-slider-relative">
-      <!-- صورة يمين -->
-      <img id="rightSlideImg"
-        src="images/1.jpg"
-        class="hero-slider-img"
-        alt="اعلان يمين">
-
-      <!-- النص وزر احجز الآن -->
-      <div class="hero-slider-content">
-        <h2 data-aos="fade-down">نرحب بكم في مجمع فينكس الطبي</h2>
-        <p data-aos="fade-up">رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
-        <a href="appointment.html" class="btn" data-aos="zoom-in" style="margin-top: 12px; font-size:1.18em;">احجز الآن</a>
-      </div>
-
-      <!-- صورة يسار -->
-      <img id="leftSlideImg"
-        src="images/2.jpg"
-        class="hero-slider-img"
-        alt="اعلان يسار">
-    </div>
+  <!-- الهيرو -->
+  <section class="hero fade-in">
+    <h2>نرحب بكم في مجمع فينكس الطبي</h2>
+    <p>رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
+    <a href="appointment.html" class="btn">احجز الآن</a>
   </section>
-
+  <!-- إعلان متحرك أسفل زر احجز الآن -->
+  <div class="main-slider-banner">
+    <img id="mainBannerImg" src="images/1.jpg" alt="إعلان متغير">
+  </div>
+  <script>
+    const bannerImgs = [
+      "images/كوب القهوه.jpg",
+      "images/علاج العصب.jpg",
+      "images/ابتسامه فينكس.jpg",
+      "images/المركز الاول فينكس.jpg"
+    ];
+    let bannerIndex = 0;
+    const bannerImg = document.getElementById('mainBannerImg');
+    setInterval(() => {
+      bannerIndex = (bannerIndex + 1) % bannerImgs.length;
+      bannerImg.style.opacity = "0";
+      setTimeout(() => {
+        bannerImg.src = bannerImgs[bannerIndex];
+        bannerImg.style.opacity = "1";
+      }, 400);
+    }, 3200);
+  </script>
   <!-- قسم الباقات -->
   <section class="services-preview" data-aos="fade-up">
     <h3>باقاتنا المميزة</h3>
@@ -208,86 +331,43 @@
       <div class="review-card" data-aos="zoom-in"><img src="images/9.jpg" alt="باقة 9" /></div>
     </div>
   </section>
-
   <!-- ما الجديد -->
   <section class="services-preview" data-aos="fade-up">
     <h3>ما الجديد</h3>
-    <div class="service" data-aos="zoom-in">
-      <img src="images/new image pro.jpg" alt="ما الجديد 1" />
-      <p>جهاز سبلندر اكس الأمريكي</p>
-    </div>
-    <div class="service" data-aos="zoom-in">
-      <img src="images/new image pro2.jpg" alt="ما الجديد 2" />
-      <p>جهاز سبلندر اكس الأمريكي</p>
-    </div>
-    <div class="service" data-aos="zoom-in">
-      <img src="images/البروفايلو.jpg" alt="ما الجديد 1" />
-      <p>علاج البروفايلو</p>
-    </div>
-    <div class="service" data-aos="zoom-in">
-      <img src="images/ابره السالمون.jpg" alt="ما الجديد 1" />
-      <p>ابرة السالمون</p>
-    </div>
-    <div class="service" data-aos="zoom-in">
-      <img src="images/فراكشنال ليزر .jpg" alt="ما الجديد 1" />
-      <p>فراكشنال ليزر</p>
-    </div>
-     <div class="service" data-aos="zoom-in">
-      <img src="images/الحشوه التجميليه.jpg" alt="ما الجديد 1" />
-      <p> الحشوة التجميلية</p>
+    <div class="services-row">
+      <div class="service" data-aos="zoom-in">
+        <img src="images/new image pro.jpg" alt="ما الجديد 1" />
+        <p>جهاز سبلندر اكس الأمريكي</p>
+      </div>
+      <div class="service" data-aos="zoom-in">
+        <img src="images/new image pro2.jpg" alt="ما الجديد 2" />
+        <p>جهاز سبلندر اكس الأمريكي</p>
+      </div>
+      <div class="service" data-aos="zoom-in">
+        <img src="images/البروفايلو.jpg" alt="ما الجديد 1" />
+        <p>علاج البروفايلو</p>
+      </div>
+      <div class="service" data-aos="zoom-in">
+        <img src="images/ابره السالمون.jpg" alt="ما الجديد 1" />
+        <p>ابرة السالمون</p>
+      </div>
+      <div class="service" data-aos="zoom-in">
+        <img src="images/فراكشنال ليزر .jpg" alt="ما الجديد 1" />
+        <p>فراكشنال ليزر</p>
+      </div>
+      <div class="service" data-aos="zoom-in">
+        <img src="images/الحشوه التجميليه.jpg" alt="ما الجديد 1" />
+        <p>الحشوة التجميلية</p>
+      </div>
     </div>
   </section>
-
-  <footer data-aos="fade-up">
+  <footer>
     <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
   </footer>
-
-  <!-- سكربت AOS للأنميشن -->
+  <!-- AOS Scripts -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
-    AOS.init({ duration: 1000, once: true });
-
-    // سلايدر جانبي متغير (يمين ويسار) مع حركة خارج الشاشة
-    const rightSlideImgs = [
-      'images/كوب القهوه.jpg',
-      'images/علاج العصب.jpg',
-      'images/ابتسامه فينكس.jpg',
-      'images/المركز الاول فينكس.jpg'
-    ];
-    const leftSlideImgs = [
-      'images/تمارا.jpg',
-      'images/صحه الاسنان.jpg',
-      'images/بطاقه المناسبات.jpg',
-      'images/حب الشباب.jpg',
-      'images/تابعو فينكس.jpg'
-    ];
-    let rightIndex = 0, leftIndex = 0;
-    const rightImg = document.getElementById('rightSlideImg');
-    const leftImg = document.getElementById('leftSlideImg');
-
-    function nextSideImages() {
-      // اسحب الصور خارج الشاشة
-      rightImg.style.transform = "translateY(-50%) translateX(190%)";
-      rightImg.style.opacity = "0";
-      leftImg.style.transform = "translateY(-50%) translateX(-190%)";
-      leftImg.style.opacity = "0";
-
-      setTimeout(() => {
-        // غير الصورة
-        rightIndex = (rightIndex + 1) % rightSlideImgs.length;
-        leftIndex = (leftIndex + 1) % leftSlideImgs.length;
-        rightImg.src = rightSlideImgs[rightIndex];
-        leftImg.src = leftSlideImgs[leftIndex];
-
-        // أرجع الصور من الخارج
-        rightImg.style.transform = "translateY(-50%) translateX(0)";
-        rightImg.style.opacity = "1";
-        leftImg.style.transform = "translateY(-50%) translateX(0)";
-        leftImg.style.opacity = "1";
-      }, 750);
-    }
-    setInterval(nextSideImages, 3700);
+    AOS.init({ duration: 1000 });
   </script>
-
 </body>
 </html>

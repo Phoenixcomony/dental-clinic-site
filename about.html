@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>مجمع فينكس الطبي - من نحن</title>
   <link rel="stylesheet" href="css/style.css" />
-  <!-- AOS لتحريك العناصر -->
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     .blur-bg-about {
       position: fixed;
@@ -17,70 +17,179 @@
       z-index: 0;
       pointer-events: none;
     }
-    body > *:not(.blur-bg-about) {
-      position: relative;
-      z-index: 1;
+    body > *:not(.blur-bg-about) { position: relative; z-index: 1; }
+    header {
+      background: linear-gradient(to right, #f0f4f7, #80724ed2);
+      padding: 18px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      position: sticky;
+      top: 0;
+      z-index: 9;
     }
-    /* أيقونات السوشيال داخل شريط القوائم */
-    .social-icons {
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .logo-container img {
+      width: 120px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center;
+      align-items: center;
+      gap: 11px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      margin: 0;
+      padding: 0;
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-right: 24px;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 8px 17px;
+      font-weight: 700;
+      border-radius: 899px;
+      font-size: 1.05em;
+      transition: 0.3s;
+      display: inline-block;
+      background: transparent;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 0 8px;
     }
     .social-icons .social-icon {
-      font-size: 1.4em;
+      font-size: 1.17em;
       padding: 0 2px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 38px;
-      height: 38px;
-      background: #000000;
+      width: 33px;
+      height: 33px;
+      background: #000;
       transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #000000b6;
-      margin-left: 3px;
+      box-shadow: 0 1px 6px #0000004d;
       text-decoration: none;
     }
     .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
     .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
-    .social-icon.snap  { color: #ffffff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon.snap  { color: #fff; border: 1.5px solid #000; background: #181818; }
     .social-icon:hover {
-      background: #000001;
-      box-shadow: 0 2px 14px #000000;
-      opacity: 0.95;
+      background: #111;
+      opacity: 0.93;
     }
-    @media (max-width: 768px) {
-      .social-icons {
-        gap: 6px;
-        margin-right: 4px;
+    .hero {
+      background: none;
+      padding: 36px 10px 23px 10px;
+      text-align: center;
+      position: relative;
+    }
+    .hero h2 {
+      font-size: 1.6em;  /* أصغر بكثير للجوال والكمبيوتر */
+      color: #fff;
+      margin-bottom: 12px;
+      background: rgba(0,0,0,0.32);
+      display: inline-block;
+      padding: 4px 13px;
+      border-radius: 14px;
+      font-weight: bold;
+      letter-spacing: .5px;
+      line-height: 1.3;
+    }
+    .hero p {
+      font-size: 0.99em;
+      color: #fff;
+      margin-bottom: 14px;
+      background: rgba(0,0,0,0.22);
+      display: inline-block;
+      padding: 4px 11px;
+      border-radius: 13px;
+    }
+    .btn {
+      background-color: #f76d3b;
+      color: #000;
+      padding: 5px 16px;
+      border: none;
+      border-radius: 30px;
+      font-size: 0.98em;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 6px;
+      transition: background 0.3s;
+      box-shadow: 0 4px 10px rgba(39, 16, 7, 0.09);
+      display: inline-block;
+    }
+    .btn:hover { background-color: #fffcfa; }
+
+    /* Responsive */
+    @media (max-width: 650px) {
+      .header-flex { flex-direction: column; gap: 8px; }
+      nav ul {
+        gap: 1vw !important;
+        flex-wrap: wrap !important;
+        padding: 2px 0 !important;
       }
-      .social-icons .social-icon { width: 32px; height: 32px; font-size: 1.05em;}
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.78em !important;
+        padding: 4px 2px !important;
+      }
+      .social-icons { gap: 2px !important; }
+      .hero h2 {
+        font-size: 1.16em !important;
+        padding: 4px 7px !important;
+        border-radius: 12px !important;
+      }
+      .hero p {
+        font-size: 0.88em !important;
+        padding: 3px 7px !important;
+        border-radius: 10px !important;
+      }
+      .btn {
+        font-size: 0.84em !important;
+        padding: 4px 13px !important;
+        border-radius: 18px !important;
+      }
     }
   </style>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-</head>
-<body>
-
-  <!-- خلفية باهتة تغطي الصفحة -->
-  <div class="blur-bg-about"></div>
-
-  <!-- الهيدر -->
+ </head>
+ <body>
+   <div class="blur-bg-about"></div>
   <header>
     <div class="container header-flex">
       <div class="logo-container">
         <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img" />
       </div>
-        <h1>   </h1>
-      <nav>
+       <nav>
         <ul>
           <li><a href="index.html">الرئيسية</a></li>
           <li><a href="about.html" class="active">من نحن</a></li>
           <li><a href="services.html">الخدمات</a></li>
           <li><a href="appointment.html">احجز موعد</a></li>
-          <li><a href="contact.html">اتصل بنا</a></li>
-          <!-- أيقونات السوشيال -->
+           <li><a href="contact.html">اتصل بنا</a></li>
           <li class="social-icons">
             <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
             <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>

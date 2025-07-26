@@ -20,26 +20,74 @@
       position: relative;
       z-index: 1;
     }
-    /* أيقونات السوشيال داخل القوائم */
-    .social-icons {
+    /* القوائم الرئيسية */
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 18px;
+    }
+    .logo-container img {
+      width: 105px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      margin: 0;
+      padding: 0;
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-right: 22px;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 7px 16px;
+      font-weight: 700;
+      border-radius: 799px;
+      font-size: 1em;
+      transition: 0.3s;
+      display: inline-block;
+      background: transparent;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 0 8px;
     }
     .social-icons .social-icon {
-      font-size: 1.3em;
+      font-size: 1.18em;
       padding: 0 2px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 36px;
-      height: 36px;
+      width: 31px;
+      height: 31px;
       background: #000000;
       transition: background 0.2s, box-shadow 0.2s;
       box-shadow: 0 1px 6px #000000b6;
-      margin-left: 2.5px;
       text-decoration: none;
     }
     .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
@@ -47,15 +95,116 @@
     .social-icon.snap  { color: #fff; border: 1.5px solid #000000; background: #181818; }
     .social-icon:hover {
       background: #111;
-      box-shadow: 0 2px 14px #000000;
-      opacity: 0.96;
+      opacity: 0.95;
     }
     @media (max-width: 768px) {
-      .social-icons {
-        gap: 6px;
-        margin-right: 4px;
+      .header-flex { flex-direction: column; gap: 9px; padding: 0 4px;}
+      nav ul { gap: 1vw !important; flex-wrap: wrap !important; }
+      .logo-container { margin-bottom: 5px; }
+      .social-icons { gap: 5px !important; }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.81em !important;
+        padding: 4px 6px !important;
       }
-      .social-icons .social-icon { width: 29px; height: 29px; font-size: 1em;}
+    }
+    /* محتوى التواصل */
+    .contact-info {
+      background: #fffefad2;
+      max-width: 890px;
+      margin: 44px auto 28px auto;
+      border-radius: 16px;
+      box-shadow: 0 2px 14px #dac38e3a;
+      padding: 36px 17px 30px 17px;
+    }
+    .contact-info h2 {
+      color: #e38102;
+      font-size: 1.26em;
+      margin-bottom: 12px;
+      text-align: right;
+      font-weight: bold;
+    }
+    .contact-info p {
+      font-size: 1.05em;
+      color: #2e2923;
+      margin-bottom: 7px;
+      margin-right: 6px;
+      line-height: 2.1;
+      text-align: right;
+    }
+    /* جدول ساعات العمل */
+    .hours-table-wrap {
+      overflow-x: auto;
+      margin: 18px auto 7px auto;
+      border-radius: 11px;
+      box-shadow: 0 2px 14px #ffe5c620;
+      background: #fffefaee;
+      padding: 8px 2px;
+    }
+    .hours-table {
+      width: 100%;
+      min-width: 370px;
+      border-collapse: collapse;
+      background: transparent;
+      text-align: center;
+      font-size: 1.04em;
+    }
+    .hours-table th, .hours-table td {
+      border: 1px solid #f8d9a2;
+      padding: 9px 6px;
+    }
+    .hours-table th {
+      background: #fff3e6;
+      color: #c57804;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+    .hours-table td {
+      background: #fff;
+      color: #222;
+    }
+    .hours-table td[colspan] {
+      background: #fffbe9;
+      color: #bb7d0a;
+      font-weight: bold;
+      font-size: .98em;
+    }
+    @media (max-width:600px){
+      .contact-info { padding: 12px 3px 15px 3px; }
+      .hours-table th, .hours-table td { font-size: 0.87em; padding: 5px 2px; }
+      .contact-info h2 { font-size: 1em; }
+    }
+    /* الخريطة */
+    .map-section {
+      margin: 45px auto 26px auto;
+      max-width: 820px;
+      background: #fffefaee;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px #dac38e2a;
+      padding: 20px 10px;
+      text-align: center;
+    }
+    .map-section h2 {
+      color: #e38102;
+      font-size: 1.16em;
+      margin-bottom: 13px;
+      font-weight: bold;
+      text-align: right;
+    }
+    .google-map {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 14px #dac38e4a;
+    }
+    /* الفوتر */
+    footer {
+      background-color: #dac6a28e;
+      color: #000;
+      text-align: center;
+      padding: 10px 0;
+      font-weight: 600;
+      margin-top: 35px;
     }
   </style>
 </head>
@@ -69,7 +218,6 @@
       <div class="logo-container">
         <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img">
       </div>
-      <h1> </h1>
       <nav>
         <ul>
           <li><a href="index.html">الرئيسية</a></li>
@@ -94,59 +242,87 @@
     <p><strong>الجوال 2:</strong> 0531422555</p>
     <p><strong>الهاتف:</strong> 0116227222</p>
     <p><strong>البريد الإلكتروني:</strong> ph.clinic@outlook.sa</p>
-    <p><strong>ساعات العمل:</strong> عيادة الأسنان 1 (د. عبير):
-من السبت إلى الخميس
-9:00 ص – 12:00 م
-4:00 م – 9:00 م
 
-عيادة الأسنان 2 (د. ريان):
-من السبت إلى الخميس
-8:00 ص – 11:00 ص
-4:00 م – 9:00 م
-
-عيادة الأسنان 3 (د. معاذ):
-من السبت إلى الخميس
-12:00 م – 8:00 م
-
-عيادة الأسنان 4 (د. رونالدو):
-من السبت إلى الخميس
-2:00 م – 10:00 م
-
-عيادة الجلدية والتجميل (د. ولاء):
-من الأحد إلى الخميس
-3:30 م – 10:30 م
-
-عيادة التشقير وتنظيف البشرة (أخصائية هدى):
-من السبت إلى الخميس
-2:00 م – 10:00 م
-
-عيادة الطب العام والطوارئ (د. هنادي):
-من السبت إلى الخميس
-10:00 ص – 12:00 م
-4:00 م – 10:00 م
-
-عيادة النساء والولادة (د. حسناء):
-من السبت إلى الخميس
-10:00 ص – 12:00 م
-4:00 م – 10:00 م
-
-عيادة الليزر 1:
-من السبت إلى الخميس
-8:00 ص – 11:00 م
-
-عيادة الليزر 2:
-من السبت إلى الخميس
-8:00 ص – 11:00 م
-
-يوم الجمعة:
-
-طبيب أسنان مناوب (غالبًا د. معاذ).
-
-عيادات الليزر مفتوحة.
-
-التشقير وتنظيف البشرة (حسب التوفر).
-
- الدوام من 2:00 م إلى 10:00 م حسب العيادة.</p>
+    <h2 style="margin-top:35px;font-size:1.13em;color:#e38102;">ساعات العمل</h2>
+    <div class="hours-table-wrap">
+      <table class="hours-table">
+        <thead>
+          <tr>
+            <th>القسم / الطبيب</th>
+            <th>الأيام</th>
+            <th>الفترة الصباحية</th>
+            <th>الفترة المسائية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>عيادة الأسنان 1 (د. عبير)</td>
+            <td>السبت - الخميس</td>
+            <td>9:00 ص – 12:00 م</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 2 (د. ريان)</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 ص</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 3 (د. معاذ)</td>
+            <td>السبت - الخميس</td>
+            <td>12:00 م – 8:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 4 (د. رونالدو)</td>
+            <td>السبت - الخميس</td>
+            <td>2:00 م – 10:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+            <td>الأحد - الخميس</td>
+            <td>-</td>
+            <td>3:30 م – 10:30 م</td>
+          </tr>
+          <tr>
+            <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+            <td>السبت - الخميس</td>
+            <td>-</td>
+            <td>2:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة النساء والولادة (د. حسناء)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر 1</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر 2</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
+              يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </section>
   
   <!-- الخريطة -->

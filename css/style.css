@@ -412,8 +412,8 @@ footer {
 }
 .logo-container {
   position: fixed;
-  top: -7px;
-  left: 1110px;
+  top: 110px;
+  left: -1px;
   z-index: 999;
 }
 
