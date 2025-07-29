@@ -5,8 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>تم الحجز بنجاح - مجمع فينكس الطبي</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css" />
   <style>
+    .blur-bg-appointment {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/حجز الموعد.png') center center/cover no-repeat;
+      filter: blur(16px) brightness(0.97);
+      opacity: 1;
+      z-index: 0;
+      pointer-events: none;
+    }
+    body > *:not(.blur-bg-appointment) {
+      position: relative;
+      z-index: 1;
+    }
     .success-box {
       max-width: 440px;
       margin: 55px auto 40px auto;
@@ -57,9 +71,104 @@
     .home-btn:hover {
       background: linear-gradient(90deg,#e57b06 60%,#ff9500b6 110%);
     }
+    /* ========== الهيدر والقائمة ========== */
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 7px 14px;
+      font-weight: 700;
+      border-radius: 899px;
+      font-size: 1.03em;
+      transition: 0.3s;
+      background: transparent;
+      display: inline-block;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 7px;
+      margin: 0 0 0 6px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.13em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: #000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #0000004d;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.2px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.2px solid #000000; }
+    .social-icon.snap  { color: #fff; border: 1.2px solid #000; background: #181818; }
+    .social-icon:hover { background: #111; opacity: 0.95; }
+    @media (max-width: 650px) {
+      .header-flex { flex-direction: column; gap: 7px; padding: 0 3px; }
+      nav ul {
+        gap: 1vw !important;
+        flex-wrap: wrap !important;
+        padding: 2.5px 0 !important;
+        justify-content: center;
+        align-items: center;
+      }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.77em !important;
+        padding: 3px 4px !important;
+      }
+      .social-icons { gap: 2px !important; }
+    }
+    footer {
+      background: rgba(255,255,255,0.219) !important;
+      color: #1b2028 !important;
+      text-align: center;
+      font-size: 1em;
+      font-weight: bold;
+      border-top: 1.5px solid #eee;
+      letter-spacing: 0.6px;
+      padding: 12px 0 9px 0;
+      margin-top: auto;
+      box-shadow: 0 -2px 12px #d6d6d6;
+    }
   </style>
 </head>
 <body>
+  <div class="blur-bg-appointment"></div>
   <header>
     <div class="container header-flex">
       <div class="logo-container">
@@ -72,6 +181,11 @@
           <li><a href="services.html">الخدمات</a></li>
           <li><a href="appointment.html">احجز موعد</a></li>
           <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
         </ul>
       </nav>
     </div>
