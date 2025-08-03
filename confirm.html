@@ -5,221 +5,149 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>تأكيد الحجز - مجمع فينكس الطبي</title>
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    .confirm-main {
-      max-width: 420px;
-      margin: 40px auto 35px auto;
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 4px 30px #e2e2e2;
-      padding: 30px 28px 15px 28px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .phoenix-logo {
-      width: 90px;
-      margin-bottom: 16px;
-      margin-top: -7px;
-    }
-    .confirm-main h2 {
-      font-size: 1.65em;
-      color: #2187bf;
-      margin-bottom: 17px;
-      font-weight: bold;
-      letter-spacing: 0.7px;
-    }
-    label {
-      float: right;
-      margin: 9px 0 4px 0;
-      color: #333;
-      font-size: 1em;
-      font-weight: bold;
-    }
-    input[type="text"], input[type="date"], input[type="tel"] {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 12px;
-      border-radius: 10px;
-      border: 1.5px solid #e3e8ee;
-      font-size: 1.08em;
-      background: #f7fafc;
-      box-sizing: border-box;
-      transition: border 0.2s;
-    }
-    input:focus {
-      border: 1.5px solid #c68c0f;
-      outline: none;
-    }
-    input[readonly] {
-      background: #f0f0f0;
-      color: #888;
-      cursor: not-allowed;
-    }
-    .btn-main {
-      width: 100%;
-      padding: 12px 0;
-      font-size: 1.12em;
-      border-radius: 13px;
-      border: none;
-      background: linear-gradient(90deg,#ff7b00 60%,#ff9500b6 110%);
-      color: #fff;
-      font-weight: bold;
-      letter-spacing: 1px;
-      cursor: pointer;
-      margin-top: 8px;
-      transition: background 0.22s, box-shadow 0.22s;
-      box-shadow: 0 1px 12px #000000a0;
-    }
-    .btn-main:active {
-      background: linear-gradient(90deg,#1c5d8a 60%,#1e9fc9 110%);
-    }
-    #otpSection {
-      display: none;
-      margin-top: 12px;
-    }
-    #message {
-      margin-top: 13px;
-      font-weight: bold;
-      font-size: 1.06em;
-      color: #17a970;
-      min-height: 22px;
-    }
-    .social-icons {
-      display: flex;
-      align-items: center;
-      gap: 13px;
-      margin-right: 22px;
-    }
-    .social-icons .social-icon {
-      font-size: 1.3em;
-      padding: 0 2px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 36px;
-      height: 36px;
-      background: #000000;
-      transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #000000b6;
-      margin-left: 2.5px;
-      text-decoration: none;
-    }
-    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
-    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
-    .social-icon.snap  { color: #fff; border: 1.5px solid #000000; background: #181818; }
-    .social-icon:hover {
-      background: #111;
-      box-shadow: 0 2px 14px #000000;
-      opacity: 0.96;
-    }
-    @media (max-width: 600px) {
-      .confirm-main {
-        padding: 13px 2vw 6px 2vw;
-      }
-      .phoenix-logo { width: 65px;}
-      .social-icons {
-        gap: 6px;
-        margin-right: 4px;
-      }
-      .social-icons .social-icon { width: 29px; height: 29px; font-size: 1em;}
-    }
+    body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background: #faf6ee; }
+    .confirm-main { max-width: 460px; margin: 50px auto; background: #fff; border-radius: 19px; box-shadow: 0 4px 32px #eadcbc; padding: 36px 22px 24px 22px; text-align: center; position: relative; overflow: hidden;}
+    .phoenix-logo { width: 85px; margin-bottom: 15px;}
+    .title-confirm { font-size: 2em; color: #b89023; background: #fdf4dd; border-radius: 15px; padding: 9px 0; margin-bottom: 22px; font-weight: bold;}
+    .confirm-label { color: #a68e57; font-size: 1em; font-weight: bold; margin: 7px 0 2px 0; float: right;}
+    .confirm-input { width: 100%; background: #f5f3ee; border: 2px solid #eadcbc; border-radius: 14px; padding: 13px 8px; margin-bottom: 13px; font-size: 1.1em; color: #7a6741; font-weight: bold; text-align: right;}
+    .confirm-time { color: #8e8e8e; font-size: 1.18em; background: #f5f3ee; border: 2px solid #eadcbc; border-radius: 14px; padding: 13px 8px; margin-bottom: 13px; font-weight: bold; text-align: center;}
+    .btn-main { width: 100%; padding: 14px 0; font-size: 1.17em; border-radius: 13px; border: none; background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); color: #fff; font-weight: bold; letter-spacing: 1px; cursor: pointer; margin-top: 8px; transition: background 0.22s, box-shadow 0.22s; box-shadow: 0 1px 12px #e2be6d54;}
+    .btn-main:active { background: linear-gradient(90deg,#ad8103 60%,#bfa341 110%);}
+    #otpSection { display: none; margin-top: 12px;}
+    #message { margin-top: 13px; font-weight: bold; font-size: 1.05em; color: #17a970; min-height: 22px;}
+    .social-icons { display: flex; justify-content: center; gap: 7px; margin: 12px 0 20px 0; }
+    .social-icons a { font-size: 1.19em; padding: 0 5px; border-radius: 50%; background: #fff3ce; color: #b89023; border: 1.2px solid #f9e9c8; transition: background 0.19s, color 0.19s;}
+    .social-icons a:hover { background: #fffbe7; color: #84610f; }
+    #resendDiv { margin: 8px 0 0 0; font-size: 0.99em; color: #ad8103; font-weight: bold; min-height: 23px;}
+    #resendBtn { background: #e9be4f; color: #fff; padding: 11px 0; border: none; border-radius: 13px; width: 100%; font-size: 1.05em; font-weight: bold; cursor: pointer; margin-top: 6px; display: none; transition: background 0.19s;}
+    #resendBtn:disabled { opacity: 0.65; cursor: not-allowed; background: #ececec; color: #b8b8b8; }
+    @media (max-width: 600px) { .confirm-main { padding: 7px 1vw 6px 1vw; } .phoenix-logo { width: 60px;}}
   </style>
 </head>
 <body>
-  <!-- الهيدر -->
-  <header>
-    <div class="container header-flex">
-      <div class="logo-container">
-        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img" />
-      </div>
-      <h1>   </h1>
-      <nav>
-        <ul>
-          <li><a href="index.html">الرئيسية</a></li>
-          <li><a href="about.html">من نحن</a></li>
-          <li><a href="services.html">الخدمات</a></li>
-          <li><a href="appointment.html">احجز موعد</a></li>
-          <li><a href="contact.html">اتصل بنا</a></li>
-          <li class="social-icons">
-            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
-            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
-          </li>
-        </ul>
-      </nav>
-    </div>
-  </header>
-
-  <!-- نموذج التأكيد -->
-  <div class="confirm-main" data-aos="zoom-in">
+  <div class="confirm-main">
     <img src="images/logo phoenix-Photoroom.png" class="phoenix-logo" alt="شعار مجمع فينكس">
-    <h2>تأكيد الحجز  </h2>
+    <div class="title-confirm"><i class="fa fa-check-double"></i> تأكيد الحجز</div>
+    <div class="social-icons">
+      <a href="https://wa.me/966531422555" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+      <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام"><i class="fab fa-instagram"></i></a>
+      <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+    </div>
     <form id="confirmForm" autocomplete="off">
-      <label for="name">الاسم الكامل:</label>
-      <input type="text" id="name" required placeholder="أدخل اسمك الكامل">
-
-      <label for="service">الخدمة المطلوبة:</label>
-      <input type="text" id="service" required placeholder="الخدمة" readonly>
-      
-      <!-- نوع الخدمة -->
-      <label for="serviceType">نوع الخدمة:</label>
-      <input type="text" id="serviceType" required placeholder="نوع الخدمة" readonly>
-
-      <label for="date">تاريخ الموعد:</label>
-      <input type="date" id="date" required readonly>
-
-      <label for="time">وقت الموعد:</label>
-      <input type="text" id="time" required placeholder="مثلاً 5:30 مساءً" readonly>
-
-      <label for="phone">رقم الجوال:</label>
-      <input type="text" id="phone" required placeholder="9665XXXXXXXX">
-
-      <button type="button" id="sendOtpBtn" class="btn-main">أرسل رمز التحقق عبر واتساب</button>
-
+      <div class="confirm-label">الاسم الكامل:</div>
+      <div><input type="text" id="name" class="confirm-input" readonly></div>
+      <div class="confirm-label">رقم الجوال:</div>
+      <div><input type="text" id="phone" class="confirm-input" readonly></div>
+      <div class="confirm-label">العيادة:</div>
+      <div><input type="text" id="clinic" class="confirm-input" readonly></div>
+      <div class="confirm-label">الشهر:</div>
+      <div><input type="text" id="month" class="confirm-input" readonly></div>
+      <div class="confirm-label">الوقت:</div>
+      <div id="timeDisplay" class="confirm-time"></div>
+      <input type="hidden" id="time_raw" readonly>
+      <button type="button" id="sendOtpBtn" class="btn-main"><i class="fab fa-whatsapp"></i> أرسل رمز التحقق عبر واتساب</button>
       <div id="otpSection">
-        <input type="text" id="otp" placeholder="رمز التحقق" maxlength="6" style="margin-bottom:6px;">
+        <input type="text" id="otp" placeholder="رمز التحقق" maxlength="6" style="margin-bottom:6px; font-size:1.09em;">
         <button type="button" id="verifyOtpBtn" class="btn-main">تأكيد الحجز</button>
       </div>
+      <div id="resendDiv"></div>
+      <button type="button" id="resendBtn">إعادة إرسال الرمز</button>
       <div id="message"></div>
     </form>
   </div>
-
-  <!-- الفوتر -->
   <footer>
-    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+    جميع الحقوق محفوظة © مجمع فينكس الطبي 2025
   </footer>
-
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
-    // تعبئة بيانات الموعد تلقائيًا من localStorage (وتكون الحقول readonly)
-    window.onload = function() {
-      document.getElementById('service').value = localStorage.getItem('selectedService') || "";
-      document.getElementById('serviceType').value = localStorage.getItem('selectedServiceType') || "";
-      document.getElementById('date').value = localStorage.getItem('selectedDate') || "";
-      document.getElementById('time').value = localStorage.getItem('selectedTime') || "";
+    // أدوات تحويل قيمة الوقت المشفرة لصيغة مفهومة
+    function formatTimeValue(raw) {
+      try {
+        if(!raw) return '';
+        let datePart = raw.split('*')[0];
+        let timePart = raw.split('*')[1] || '';
+        // معالجة التاريخ
+        let [day, month, year] = datePart.includes('-') ? datePart.split('-') : ['', '', ''];
+        if (!year && raw.startsWith('202')) { // صيغة قديمة
+          year = raw.split('*')[0];
+        }
+        // معالجة الوقت
+        let [h, m] = timePart.split(':');
+        let hour = parseInt(h, 10);
+        let minute = parseInt(m, 10);
+        let ampm = hour < 12 ? 'صباحاً' : 'مساءً';
+        let hourDisplay = hour > 12 ? hour - 12 : hour;
+        if(hourDisplay === 0) hourDisplay = 12;
+        // تكوين التاريخ لعرض اليوم (الأحد, الإثنين ...)
+        let displayDate = '';
+        if(day && month && year) {
+          let dateObj = new Date(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
+          const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+          let dayName = weekDays[dateObj.getDay()];
+          displayDate = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')} (${dayName})`;
+        } else {
+          displayDate = raw;
+        }
+        // إخراج نهائي واضح
+        return `${displayDate} ${hour}:${minute.toString().padStart(2,'0')} ${ampm}`;
+      } catch {
+        return raw;
+      }
     }
 
-    AOS.init({ duration: 1000, once: true });
+    // تعبئة الحقول تلقائيًا
+    window.onload = function() {
+      document.getElementById('name').value   = localStorage.getItem('pending_name')   || '';
+      document.getElementById('phone').value  = localStorage.getItem('pending_phone')  || '';
+      // التعديل هنا: استخدام اسم العيادة الظاهر
+      document.getElementById('clinic').value = localStorage.getItem('pending_clinic_label') || '';
+      document.getElementById('month').value  = localStorage.getItem('pending_month')  || '';
+      var rawTime = localStorage.getItem('pending_time') || '';
+      document.getElementById('time_raw').value = rawTime;
+      document.getElementById('timeDisplay').textContent = formatTimeValue(rawTime);
+    };
 
+    // ميزة إعادة إرسال الرمز مع عداد دقيقة
     const sendOtpBtn = document.getElementById('sendOtpBtn');
     const verifyOtpBtn = document.getElementById('verifyOtpBtn');
     const otpSection = document.getElementById('otpSection');
     const messageDiv = document.getElementById('message');
+    const resendDiv = document.getElementById('resendDiv');
+    const resendBtn = document.getElementById('resendBtn');
+    let resendTimer = null, resendCounter = 0;
+
+    function startResendTimer() {
+      resendBtn.style.display = 'none';
+      resendCounter = 60;
+      resendDiv.style.color = "#ad8103";
+      resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد " + resendCounter + " ثانية";
+      resendTimer = setInterval(() => {
+        resendCounter--;
+        resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد " + resendCounter + " ثانية";
+        if (resendCounter <= 0) {
+          clearInterval(resendTimer);
+          resendDiv.textContent = "";
+          resendBtn.style.display = 'block';
+          resendBtn.disabled = false;
+        }
+      }, 1000);
+    }
+
     sendOtpBtn.onclick = async function() {
       const phone = document.getElementById('phone').value.trim();
-      if (!/^9665\d{8}$/.test(phone)) {
-        alert('يرجى إدخال رقم الجوال مثل 9665XXXXXXXX');
+      if (!/^05\d{8}$/.test(phone)) {
+        alert('يرجى إدخال رقم الجوال مثل 05xxxxxxxx');
         return;
       }
       sendOtpBtn.disabled = true;
       messageDiv.textContent = "جاري الإرسال ...";
-      messageDiv.style.color = "#2187bf";
+      messageDiv.style.color = "#b89023";
+      otpSection.style.display = 'none';
+      startResendTimer();
       setTimeout(() => {
-        fetch('https://dental-clinic-site-dc3h.onrender.com/send-otp', {
+        fetch('/send-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ phone })
@@ -235,6 +163,9 @@
             messageDiv.textContent = "حدث خطأ أثناء إرسال الرمز.";
             sendOtpBtn.disabled = false;
             sendOtpBtn.textContent = "أرسل رمز التحقق عبر واتساب";
+            clearInterval(resendTimer);
+            resendDiv.textContent = "";
+            resendBtn.style.display = 'none';
           }
         })
         .catch(() => {
@@ -242,18 +173,28 @@
           messageDiv.textContent = "فشل الاتصال بالخادم.";
           sendOtpBtn.disabled = false;
           sendOtpBtn.textContent = "أرسل رمز التحقق عبر واتساب";
+          clearInterval(resendTimer);
+          resendDiv.textContent = "";
+          resendBtn.style.display = 'none';
         });
-      }, 3000);
+      }, 1000);
+    };
+
+    resendBtn.onclick = function() {
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.click();
+      resendBtn.disabled = true;
+      resendBtn.style.display = 'none';
     };
 
     verifyOtpBtn.onclick = async function() {
-      const phone = document.getElementById('phone').value.trim();
-      const otp = document.getElementById('otp').value.trim();
-      const name = document.getElementById('name').value.trim();
-      const service = document.getElementById('service').value.trim();
-      const serviceType = document.getElementById('serviceType').value.trim();
-      const date = document.getElementById('date').value.trim();
-      const time = document.getElementById('time').value.trim();
+      const phone  = document.getElementById('phone').value.trim();
+      const otp    = document.getElementById('otp').value.trim();
+      const name   = document.getElementById('name').value.trim();
+      // هنا نرسل القيمة الأصلية للبوت
+      const clinic = localStorage.getItem('pending_clinic') || '';
+      const month  = document.getElementById('month').value.trim();
+      const time   = document.getElementById('time_raw').value;
 
       if (otp.length !== 6) {
         alert("الرجاء إدخال رمز التحقق المكون من 6 أرقام");
@@ -261,28 +202,31 @@
       }
       verifyOtpBtn.disabled = true;
       messageDiv.textContent = "جاري التحقق ...";
-      messageDiv.style.color = "#2187bf";
+      messageDiv.style.color = "#b89023";
       setTimeout(() => {
-        fetch('https://dental-clinic-site-dc3h.onrender.com/verify-otp', {
+        fetch('/verify-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ phone, otp, name, service, serviceType, date, time })
+          body: JSON.stringify({ phone, otp })
         })
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            // حفظ التفاصيل وتحويل للنجاح
-            localStorage.setItem('successName', name);
-            localStorage.setItem('successPhone', phone);
-            localStorage.setItem('successService', service);
-            localStorage.setItem('successServiceType', serviceType);
-            localStorage.setItem('successDate', date);
-            localStorage.setItem('successTime', time);
-            localStorage.removeItem('selectedService');
-            localStorage.removeItem('selectedServiceType');
-            localStorage.removeItem('selectedDate');
-            localStorage.removeItem('selectedTime');
-            window.location.href = "success.html";
+            fetch('/api/book', {
+              method: "POST",
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ name, phone, clinic, month, time }) // يرسل القيمة الأصلية
+            })
+            .then(res => res.json())
+            .then(data => {
+              localStorage.setItem('booking_result_msg', data.msg || '');
+              window.location.href = "success.html";
+            })
+            .catch(() => {
+              messageDiv.style.color = "#d51a1a";
+              messageDiv.textContent = "فشل الاتصال بالسيرفر أثناء الحجز.";
+              verifyOtpBtn.disabled = false;
+            });
           } else {
             messageDiv.style.color = "#d51a1a";
             messageDiv.textContent = data.message || "رمز التحقق غير صحيح!";
@@ -296,7 +240,7 @@
           verifyOtpBtn.disabled = false;
           verifyOtpBtn.textContent = "تأكيد الحجز";
         });
-      }, 3000);
+      }, 1000);
     };
   </script>
 </body>

@@ -8,10 +8,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     :root {
-      --main-orange: #353230;
-      --main-blue: #36bae6;
-      --main-gradient: linear-gradient(90deg, #d7a422 15%, #cacaca 100%);
-      --main-shadow: 0 8px 36px 0 #2fa4c618, 0 1.5px 6px #ffb87115;
+      --gold-main: #e2be6d;
+      --gold-light: #fff8e6;
+      --gold-gradient: linear-gradient(90deg, #e8ca7c 10%, #fff8e6 100%);
+      --gold-shadow: 0 4px 32px 0 #e2be6d26, 0 1.5px 6px #ffdfa215;
     }
     body {
       font-family: 'Cairo', Tahoma, Arial, sans-serif;
@@ -34,7 +34,7 @@
       position: relative;
       z-index: 1;
     }
-    .header-flex {
+    .container.header-flex {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -42,16 +42,20 @@
       margin: 0 auto;
       padding: 0 15px;
     }
+    .logo-container {
+      display: flex;
+      align-items: center;
+    }
+    .logo-img { height: 46px; margin-left: 9px;}
     nav ul {
       list-style: none;
-      display: flex !important;
-      flex-direction: row !important;
+      display: flex;
+      flex-direction: row;
       align-items: center;
-      gap: 10px;
+      gap: 18px;
       margin: 0;
       padding: 0;
       background: transparent;
-      width: 100%;
     }
     nav ul li {
       display: flex;
@@ -60,21 +64,22 @@
       padding: 0;
     }
     nav ul li a {
-      color: #000;
+      color: #181818;
       text-decoration: none;
       padding: 7px 14px;
       font-weight: 700;
       border-radius: 899px;
-      font-size: 1.03em;
+      font-size: 1.05em;
       transition: 0.3s;
       background: transparent;
       display: inline-block;
+      white-space: nowrap;
     }
-    nav ul li a:hover,
-    nav ul li a.active {
-      background-color: #fff;
-      color: #00487c;
-      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    nav ul li a.active,
+    nav ul li a:hover {
+      background-color: #fffbe7;
+      color: #a8861c;
+      box-shadow: 0 2px 10px #e2be6d23;
     }
     .social-icons {
       display: flex !important;
@@ -91,46 +96,99 @@
       justify-content: center;
       width: 30px;
       height: 30px;
-      background: #000;
+      background: #fff3ce;
       transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #0000004d;
+      box-shadow: 0 1px 6px #e2be6d26;
       text-decoration: none;
+      color: #b89023;
+      border: 1.2px solid #f9e9c8;
     }
-    .social-icon.wa    { color: #3cff00; border: 1.2px solid #000000; }
-    .social-icon.insta { color: #ff0055; border: 1.2px solid #000000; }
-    .social-icon.snap  { color: #fff; border: 1.2px solid #000; background: #181818; }
-    .social-icon:hover { background: #111; opacity: 0.95; }
+    .social-icon:hover { background: #fffbe7; color: #84610f; }
+    @media (max-width: 900px) {
+      .container.header-flex {
+        flex-direction: column;
+        gap: 4px;
+        padding: 2vw 2vw;
+      }
+      nav ul {
+        gap: 6vw !important;
+        justify-content: center;
+      }
+      .logo-img { height: 42px;}
+    }
+    @media (max-width: 650px) {
+      .container.header-flex {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 3vw 0vw 1vw 0vw;
+        max-width: 100vw;
+        min-width: 0;
+        gap: 0;
+      }
+      .logo-container {
+        justify-content: center;
+        margin-bottom: 4px;
+      }
+      nav ul {
+        flex-direction: row !important;
+        justify-content: center;
+        align-items: center;
+        gap: 4vw !important;
+        padding: 0;
+        margin-bottom: 4px;
+        flex-wrap: wrap;
+      }
+      nav ul li {
+        margin: 0;
+        padding: 0;
+      }
+      nav ul li a {
+        font-size: 0.99em;
+        padding: 6px 8px;
+        border-radius: 12px;
+      }
+      .social-icons {
+        gap: 4px !important;
+        margin: 0 0 3px 0;
+      }
+      .social-icons .social-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 1em;
+        padding: 0;
+      }
+    }
     .appointments-title {
       text-align: center;
       margin-top: 30px;
-      color: var(--main-orange);
+      color: #a67c0e;
       font-size: 1.8em;
       font-weight: bold;
       letter-spacing: 1.2px;
-      text-shadow: 0 2px 10px #ffe5c6c6;
+      text-shadow: 0 2px 10px #ffe5c699;
       margin-bottom: 13px;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      background: rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.25);
       border-radius: 18px;
       width: fit-content;
       margin-left: auto;
       margin-right: auto;
-      padding: 7px 18px 7px 18px;
-      box-shadow: 0 2px 12px #00000042;
-      border: 1.2px solid #ffbc9c3b;
+      padding: 8px 20px 8px 20px;
+      box-shadow: 0 2px 12px #e2be6d3a;
+      border: 1.2px solid #e8ca7c99;
       animation: fadeDown 1s;
     }
     .appointments-title .fa-calendar-check {
-      font-size: 1.1em;
-      color: var(--main-blue);
-      filter: drop-shadow(0 1px 10px #2fa5c636);
+      font-size: 1.13em;
+      color: var(--gold-main);
+      filter: drop-shadow(0 1px 10px #e2be6d2b);
     }
     .tr-hint {
       font-size: 1em;
-      color: #9f9e9e;
+      color: #a5946b;
       text-align: center;
       margin: 8px 0 -7px 0;
       letter-spacing: 0.4px;
@@ -140,188 +198,112 @@
     }
     .appointments-table-container {
       width: 100%;
-      max-width: 950px;
-      margin: 17px auto 20px auto;
-      background: rgba(255, 255, 255, 0.36);
-      border-radius: 19px;
-      box-shadow: var(--main-shadow);
-      padding: 19px 6px 24px 6px;
+      max-width: 520px;
+      margin: 28px auto 20px auto;
+      background: var(--gold-light);
+      border-radius: 21px;
+      box-shadow: var(--gold-shadow);
+      padding: 25px 16px 29px 16px;
       overflow-x: auto;
-      min-height: 100px;
-      border: 1.3px solid #f7b2782c;
+      min-height: 150px;
+      border: 1.3px solid #e8ca7c60;
       position: relative;
       animation: fadeUp 1.1s;
     }
-    /* ======= Custom Dropdown ======= */
-    .custom-dropdown {
-      position: relative;
-      user-select: none;
-      width: 100%;
-      margin-bottom: 12px;
-      z-index: 1; /* Base z-index */
-      animation: popIn .8s;
-      min-width: 0;
-    }
-    .custom-dropdown.open {
-      z-index: 99 !important; /* تأكد أن القائمة فوق كل شيء */
-    }
-    .custom-dropdown .selected {
-      background: #fff8e7;
-      border: 1.7px solid var(--main-orange);
-      border-radius: 15px;
-      padding: 11px 40px 11px 19px;
-      font-size: 1.13em;
+    #bookingForm label {
       font-weight: bold;
-      color: #444;
-      box-shadow: 0 5px 18px #fad6a938, 0 1.5px 7px #2fa4c615;
-      cursor: pointer;
-      position: relative;
-      transition: border 0.18s, box-shadow 0.21s, background 0.23s;
-      outline: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-width: 0;
-    }
-    .custom-dropdown .selected.open,
-    .custom-dropdown .selected:focus {
-      border-color: var(--main-blue);
-      background: #fff2db;
-      box-shadow: 0 0 0 2.5px #36bae655, 0 6px 28px #ffd0954c;
-    }
-    .custom-dropdown .fa-angle-down {
-      font-size: 1.25em;
-      color: var(--main-orange);
-      transition: 0.25s;
-      margin-right: 10px;
-      margin-left: 7px;
-    }
-    .custom-dropdown .selected.open .fa-angle-down {
-      transform: rotate(180deg);
-      color: var(--main-blue);
-    }
-    .custom-dropdown .options {
-      position: absolute;
-      top: 110%;
-      right: 0;
-      width: 100%;
-      background: #fff;
-      border-radius: 13px;
-      box-shadow: 0 8px 40px #ffd0953a, 0 2.5px 12px #2fa4c620;
-      border: 1.7px solid #e2e2e2;
-      padding: 7px 0 7px 0;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: all 0.21s;
-      max-height: 230px;
-      overflow-y: auto;
-      z-index: 99999 !important;
-      transform: translateY(18px) scale(0.95);
-      animation: popDropdown .36s;
-    }
-    .custom-dropdown.open .options {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-      transform: translateY(0) scale(1);
-      z-index: 99999 !important;
-    }
-    .custom-dropdown .option {
-      padding: 11px 24px 11px 18px;
-      font-size: 1.09em;
-      color: #7e5c0f;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background 0.16s, color 0.19s;
-      position: relative;
-      display: flex;
-      align-items: center;
-    }
-    .custom-dropdown .option.selected,
-    .custom-dropdown .option:hover {
-      background: linear-gradient(90deg, #fff4e1 70%, #dbefff21 100%);
-      color: var(--main-orange);
-      font-weight: bold;
-    }
-    .custom-dropdown .option .fa-check {
-      color: var(--main-blue);
-      margin-left: 6px;
-      font-size: 1.07em;
-      opacity: 0.87;
-      display: none;
-      animation: fadeInCheck .2s;
-    }
-    .custom-dropdown .option.selected .fa-check {
-      display: inline;
-    }
-    @keyframes popDropdown {
-      0% { opacity: 0; transform: translateY(40px) scale(0.93);}
-      100%{ opacity: 1; transform: translateY(0) scale(1);}
-    }
-    @keyframes fadeInCheck {
-      0%{opacity: 0; transform: scale(0.5);}
-      100%{opacity: 1; transform: scale(1);}
-    }
-    @keyframes popIn {
-      0%   { transform: scale(0.96) translateY(22px); opacity: 0; }
-      80%  { transform: scale(1.03) translateY(-2px); opacity: 1; }
-      100% { transform: scale(1) translateY(0); opacity: 1; }
-    }
-    label {
-      font-weight: bold;
-      margin-bottom: 3px;
-      margin-top: 3px;
+      margin-bottom: 6px;
+      margin-top: 13px;
       display: block;
-      color: #b97809;
+      color: #b18836;
       letter-spacing: 1px;
-      font-size: 1.09em;
+      font-size: 1.12em;
       transition: color 0.25s;
       user-select: none;
     }
-    #reserveBtn {
-      padding: 11px;
-      background: var(--main-gradient);
+    #bookingForm input[type="text"], #bookingForm select {
+      width: 100%;
+      padding: 13px 11px;
+      border-radius: 14px;
+      border: 1.4px solid #e2be6d99;
+      background: #fffdfa;
+      font-size: 1.09em;
+      margin-bottom: 6px;
+      margin-top: 3px;
+      box-sizing: border-box;
+      color: #523d1f;
+      box-shadow: 0 2px 13px #e2be6d0c inset;
+      transition: border 0.23s, box-shadow 0.23s;
+      outline: none;
+    }
+    #bookingForm input[type="text"]:focus,
+    #bookingForm select:focus {
+      border: 1.7px solid #e2be6d;
+      background: #fff9e0;
+      box-shadow: 0 2px 18px #e2be6d24;
+    }
+    #bookingForm select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background: var(--gold-gradient);
+      color: #805500;
+      font-weight: bold;
+      border: 2px solid #e2be6d;
+      box-shadow: 0 3px 13px #e2be6d18 inset;
+      padding-right: 35px !important;
+      background-position: left 1.3em center;
+      background-repeat: no-repeat;
+      position: relative;
+      cursor: pointer;
+      margin-bottom: 13px;
+    }
+    #bookingForm select:disabled {
+      background: #ececec;
+      color: #b5a97a;
+      font-weight: normal;
+      cursor: not-allowed;
+    }
+    #fetchTimesBtn, #bookBtn {
+      padding: 13px 0;
+      background: var(--gold-gradient);
       color: #fff;
       border: none;
-      border-radius: 13px;
+      border-radius: 17px;
       font-weight: bold;
-      font-size: 1.09em;
+      font-size: 1.18em;
       margin-top: 10px;
       cursor: pointer;
-      box-shadow: var(--main-shadow);
-      transition: background 0.23s, transform 0.17s;
-      animation: popIn .8s;
+      box-shadow: 0 1px 15px #e2be6d1c;
+      transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+      margin-bottom: 7px;
+      display: block;
+      width: 100%;
+      letter-spacing: 1.1px;
     }
-    #reserveBtn:active { transform: scale(0.96);}
-    #reserveBtn:disabled { opacity: 0.75; cursor: not-allowed; }
+    #fetchTimesBtn:hover, #bookBtn:hover {
+      background: linear-gradient(90deg, #f9dc8c 0%, #e8ca7c 100%);
+      color: #805500;
+      box-shadow: 0 2px 23px #e2be6d39;
+      transform: translateY(-1px) scale(1.01);
+    }
+    #fetchTimesBtn:active, #bookBtn:active { transform: scale(0.98);}
+    #fetchTimesBtn:disabled, #bookBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+    #result {
+      margin: 22px 0 7px 0;
+      font-size: 1.13em;
+      color: #8a7c54;
+      text-align: center;
+      min-height: 28px;
+    }
     @media (max-width: 650px) {
-      .header-flex { flex-direction: column; gap: 7px; padding: 0 3px; }
-      nav ul {
-        gap: 1vw !important;
-        flex-wrap: wrap !important;
-        padding: 2.5px 0 !important;
-        justify-content: center;
-        align-items: center;
-      }
-      nav ul li a, .social-icons .social-icon {
-        font-size: 0.77em !important;
-        padding: 3px 4px !important;
-      }
-      .social-icons { gap: 2px !important; }
-      .appointments-title {
-        font-size: 1.07em !important;
-        padding: 4px 4vw !important;
-        margin-top: 7px;
-      }
-      .tr-hint { font-size: 0.77em !important;}
-      .appointments-table-container { padding: 2px 0vw 7px 0vw; border-radius: 9px; }
-      .custom-dropdown .selected { font-size: 0.99em;}
-      .custom-dropdown .option { font-size: 0.94em;}
+      .appointments-table-container { padding: 7px 1vw 13px 1vw; border-radius: 13px; max-width: 99vw;}
+      .appointments-title { font-size: 1.13em !important; padding: 5px 4vw !important;}
+      #bookingForm input[type="text"], #bookingForm select { font-size: 0.98em; }
     }
     footer {
       background: rgba(255,255,255,0.219) !important;
-      color: #1b2028 !important;
+      color: #8c6d1c !important;
       text-align: center;
       font-size: 1em;
       font-weight: bold;
@@ -329,13 +311,12 @@
       letter-spacing: 0.6px;
       padding: 12px 0 9px 0;
       margin-top: auto;
-      box-shadow: 0 -2px 12px #d6d6d6;
+      box-shadow: 0 -2px 12px #e2be6d54;
     }
   </style>
 </head>
 <body>
  <div class="blur-bg-appointment"></div>
-  <!-- الهيدر مع السوشيال -->
   <header>
     <div class="container header-flex">
       <div class="logo-container">
@@ -348,10 +329,12 @@
           <li><a href="services.html">الخدمات</a></li>
           <li><a href="appointment.html" class="active">احجز موعد</a></li>
           <li><a href="contact.html">اتصل بنا</a></li>
-          <li class="social-icons">
-            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
-            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          <li>
+            <div class="social-icons">
+              <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+              <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+              <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+            </div>
           </li>
         </ul>
       </nav>
@@ -360,22 +343,63 @@
 
   <div class="appointments-title">
     <i class="fa-solid fa-calendar-check"></i>
-    المواعيد المتاحة
+    حجز موعد مباشر
   </div>
-  <span class="tr-hint">اختر الخدمة أولاً، ثم نوع الخدمة، ثم التاريخ والوقت بالترتيب.</span>
+  <span class="tr-hint">املأ بياناتك واختر العيادة والشهر ثم اضغط بحث لجلب المواعيد المتاحة.</span>
   
   <div class="appointments-table-container" id="appointmentsTableWrap">
-    <div style="display:flex; flex-direction:column; gap:15px; max-width:400px; margin:0 auto;">
-      <label>اختر الخدمة:</label>
-      <div class="custom-dropdown" id="serviceDropdown"></div>
-      <label>اختر نوع الخدمة:</label>
-      <div class="custom-dropdown" id="serviceTypeDropdown"></div>
-      <label>اختر التاريخ:</label>
-      <div class="custom-dropdown" id="dateDropdown"></div>
-      <label>اختر الوقت:</label>
-      <div class="custom-dropdown" id="timeDropdown"></div>
-      <button id="reserveBtn" disabled>احجز الآن</button>
-    </div>
+    <form id="bookingForm" style="max-width: 420px; margin:0 auto;">
+      <label for="name">اسم المريض:</label>
+      <input type="text" id="name" name="name" required placeholder="اكتب الاسم الثلاثي" />
+      <label for="phone">رقم الجوال:</label>
+      <input type="text" id="phone" name="phone" required placeholder="مثال: 05xxxxxxxx" />
+
+      <label for="clinic">اختر العيادة:</label>
+      <select id="clinic" name="clinic" required>
+        <option value="">اختر العيادة</option>
+        <option value="عيادة اسنان 5**الفترة الاولى">عيادة اسنان 5 الفترة الصباحية</option>
+        <option value="عيادة اسنان 5**الفترة الثانية">عيادة اسنان 5 الفترة المسائية</option>
+        <option value="عيادة الاسنان 1**الفترة الاولى">عيادة الاسنان 1 الفترة الصباحية</option>
+        <option value="عيادة الاسنان 1**الفترة الثانية">عيادة الاسنان 1 الفترة المسائية</option>
+        <option value="عيادة الاسنان 2**الفترة الاولى">عيادة الاسنان 2 الفترة الصباحية</option>
+        <option value="عيادة الاسنان 2**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية</option>
+        <option value="عيادة الاسنان 3**الفترة الاولى">عيادة الاسنان 3 الفترة الصباحية</option>
+        <option value="عيادة الاسنان 3**الفترة الثانية">عيادة الاسنان 3 الفترة المسائية</option>
+        <option value="عيادة الاسنان 4**الفترة الاولى">عيادة الاسنان 4 الفترة الصباحية</option>
+        <option value="عيادة الاسنان 4**الفترة الثانية">عيادة الاسنان 4 الفترة المسائية</option>
+        <option value="عيادة التشقير**الفترة الاولى">عيادة التشقير الفترة الصباحية</option>
+        <option value="عيادة التشقير**الفترة الثانية">عيادة التشقير الفترة المسائية</option>
+        <option value="عيادة الجلدية والتجميل**الفترة الاولى">عيادة الجلدية والتجميل الفترة الصباحية</option>
+        <option value="عيادة الجلدية والتجميل**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
+        <option value="عيادة الليزر (1)**الفترة الاولى">عيادة الليزر (1) الفترة الصباحية</option>
+        <option value="عيادة الليزر (1)**الفترة الثانية">عيادة الليزر (1) الفترة المسائية</option>
+        <option value="عيادة الليزر (2)**الفترة الاولى">عيادة الليزر (2) الفترة الصباحية</option>
+        <option value="عيادة الليزر (2)**الفترة الثانية">عيادة الليزر (2) الفترة المسائية</option>
+        <option value="عيادة تنظيف البشرة**الفترة الاولى">عيادة تنظيف البشرة الفترة الصباحية</option>
+        <option value="عيادة تنظيف البشرة**الفترة الثانية">عيادة تنظيف البشرة الفترة المسائية</option>
+        <option value="النساء و الولادة**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
+        <option value="النساء و الولادة**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
+      </select>
+
+      <label for="month">اختر الشهر:</label>
+      <select id="month" name="month" required>
+        <option value="">اختر الشهر</option>
+        <option value="8">أغسطس</option>
+        <option value="9">سبتمبر</option>
+        <option value="10">أكتوبر</option>
+        <option value="11">نوفمبر</option>
+        <option value="12">ديسمبر</option>
+      </select>
+
+      <button type="button" id="fetchTimesBtn">بحث عن المواعيد</button>
+
+      <label for="time" style="margin-top:15px;">اختر الوقت:</label>
+      <select id="time" name="time" required disabled>
+        <option value="">يرجى اختيار العيادة والشهر ثم الضغط بحث</option>
+      </select>
+      <button type="submit" style="margin-top:20px;" id="bookBtn" disabled>احجز الآن</button>
+      <div id="result"></div>
+    </form>
   </div>
 
   <footer>
@@ -383,146 +407,69 @@
   </footer>
 
   <script>
-    // دالة لإنشاء Custom Dropdown
-    function createDropdown(el, options, onChange, placeholder, disabled = false) {
-      el.innerHTML = "";
-      el.className = "custom-dropdown" + (disabled ? " disabled" : "");
-      let selected = document.createElement('div');
-      selected.className = "selected" + (disabled ? " disabled" : "");
-      selected.tabIndex = 0;
-      selected.innerHTML = placeholder + '<i class="fa fa-angle-down"></i>';
-      let opts = document.createElement('div');
-      opts.className = "options";
-      options.forEach(opt => {
-        let op = document.createElement('div');
-        op.className = "option";
-        op.textContent = opt;
-        op.dataset.value = opt;
-        op.innerHTML = `<span>${opt}</span> <i class="fa fa-check"></i>`;
-        op.onclick = (e) => {
-          e.stopPropagation();
-          [...opts.children].forEach(c => c.classList.remove('selected'));
-          op.classList.add('selected');
-          selected.innerHTML = `<span>${opt}</span><i class="fa fa-angle-down"></i>`;
-          el.classList.remove("open");
-          onChange(opt);
-        };
-        opts.appendChild(op);
-      });
-      selected.onclick = function(e){
-        if(disabled) return;
-        e.stopPropagation();
-        // اغلق جميع القوائم الأخرى
-        document.querySelectorAll('.custom-dropdown.open').forEach(dd=>{
-          if(dd!==el) dd.classList.remove('open');
-        });
-        document.querySelectorAll('.custom-dropdown .selected.open').forEach(sel=>{
-          if(sel!==selected) sel.classList.remove('open');
-        });
-        el.classList.toggle("open");
-        selected.classList.toggle("open");
-      };
-      selected.onblur = function(){
-        el.classList.remove("open");
-        selected.classList.remove("open");
-      };
-      el.appendChild(selected);
-      el.appendChild(opts);
-      // منع غلق القائمة عند الضغط داخل الخيارات
-      opts.onmousedown = e => e.preventDefault();
-      if (!options.length) {
-        selected.classList.add("disabled");
-        el.classList.add("disabled");
+    document.getElementById('fetchTimesBtn').addEventListener('click', updateTimes);
+
+    async function updateTimes() {
+      const clinic = document.getElementById('clinic').value;
+      const month  = document.getElementById('month').value;
+      const timeSelect = document.getElementById('time');
+      timeSelect.disabled = true;
+      document.getElementById('bookBtn').disabled = true;
+
+      if (clinic && month) {
+        timeSelect.innerHTML = "<option>...يتم جلب الأوقات الآن...</option>";
+        try {
+          const res = await fetch('/api/times', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ clinic, month })
+          });
+          const data = await res.json();
+          if (data.times && data.times.length) {
+            timeSelect.innerHTML = data.times.map(t =>
+              `<option value="${t.value}">${t.label}</option>`
+            ).join('');
+            timeSelect.disabled = false;
+            document.getElementById('bookBtn').disabled = false;
+          } else {
+            timeSelect.innerHTML = "<option value=''>لا توجد أوقات متاحة</option>";
+            timeSelect.disabled = true;
+            document.getElementById('bookBtn').disabled = true;
+          }
+        } catch {
+          timeSelect.innerHTML = "<option value=''>حدث خطأ أثناء جلب الأوقات</option>";
+          timeSelect.disabled = true;
+          document.getElementById('bookBtn').disabled = true;
+        }
+      } else {
+        timeSelect.innerHTML = "<option value=''>يرجى اختيار العيادة والشهر أولاً</option>";
+        timeSelect.disabled = true;
+        document.getElementById('bookBtn').disabled = true;
       }
     }
 
-    async function fetchSlotsFromGoogleSheet() {
-      try {
-        const response = await fetch(
-          'https://docs.google.com/spreadsheets/d/e/2PACX-1vThUdJdow1cEIUJhrH9Sbvtgmrl0q4Q7f-WtegrLoxoigvHOXosVv6pjEKP9yKfCWselFbGO5l4yZI1/pub?output=csv&nocache=' + Date.now(),
-          { headers: { 'Cache-Control': 'no-cache' } }
-        );
-        const csvText = await response.text();
-        const rows = csvText.trim().split('\n').map(row => row.split(','));
-        const headers = rows[0];
-        const dataRows = rows.slice(1);
-        const data = dataRows.map(row => {
-          const obj = {};
-          headers.forEach((header, i) => {
-            obj[header.trim()] = row[i]?.trim();
-          });
-          return obj;
-        }).filter(r => r["الحالة"] && r["الحالة"].includes("متاح"));
+    document.getElementById('bookingForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const name   = document.getElementById('name').value;
+      const phone  = document.getElementById('phone').value;
+      const clinic = document.getElementById('clinic').value;
+      const month  = document.getElementById('month').value;
+      const time   = document.getElementById('time').value;
 
-        // عناصر Dropdown
-        const serviceDD = document.getElementById('serviceDropdown');
-        const typeDD    = document.getElementById('serviceTypeDropdown');
-        const dateDD    = document.getElementById('dateDropdown');
-        const timeDD    = document.getElementById('timeDropdown');
-        const reserveBtn = document.getElementById('reserveBtn');
-        
-        // جميع الخيارات
-        let selectedService = "";
-        let selectedType = "";
-        let selectedDate = "";
-        let selectedTime = "";
+      // *** السطر الجديد لحفظ نص العيادة الظاهر ***
+      const clinicSelect = document.getElementById('clinic');
+      const clinicLabel  = clinicSelect.options[clinicSelect.selectedIndex].text;
+      // *** حفظ label في localStorage ***
+      localStorage.setItem('pending_clinic_label', clinicLabel);
 
-        // تعبئة الخدمات
-        const uniqueServices = [...new Set(data.map(r => r["الخدمة"]).filter(Boolean))];
-        createDropdown(serviceDD, uniqueServices, (val)=>{
-          selectedService = val;
-          // حذف القوائم الفرعية عند تغيير الأعلى
-          createDropdown(typeDD, [], ()=>{}, "-- اختر نوع الخدمة --", true);
-          createDropdown(dateDD, [], ()=>{}, "-- اختر التاريخ --", true);
-          createDropdown(timeDD, [], ()=>{}, "-- اختر الوقت --", true);
-          reserveBtn.disabled = true;
-          // استخراج أنواع الخدمة
-          const types = [...new Set(data.filter(r => r["الخدمة"] === val).map(r => r["نوع الخدمة"]).filter(Boolean))];
-          createDropdown(typeDD, types, (v2)=>{
-            selectedType = v2;
-            createDropdown(dateDD, [], ()=>{}, "-- اختر التاريخ --", true);
-            createDropdown(timeDD, [], ()=>{}, "-- اختر الوقت --", true);
-            reserveBtn.disabled = true;
-            // استخراج تواريخ الخدمة
-            const dates = [...new Set(data.filter(r => r["الخدمة"] === selectedService && r["نوع الخدمة"] === v2).map(r => r["التاريخ"]).filter(Boolean))];
-            createDropdown(dateDD, dates, (v3)=>{
-              selectedDate = v3;
-              createDropdown(timeDD, [], ()=>{}, "-- اختر الوقت --", true);
-              reserveBtn.disabled = true;
-              // استخراج أوقات الخدمة
-              const times = [...new Set(data.filter(r => r["الخدمة"] === selectedService && r["نوع الخدمة"] === selectedType && r["التاريخ"] === v3).map(r => r["الوقت"]).filter(Boolean))];
-              createDropdown(timeDD, times, (v4)=>{
-                selectedTime = v4;
-                reserveBtn.disabled = false;
-              }, "-- اختر الوقت --");
-            }, "-- اختر التاريخ --");
-          }, "-- اختر نوع الخدمة --");
-        }, "-- اختر الخدمة --");
+      localStorage.setItem('pending_name', name);
+      localStorage.setItem('pending_phone', phone);
+      localStorage.setItem('pending_clinic', clinic);
+      localStorage.setItem('pending_month', month);
+      localStorage.setItem('pending_time', time);
 
-        reserveBtn.onclick = function() {
-          localStorage.setItem('selectedService', selectedService);
-          localStorage.setItem('selectedServiceType', selectedType);
-          localStorage.setItem('selectedDate', selectedDate);
-          localStorage.setItem('selectedTime', selectedTime);
-          window.location.href = 'confirm.html';
-        };
-
-        // اغلاق القوائم عند الضغط خارجها
-        document.body.addEventListener('mousedown', function(e){
-          document.querySelectorAll('.custom-dropdown.open').forEach(dd=>{
-            if(!dd.contains(e.target)) dd.classList.remove('open');
-          });
-          document.querySelectorAll('.custom-dropdown .selected.open').forEach(sel=>{
-            sel.classList.remove('open');
-          });
-        });
-      } catch (error) {
-        document.getElementById('appointmentsTableWrap').innerHTML =
-          '<p style="color:red; text-align:center; font-weight:bold; margin-top:30px;">⚠️ حدث خطأ أثناء تحميل المواعيد.</p>';
-      }
-    }
-
-    window.onload = fetchSlotsFromGoogleSheet;
+      window.location.href = "confirm.html";
+    });
   </script>
 </body>
 </html>

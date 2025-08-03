@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "script.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -25,6 +26,7 @@
     "express": "^5.1.0",
     "googleapis": "^153.0.0",
     "node-fetch": "^3.3.2",
+    "puppeteer": "^24.15.0",
     "twilio": "^5.7.3"
   },
   "description": ""

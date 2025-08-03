@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css');
 @import url('https://unpkg.com/aos@2.3.1/dist/aos.css');
@@ -496,8 +495,6 @@ footer {
   background-color: #ff5722;
 }
 
-
-
 .slot {
   padding: 12px;
   margin: 11px auto;
@@ -542,9 +539,6 @@ footer {
   background-color: #c13584;
 }
 
-
-
-
 .hero-slider-img {
   position: absolute;
   top: 50%;
@@ -558,7 +552,6 @@ footer {
   z-index: 2;
   opacity: 1;
 }
-
 
 /* ================== Responsive (الجوال) ================== */
 
@@ -635,4 +628,63 @@ footer {
   .logo-img {
     max-width: 65px !important;
   }
+}
+
+/* ================== لايت بوكس لعرض الصورة المكبرة ================== */
+.lightbox-overlay {
+  position: fixed;
+  top: 0; right: 0; bottom: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(30, 30, 30, 0.79);
+  backdrop-filter: blur(6px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.23s;
+}
+
+.lightbox-img-wrap {
+  position: relative;
+  max-width: 98vw;
+  max-height: 93vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 84vh;
+  border-radius: 14px;
+  box-shadow: 0 6px 40px #2228;
+  background: #fff;
+  display: block;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111b;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 2.1em;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s;
+}
+.lightbox-close:hover { background: #000; }
+
+@media (max-width: 600px) {
+  .lightbox-img { max-width: 97vw; max-height: 65vh; }
+  .lightbox-img-wrap { max-width: 100vw; }
+  .lightbox-close { font-size: 1.4em; width: 34px; height: 34px; top: -23px;}
 }

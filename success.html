@@ -6,156 +6,142 @@
   <title>تم الحجز بنجاح - مجمع فينكس الطبي</title>
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css" />
   <style>
-    .blur-bg-appointment {
-      position: fixed;
-      top: 0; right: 0; bottom: 0; left: 0;
-      background: url('images/حجز الموعد.png') center center/cover no-repeat;
-      filter: blur(16px) brightness(0.97);
-      opacity: 1;
-      z-index: 0;
-      pointer-events: none;
+    body { 
+      font-family: 'Cairo', Arial, Tahoma, sans-serif; 
+      background: #faf6ee; 
+      min-height: 100vh; 
     }
-    body > *:not(.blur-bg-appointment) {
-      position: relative;
-      z-index: 1;
-    }
-    .success-box {
-      max-width: 440px;
-      margin: 55px auto 40px auto;
+    .success-container {
+      max-width: 390px; /* أصغر بكثير */
+      margin: 60px auto 30px auto;
       background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 4px 32px #e4e4e4;
-      padding: 34px 26px 30px 26px;
+      border-radius: 21px;
+      box-shadow: 0 4px 36px #e2be6d2f;
+      padding: 28px 10px 20px 10px; /* أصغر */
       text-align: center;
       position: relative;
+      overflow: hidden;
     }
-    .success-box h2 {
-      color: #17a970;
-      font-size: 2.1em;
-      margin-bottom: 20px;
-      font-weight: bold;
-      letter-spacing: 1.2px;
+    .success-check {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg,#e9be4f,#eadcbc 80%);
+      width: 64px; height: 64px; /* أصغر */
+      border-radius: 50%;
+      margin: 0 auto 13px auto;
+      box-shadow: 0 3px 19px #e2be6d44;
+      animation: pop 0.7s;
     }
-    .booking-details {
-      text-align: right;
-      margin: 23px 0 7px 0;
-      background: #f7f7fa;
-      border-radius: 13px;
-      padding: 16px 17px 11px 17px;
-      font-size: 1.09em;
-      color: #444;
-      direction: rtl;
-      box-shadow: 0 1px 9px #f6f6f6;
-    }
-    .booking-details strong { color: #2187bf; }
-    .success-emoji {
-      font-size: 48px;
-      color: #17a970;
-      margin-bottom: 13px;
-      display: block;
-    }
-    .home-btn {
-      margin-top: 25px;
-      padding: 12px 36px;
-      background: linear-gradient(90deg,#ff7b00 60%,#ff9500b6 110%);
-      border: none;
-      border-radius: 13px;
+    .success-check i {
       color: #fff;
+      font-size: 2.1em; /* أصغر */
+      animation: bounce 1.1s;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.2);}
+      60% { transform: scale(1.2);}
+      100% { transform: scale(1);}
+    }
+    @keyframes bounce {
+      0% { transform: scale(0);}
+      80% { transform: scale(1.25);}
+      100% { transform: scale(1);}
+    }
+    .success-container h2 {
+      color: #b89023;
+      font-size: 1.45em; /* أصغر */
+      margin-bottom: 9px;
       font-weight: bold;
-      font-size: 1.13em;
-      cursor: pointer;
-      transition: background 0.18s;
+      letter-spacing: 1px;
+      background: #fdf4dd;
+      border-radius: 10px;
+      padding: 5px 0;
+      margin-top: 8px;
     }
-    .home-btn:hover {
-      background: linear-gradient(90deg,#e57b06 60%,#ff9500b6 110%);
-    }
-    /* ========== الهيدر والقائمة ========== */
-    .header-flex {
+    .details-box {
+      background: #f7f5ee;
+      border-radius: 10px;
+      text-align: right;
+      margin: 16px 0 10px 0;
+      padding: 10px 8px;    /* أصغر */
+      font-size: 0.93em;    /* أصغر */
+      color: #7a6741;
+      direction: rtl;
+      box-shadow: 0 2px 10px #2fa4c61c;
+      border: 1.3px solid #e8ca7c35;
+      font-weight: bold;
+      min-height: 95px; /* أصغر */
+      max-width: 260px;
+      margin-left: auto;
+      margin-right: auto;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 15px;
+      flex-direction: column;
+      gap: 2px;
     }
-    nav ul {
-      list-style: none;
-      display: flex !important;
-      flex-direction: row !important;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-      padding: 0;
-      background: transparent;
-      width: 100%;
+    .details-box div {
+      margin-bottom: 2px;
+      padding-right: 2px;
+      font-size: 0.99em;
+      word-break: break-word;
+      font-weight: 600;
     }
-    nav ul li {
-      display: flex;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-    }
-    nav ul li a {
-      color: #000;
-      text-decoration: none;
-      padding: 7px 14px;
-      font-weight: 700;
-      border-radius: 899px;
-      font-size: 1.03em;
-      transition: 0.3s;
-      background: transparent;
-      display: inline-block;
-    }
-    nav ul li a:hover,
-    nav ul li a.active {
-      background-color: #fff;
-      color: #00487c;
-      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    .done-msg {
+      color: #000000;
+      font-weight: bold;
+      font-size: 1em;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      letter-spacing: 0.2px;
+      text-align: center;
+      line-height: 1.7;
     }
     .social-icons {
-      display: flex !important;
-      align-items: center;
+      display: flex;
+      justify-content: center;
       gap: 7px;
-      margin: 0 0 0 6px;
+      margin: 15px 0 0 0;
     }
-    .social-icons .social-icon {
-      font-size: 1.13em;
-      padding: 0 2px;
+    .social-icons a {
+      font-size: 1em;
+      padding: 0 3px;
       border-radius: 50%;
-      display: inline-flex;
+      background: #fff3ce;
+      color: #b89023;
+      border: 1.2px solid #f9e9c8;
+      transition: background 0.19s, color 0.19s;
+      width: 28px;
+      height: 28px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
-      background: #000;
-      transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #0000004d;
-      text-decoration: none;
     }
-    .social-icon.wa    { color: #3cff00; border: 1.2px solid #000000; }
-    .social-icon.insta { color: #ff0055; border: 1.2px solid #000000; }
-    .social-icon.snap  { color: #fff; border: 1.2px solid #000; background: #181818; }
-    .social-icon:hover { background: #111; opacity: 0.95; }
-    @media (max-width: 650px) {
-      .header-flex { flex-direction: column; gap: 7px; padding: 0 3px; }
-      nav ul {
-        gap: 1vw !important;
-        flex-wrap: wrap !important;
-        padding: 2.5px 0 !important;
-        justify-content: center;
-        align-items: center;
-      }
-      nav ul li a, .social-icons .social-icon {
-        font-size: 0.77em !important;
-        padding: 3px 4px !important;
-      }
-      .social-icons { gap: 2px !important; }
+    .social-icons a:hover { background: #fffbe7; color: #84610f; }
+    .home-btn {
+      background: var(--gold-gradient, linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%));
+      color: #fff;
+      font-weight: bold;
+      padding: 9px 0;
+      border-radius: 10px;
+      border: none;
+      width: 100%;
+      font-size: 1.04em;
+      cursor: pointer;
+      box-shadow: 0 1px 12px #e2be6d54;
+      margin-top: 15px;
+      transition: background 0.18s;
+    }
+    .home-btn:hover { background: linear-gradient(90deg, #f9dc8c 0%, #e8ca7c 100%); color: #805500;}
+    @media (max-width: 600px) {
+      .success-container { padding: 3vw 0vw 4vw 0vw; max-width: 98vw;}
+      .success-check { width: 45px; height: 45px;}
+      .success-check i { font-size: 1.4em;}
+      .details-box { font-size: 0.93em; max-width: 97vw;}
     }
     footer {
       background: rgba(255,255,255,0.219) !important;
-      color: #1b2028 !important;
+      color: #b89023 !important;
       text-align: center;
       font-size: 1em;
       font-weight: bold;
@@ -163,70 +149,105 @@
       letter-spacing: 0.6px;
       padding: 12px 0 9px 0;
       margin-top: auto;
-      box-shadow: 0 -2px 12px #d6d6d6;
+      box-shadow: 0 -2px 12px #e2be6d54;
     }
   </style>
 </head>
 <body>
-  <div class="blur-bg-appointment"></div>
-  <header>
-    <div class="container header-flex">
-      <div class="logo-container">
-        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img" />
-      </div>
-      <nav>
-        <ul>
-          <li><a href="index.html">الرئيسية</a></li>
-          <li><a href="about.html">من نحن</a></li>
-          <li><a href="services.html">الخدمات</a></li>
-          <li><a href="appointment.html">احجز موعد</a></li>
-          <li><a href="contact.html">اتصل بنا</a></li>
-          <li class="social-icons">
-            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
-            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
-            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
-          </li>
-        </ul>
-      </nav>
+  <div class="success-container">
+    <div class="success-check">
+      <i class="fa fa-check"></i>
     </div>
-  </header>
-  <div class="success-box" data-aos="zoom-in">
-    <span class="success-emoji">🎉</span>
     <h2>تم الحجز بنجاح!</h2>
-    <div class="booking-details" id="details"></div>
-    <button class="home-btn" onclick="window.location.href='index.html'">العودة للصفحة الرئيسية</button>
+    <div class="details-box" id="details"></div>
+    <div class="done-msg" id="statusMsg">
+      🚀 تم إرسال طلبك، ستصلك رسالة عبر واتساب عند تأكيد الحجز.<br>
+        <br>
+           
+    </div>
+    <button class="home-btn" onclick="window.location.href='index.html'">
+      العودة للصفحة الرئيسية
+    </button>
+    <div class="social-icons">
+      <a href="https://wa.me/966531422555" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+      <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام"><i class="fab fa-instagram"></i></a>
+      <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+    </div>
   </div>
   <footer>
-    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+    جميع الحقوق محفوظة © مجمع فينكس الطبي 2025
   </footer>
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script>
-    AOS.init({ duration: 1000, once: true });
-    // جلب بيانات الحجز من localStorage
-    const name    = localStorage.getItem('successName')    || "";
-    const phone   = localStorage.getItem('successPhone')   || "";
-    const service = localStorage.getItem('successService') || "";
-    const serviceType = localStorage.getItem('successServiceType') || "";
-    const date    = localStorage.getItem('successDate')    || "";
-    const time    = localStorage.getItem('successTime')    || "";
+    // تحويل القيمة المشفرة للوقت إلى تنسيق مفهوم للمستخدم
+    function formatTimeValue(raw) {
+      try {
+        if(!raw) return '';
+        let datePart = raw.split('*')[0];
+        let timePart = raw.split('*')[1] || '';
+        // معالجة التاريخ
+        let [day, month, year] = datePart.includes('-') ? datePart.split('-') : ['', '', ''];
+        if (!year && raw.startsWith('202')) { // صيغة قديمة
+          year = raw.split('*')[0];
+        }
+        // معالجة الوقت
+        let [h, m] = timePart.split(':');
+        let hour = parseInt(h, 10);
+        let minute = parseInt(m, 10);
+        let ampm = hour < 12 ? 'صباحاً' : 'مساءً';
+        let hourDisplay = hour > 12 ? hour - 12 : hour;
+        if(hourDisplay === 0) hourDisplay = 12;
+        // تكوين التاريخ لعرض اليوم (الأحد, الإثنين ...)
+        let displayDate = '';
+        if(day && month && year) {
+          let dateObj = new Date(`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`);
+          const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+          let dayName = weekDays[dateObj.getDay()];
+          displayDate = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')} (${dayName})`;
+        } else {
+          displayDate = raw;
+        }
+        return `${displayDate} ${hour}:${minute.toString().padStart(2,'0')} ${ampm}`;
+      } catch {
+        return raw;
+      }
+    }
 
-    // عرض البيانات
+    // جلب بيانات الحجز من localStorage
+    const name   = localStorage.getItem('pending_name')   || "";
+    const phone  = localStorage.getItem('pending_phone')  || "";
+    // استخدم النص الظاهر للعيادة (label)
+    const clinic = localStorage.getItem('pending_clinic_label') || localStorage.getItem('pending_clinic') || "";
+    const month  = localStorage.getItem('pending_month')  || "";
+    const time   = localStorage.getItem('pending_time')   || "";
+
+    // عرض البيانات للمستخدم بشكل أنيق
     document.getElementById('details').innerHTML = `
       <div><strong>الاسم:</strong> ${name}</div>
       <div><strong>رقم الجوال:</strong> ${phone}</div>
-      <div><strong>الخدمة:</strong> ${service}</div>
-      ${serviceType ? `<div><strong>نوع الخدمة:</strong> ${serviceType}</div>` : ""}
-      <div><strong>التاريخ:</strong> ${date}</div>
-      <div><strong>الوقت:</strong> ${time}</div>
+      <div><strong>العيادة:</strong> ${clinic}</div>
+      <div><strong>الشهر:</strong> ${month}</div>
+      <div><strong>الوقت:</strong> ${formatTimeValue(time)}</div>
     `;
 
-    // تنظيف البيانات بعد العرض (حتى لا تظهر مرة أخرى)
-    localStorage.removeItem('successName');
-    localStorage.removeItem('successPhone');
-    localStorage.removeItem('successService');
-    localStorage.removeItem('successServiceType');
-    localStorage.removeItem('successDate');
-    localStorage.removeItem('successTime');
+    // إرسال الحجز للخادم في الخلفية مباشرة (لا تنتظر أي رد)
+    window.onload = function() {
+      fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, clinic, month, time })
+      });
+      // مسح البيانات من التخزين المؤقت حتى لو كرر المستخدم الدخول
+      localStorage.removeItem('pending_name');
+      localStorage.removeItem('pending_phone');
+      localStorage.removeItem('pending_clinic');
+      localStorage.removeItem('pending_clinic_label');
+      localStorage.removeItem('pending_month');
+      localStorage.removeItem('pending_time');
+      // تحويل تلقائي للرئيسية بعد 10 ثواني
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 10000);
+    }
   </script>
 </body>
 </html>
