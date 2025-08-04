@@ -9,9 +9,9 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// بيانات واتساب mywhats.cloud
-const INSTANCE_ID = '660F18AC0A49E';
-const ACCESS_TOKEN = '65bbe08452619';
+// قراءة بيانات واتساب من متغيرات البيئة (تضعها في Render)
+const INSTANCE_ID = process.env.INSTANCE_ID;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
 // الحسابات الأربعة
 const ACCOUNTS = [
@@ -39,9 +39,10 @@ function normalizePhone(phone) {
   return phone;
 }
 
-// --------------- إرسال رمز التحقق عبر واتساب ------------------
+// تخزين رموز OTP
 const otpStore = {};
 
+// --------------- إرسال رمز التحقق عبر واتساب ------------------
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
   phone = normalizePhone(phone);
@@ -65,8 +66,6 @@ app.post('/send-otp', async (req, res) => {
 });
 
 // ------------- نظام إدارة الحسابات --------------
-
-// حجز حساب غير مشغول، أو الانتظار حتى يتوفر واحد
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -74,11 +73,9 @@ async function acquireAccount() {
       ACCOUNTS[idx].busy = true;
       return ACCOUNTS[idx];
     }
-    // لو كل الحسابات مشغولة انتظر 1 ثانية وجرب من جديد
     await new Promise(res => setTimeout(res, 1000));
   }
 }
-// تحرير الحساب بعد انتهاء الحجز
 function releaseAccount(account) {
   const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
   if (idx !== -1) ACCOUNTS[idx].busy = false;
@@ -109,7 +106,7 @@ async function getAvailableTimes({ clinic, month }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined  // المهم للتشغيل على سيرفرات كـ Render
+    executablePath: process.env.CHROME_BIN || undefined // دعم ريندر
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -189,7 +186,6 @@ async function getAvailableTimes({ clinic, month }) {
 
 // --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
-  // أضف كل طلب إلى الدور (Queue)
   bookingQueue.push({ req, res });
   processBookingQueue();
 });
@@ -202,7 +198,6 @@ async function processBookingQueue() {
   const { req, res } = bookingQueue.shift();
   let account = null;
   try {
-    // حجز حساب متاح (أو الانتظار حتى يتوفر)
     account = await acquireAccount();
     const result = await bookAppointment({ ...req.body, account });
     res.json({ msg: result });
@@ -211,7 +206,6 @@ async function processBookingQueue() {
   } finally {
     if (account) releaseAccount(account);
     processingBooking = false;
-    // بعد الانتهاء من هذا الحجز، نفذ الحجز التالي في الدور
     processBookingQueue();
   }
 }
@@ -231,7 +225,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined // مهم جداً على Render
+    executablePath: process.env.CHROME_BIN || undefined // دعم ريندر
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -319,7 +313,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
+// ----------- تحقق رمز OTP -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
