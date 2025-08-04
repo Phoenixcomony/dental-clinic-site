@@ -39,7 +39,7 @@ function normalizePhone(phone) {
   return phone;
 }
 
-// ----- إرسال رمز التحقق عبر واتساب -----
+// --------------- إرسال رمز التحقق عبر واتساب ------------------
 const otpStore = {};
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
@@ -64,7 +64,7 @@ app.post('/send-otp', async (req, res) => {
   }
 });
 
-// --- نظام إدارة الحسابات ---
+// ------------- نظام إدارة الحسابات --------------
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -80,9 +80,9 @@ function releaseAccount(account) {
   if (idx !== -1) ACCOUNTS[idx].busy = false;
 }
 
-// --- جلب الأوقات من البوت (Puppeteer) ---
+// ----------- جلب الأوقات من البوت (Puppeteer) -----------
 app.post('/api/times', async (req, res) => {
-  console.log("تم استقبال طلب أوقات:", req.body);
+  console.log("تم استقبال طلب أوقات: ", req.body);
   try {
     const times = await getAvailableTimes(req.body);
     console.log("عدد المواعيد المستخرجة:", times.length);
@@ -96,7 +96,8 @@ app.post('/api/times', async (req, res) => {
 async function getAvailableTimes({ clinic, month }) {
   console.log("جلب أوقات للعيادة والشهر:", { clinic, month });
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
+    executablePath: '/usr/bin/google-chrome',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -108,8 +109,7 @@ async function getAvailableTimes({ clinic, month }) {
       '--disable-background-networking',
       '--window-size=1200,900',
       '--window-position=0,0'
-    ],
-    executablePath: process.env.CHROME_BIN || undefined
+    ]
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -197,7 +197,7 @@ async function getAvailableTimes({ clinic, month }) {
   }
 }
 
-// --- تنفيذ الحجز مع اختيار حساب غير مشغول ---
+// --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
   bookingQueue.push({ req, res });
   processBookingQueue();
@@ -224,8 +224,9 @@ async function processBookingQueue() {
   }
 }
 
-// يمكنك نسخ دالة bookAppointment كما هي من كودك الأصلي أو أرسلها لي لو تحتاج أعدل عليها
+// ... يمكنك هنا إضافة دالة bookAppointment بنفس الأسلوب والتعديلات إن احتجت ...
 
+// ----------- تحقق رمز OTP -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
@@ -238,7 +239,6 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
-// تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
