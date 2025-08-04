@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
   <style>
-    /* التنسيقات كما هي في سؤالك السابق */
-    /* يمكنك نسخ نفس التنسيقات هنا */
+    /* التنسيقات هنا كما في السابق */
+    /* يمكنك إضافة التنسيقات التي أرسلتها سابقًا */
   </style>
 </head>
 <body>
@@ -103,6 +103,8 @@
   </footer>
 
   <script>
+    const apiURL = "https://dental-clinic-site-dc3h.onrender.com/api";
+
     document.getElementById('fetchTimesBtn').addEventListener('click', updateTimes);
 
     async function updateTimes() {
@@ -115,9 +117,7 @@
       if (clinic && month) {
         timeSelect.innerHTML = "<option>...يتم جلب الأوقات الآن...</option>";
         try {
-          const apiURL = "https://dental-clinic-site-dc3h.onrender.com/api/times"; // عدل إلى رابط سيرفرك الحقيقي
-
-          const res = await fetch(apiURL, {
+          const res = await fetch(`${apiURL}/times`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ clinic, month })
@@ -134,11 +134,10 @@
             timeSelect.disabled = true;
             document.getElementById('bookBtn').disabled = true;
           }
-        } catch (error) {
+        } catch {
           timeSelect.innerHTML = "<option value=''>حدث خطأ أثناء جلب الأوقات</option>";
           timeSelect.disabled = true;
           document.getElementById('bookBtn').disabled = true;
-          console.error("Error fetching times:", error);
         }
       } else {
         timeSelect.innerHTML = "<option value=''>يرجى اختيار العيادة والشهر أولاً</option>";
@@ -155,8 +154,10 @@
       const month  = document.getElementById('month').value;
       const time   = document.getElementById('time').value;
 
+      // *** السطر الجديد لحفظ نص العيادة الظاهر ***
       const clinicSelect = document.getElementById('clinic');
       const clinicLabel  = clinicSelect.options[clinicSelect.selectedIndex].text;
+      // *** حفظ label في localStorage ***
       localStorage.setItem('pending_clinic_label', clinicLabel);
 
       localStorage.setItem('pending_name', name);

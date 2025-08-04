@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core'); // core version
 const axios = require('axios');
 
 const app = express();
@@ -64,6 +64,7 @@ app.post('/send-otp', async (req, res) => {
 });
 
 // ------------- نظام إدارة الحسابات --------------
+// حجز حساب غير مشغول، أو الانتظار حتى يتوفر واحد
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -71,9 +72,11 @@ async function acquireAccount() {
       ACCOUNTS[idx].busy = true;
       return ACCOUNTS[idx];
     }
+    // لو كل الحسابات مشغولة انتظر 1 ثانية وجرب من جديد
     await new Promise(res => setTimeout(res, 1000));
   }
 }
+// تحرير الحساب بعد انتهاء الحجز
 function releaseAccount(account) {
   const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
   if (idx !== -1) ACCOUNTS[idx].busy = false;
@@ -85,6 +88,7 @@ app.post('/api/times', async (req, res) => {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
   } catch (err) {
+    console.error("خطأ في api/times:", err);
     res.json({ times: [] });
   }
 });
@@ -104,7 +108,7 @@ async function getAvailableTimes({ clinic, month }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined
+    executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome' // تعديل مسار كروم حسب Render
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -123,6 +127,7 @@ async function getAvailableTimes({ clinic, month }) {
     ]);
     await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
 
+    // اختيار العيادة
     const clinicValue = await page.evaluate((name) => {
       const options = Array.from(document.querySelectorAll('#clinic_id option'));
       const found = options.find(opt => opt.textContent.trim() === name);
@@ -136,6 +141,7 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
+    // اختيار الشهر
     const months = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }));
     });
@@ -147,6 +153,7 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#month1', monthValue)
     ]);
 
+    // جلب الأوقات
     times = await page.evaluate(() => {
       function period24(timeStr) {
         if (!timeStr) return '';
@@ -175,12 +182,14 @@ async function getAvailableTimes({ clinic, month }) {
     return times;
   } catch (err) {
     await browser.close();
+    console.error("Error in getAvailableTimes:", err);
     return [];
   }
 }
 
 // --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
+  // أضف كل طلب إلى الدور (Queue)
   bookingQueue.push({ req, res });
   processBookingQueue();
 });
@@ -193,6 +202,7 @@ async function processBookingQueue() {
   const { req, res } = bookingQueue.shift();
   let account = null;
   try {
+    // حجز حساب متاح (أو الانتظار حتى يتوفر)
     account = await acquireAccount();
     const result = await bookAppointment({ ...req.body, account });
     res.json({ msg: result });
@@ -201,6 +211,7 @@ async function processBookingQueue() {
   } finally {
     if (account) releaseAccount(account);
     processingBooking = false;
+    // بعد الانتهاء من هذا الحجز، نفذ الحجز التالي في الدور
     processBookingQueue();
   }
 }
@@ -220,7 +231,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined
+    executablePath: process.env.CHROME_BIN || '/usr/bin/google-chrome'
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -275,6 +286,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
     }, time);
     if (!found) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
+    // اضغط زر الحجز (بداخل evaluate)
     const btnResult = await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]')).find(
         el => el.value && el.value.trim() === "حجز : Reserve"
@@ -307,7 +319,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// ----------- تحقق رمز OTP -------------
+// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
