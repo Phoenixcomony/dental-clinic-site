@@ -41,6 +41,7 @@ function normalizePhone(phone) {
 
 // --------------- إرسال رمز التحقق عبر واتساب ------------------
 const otpStore = {};
+
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
   phone = normalizePhone(phone);
@@ -64,6 +65,7 @@ app.post('/send-otp', async (req, res) => {
 });
 
 // ------------- نظام إدارة الحسابات --------------
+
 // حجز حساب غير مشغول، أو الانتظار حتى يتوفر واحد
 async function acquireAccount() {
   while (true) {
@@ -107,7 +109,7 @@ async function getAvailableTimes({ clinic, month }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined // التعديل هنا
+    executablePath: process.env.CHROME_BIN || undefined  // المهم للتشغيل على سيرفرات كـ Render
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -229,7 +231,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined // التعديل هنا أيضا
+    executablePath: process.env.CHROME_BIN || undefined // مهم جداً على Render
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
