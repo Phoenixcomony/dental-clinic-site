@@ -84,7 +84,7 @@ app.post('/api/times', async (req, res) => {
   try {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
-  } catch {
+  } catch (err) {
     res.json({ times: [] });
   }
 });
@@ -123,7 +123,6 @@ async function getAvailableTimes({ clinic, month }) {
     ]);
     await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
 
-    // اختيار العيادة
     const clinicValue = await page.evaluate((name) => {
       const options = Array.from(document.querySelectorAll('#clinic_id option'));
       const found = options.find(opt => opt.textContent.trim() === name);
@@ -137,7 +136,6 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // اختيار الشهر
     const months = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }));
     });
@@ -149,7 +147,6 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#month1', monthValue)
     ]);
 
-    // جلب الأوقات
     times = await page.evaluate(() => {
       function period24(timeStr) {
         if (!timeStr) return '';
@@ -278,7 +275,6 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
     }, time);
     if (!found) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
-    // اضغط زر الحجز
     const btnResult = await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]')).find(
         el => el.value && el.value.trim() === "حجز : Reserve"
@@ -311,7 +307,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
+// ----------- تحقق رمز OTP -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
