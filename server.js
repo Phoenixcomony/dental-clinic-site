@@ -64,7 +64,6 @@ app.post('/send-otp', async (req, res) => {
 });
 
 // ------------- نظام إدارة الحسابات --------------
-// حجز حساب غير مشغول، أو الانتظار حتى يتوفر واحد
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -72,11 +71,9 @@ async function acquireAccount() {
       ACCOUNTS[idx].busy = true;
       return ACCOUNTS[idx];
     }
-    // لو كل الحسابات مشغولة انتظر 1 ثانية وجرب من جديد
     await new Promise(res => setTimeout(res, 1000));
   }
 }
-// تحرير الحساب بعد انتهاء الحجز
 function releaseAccount(account) {
   const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
   if (idx !== -1) ACCOUNTS[idx].busy = false;
@@ -87,7 +84,7 @@ app.post('/api/times', async (req, res) => {
   try {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
-  } catch (err) {
+  } catch {
     res.json({ times: [] });
   }
 });
@@ -107,7 +104,7 @@ async function getAvailableTimes({ clinic, month }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined // التعديل هنا
+    executablePath: process.env.CHROME_BIN || undefined
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -187,7 +184,6 @@ async function getAvailableTimes({ clinic, month }) {
 
 // --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
-  // أضف كل طلب إلى الدور (Queue)
   bookingQueue.push({ req, res });
   processBookingQueue();
 });
@@ -200,7 +196,6 @@ async function processBookingQueue() {
   const { req, res } = bookingQueue.shift();
   let account = null;
   try {
-    // حجز حساب متاح (أو الانتظار حتى يتوفر)
     account = await acquireAccount();
     const result = await bookAppointment({ ...req.body, account });
     res.json({ msg: result });
@@ -209,7 +204,6 @@ async function processBookingQueue() {
   } finally {
     if (account) releaseAccount(account);
     processingBooking = false;
-    // بعد الانتهاء من هذا الحجز، نفذ الحجز التالي في الدور
     processBookingQueue();
   }
 }
@@ -229,7 +223,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--window-size=1200,900',
       '--window-position=0,0'
     ],
-    executablePath: process.env.CHROME_BIN || undefined // التعديل هنا أيضا
+    executablePath: process.env.CHROME_BIN || undefined
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -284,7 +278,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
     }, time);
     if (!found) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
-    // اضغط زر الحجز (بداخل evaluate)
+    // اضغط زر الحجز
     const btnResult = await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]')).find(
         el => el.value && el.value.trim() === "حجز : Reserve"

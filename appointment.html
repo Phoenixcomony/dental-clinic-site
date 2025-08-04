@@ -407,9 +407,6 @@
   </footer>
 
   <script>
-    // 🔥 ضع هنا رابط سيرفرك في Render!
-    const API_URL = "https://dental-clinic-site-dc3h.onrender.com";
-
     document.getElementById('fetchTimesBtn').addEventListener('click', updateTimes);
 
     async function updateTimes() {
@@ -422,7 +419,7 @@
       if (clinic && month) {
         timeSelect.innerHTML = "<option>...يتم جلب الأوقات الآن...</option>";
         try {
-          const res = await fetch(`${API_URL}/api/times`, {
+          const res = await fetch('/api/times', {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ clinic, month })
