@@ -64,6 +64,7 @@ app.post('/send-otp', async (req, res) => {
 });
 
 // ------------- نظام إدارة الحسابات --------------
+// حجز حساب غير مشغول، أو الانتظار حتى يتوفر واحد
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -71,9 +72,11 @@ async function acquireAccount() {
       ACCOUNTS[idx].busy = true;
       return ACCOUNTS[idx];
     }
+    // لو كل الحسابات مشغولة انتظر 1 ثانية وجرب من جديد
     await new Promise(res => setTimeout(res, 1000));
   }
 }
+// تحرير الحساب بعد انتهاء الحجز
 function releaseAccount(account) {
   const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
   if (idx !== -1) ACCOUNTS[idx].busy = false;
@@ -84,7 +87,8 @@ app.post('/api/times', async (req, res) => {
   try {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
-  } catch {
+  } catch (err) {
+    console.error("خطأ في /api/times:", err);
     res.json({ times: [] });
   }
 });
@@ -111,12 +115,14 @@ async function getAvailableTimes({ clinic, month }) {
   let times = [];
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.evaluate(() => {
-      document.querySelector('input[name="username"]').value = '';
-      document.querySelector('input[name="password"]').value = '';
-    });
-    await page.$eval('input[name="username"]', (el) => el.value = '1111111111');
-    await page.$eval('input[name="password"]', (el) => el.value = '1111111111');
+
+    await page.$eval('input[name="username"]', (el) => el.value = '');
+    await page.$eval('input[name="password"]', (el) => el.value = '');
+
+    // تسجيل دخول حساب ثابت لجلب الأوقات (يمكن تعديل الحساب حسب الحاجة)
+    await page.$eval('input[name="username"]', (el, val) => el.value = val, ACCOUNTS[0].user);
+    await page.$eval('input[name="password"]', (el, val) => el.value = val, ACCOUNTS[0].pass);
+
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
       page.click('#submit')
@@ -177,6 +183,7 @@ async function getAvailableTimes({ clinic, month }) {
     await browser.close();
     return times;
   } catch (err) {
+    console.error("خطأ في getAvailableTimes:", err);
     await browser.close();
     return [];
   }
@@ -311,7 +318,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
+// ----------- تحقق رمز OTP -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
