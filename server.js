@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer'); // لاحظ هنا puppeteer العادي
 const axios = require('axios');
 
 const app = express();
@@ -9,11 +9,11 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// بيانات واتساب mywhats.cloud
+// بيانات واتساب mywhats.cloud (لإرسال OTP)
 const INSTANCE_ID = '660F18AC0A49E';
 const ACCESS_TOKEN = '65bbe08452619';
 
-// الحسابات الأربعة
+// الحسابات
 const ACCOUNTS = [
   { user: "1111111111", pass: "1111111111", busy: false },
   { user: "2222222222", pass: "2222222222", busy: false },
@@ -21,9 +21,10 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false }
 ];
 
+// Queue للحجوزات
 const bookingQueue = [];
 
-// دالة لتصحيح الجوال
+// دالة تصحيح الجوال
 function normalizePhone(phone) {
   phone = (phone || '').replace(/[^0-9]/g, '');
   if (phone.startsWith('05') && phone.length === 10) {
@@ -38,7 +39,7 @@ function normalizePhone(phone) {
   return phone;
 }
 
-// إرسال رمز التحقق عبر واتساب
+// --------------- إرسال رمز التحقق عبر واتساب ------------------
 const otpStore = {};
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
@@ -62,7 +63,7 @@ app.post('/send-otp', async (req, res) => {
   }
 });
 
-// إدارة الحسابات
+// ----------- نظام إدارة الحسابات --------------
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -80,8 +81,9 @@ function releaseAccount(account) {
 
 // ----------- جلب الأوقات من البوت (Puppeteer) -----------
 app.post('/api/times', async (req, res) => {
+  const { clinic, month } = req.body;
+  console.log(`جلب الأوقات للعيادة: ${clinic}, الشهر: ${month}`);
   try {
-    console.log("جلب الأوقات للعيادة:", req.body.clinic, "الشهر:", req.body.month);
     const times = await getAvailableTimes(req.body);
     res.json({ times });
   } catch (err) {
@@ -91,6 +93,7 @@ app.post('/api/times', async (req, res) => {
 });
 
 async function getAvailableTimes({ clinic, month }) {
+  // لا تضع executablePath هنا
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -111,10 +114,6 @@ async function getAvailableTimes({ clinic, month }) {
   let times = [];
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.evaluate(() => {
-      document.querySelector('input[name="username"]').value = '';
-      document.querySelector('input[name="password"]').value = '';
-    });
     await page.$eval('input[name="username"]', (el) => el.value = '1111111111');
     await page.$eval('input[name="password"]', (el) => el.value = '1111111111');
     await Promise.all([
@@ -182,7 +181,7 @@ async function getAvailableTimes({ clinic, month }) {
   }
 }
 
-// تنفيذ الحجز مع اختيار حساب غير مشغول
+// --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
   bookingQueue.push({ req, res });
   processBookingQueue();
@@ -228,8 +227,6 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   await page.setViewport({ width: 1200, height: 900 });
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', (el) => el.value = '');
-    await page.$eval('input[name="password"]', (el) => el.value = '');
     await page.$eval('input[name="username"]', (el, value) => el.value = value, account.user);
     await page.$eval('input[name="password"]', (el, value) => el.value = value, account.pass);
 
@@ -277,6 +274,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
     }, time);
     if (!found) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
+    // اضغط زر الحجز
     const btnResult = await page.evaluate(() => {
       const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]')).find(
         el => el.value && el.value.trim() === "حجز : Reserve"
@@ -309,7 +307,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// تحقق رمز OTP
+// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
