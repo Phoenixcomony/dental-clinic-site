@@ -419,7 +419,7 @@
       if (clinic && month) {
         timeSelect.innerHTML = "<option>...يتم جلب الأوقات الآن...</option>";
         try {
-          const res = await fetch('https://dental-clinic-site-dc3h.onrender.com/api/times', {
+          const res = await fetch('/api/times', {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ clinic, month })

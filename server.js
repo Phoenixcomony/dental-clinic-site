@@ -3,42 +3,33 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer');
 const axios = require('axios');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// بيانات واتساب mywhats.cloud (لإرسال OTP)
 const INSTANCE_ID = '660F18AC0A49E';
 const ACCESS_TOKEN = '65bbe08452619';
 
-// الحسابات
 const ACCOUNTS = [
   { user: "1111111111", pass: "1111111111", busy: false },
   { user: "2222222222", pass: "2222222222", busy: false },
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false }
 ];
+
 const bookingQueue = [];
 
-// دالة تصحيح الجوال
+// تصحيح رقم الجوال السعودي
 function normalizePhone(phone) {
   phone = (phone || '').replace(/[^0-9]/g, '');
-  if (phone.startsWith('05') && phone.length === 10) {
-    return '966' + phone.slice(1);
-  }
-  if (phone.startsWith('5') && phone.length === 9) {
-    return '966' + phone;
-  }
-  if (phone.startsWith('9665') && phone.length === 12) {
-    return phone;
-  }
+  if (phone.startsWith('05') && phone.length === 10) return '966' + phone.slice(1);
+  if (phone.startsWith('5') && phone.length === 9) return '966' + phone;
+  if (phone.startsWith('9665') && phone.length === 12) return phone;
   return phone;
 }
 
-// --------------- إرسال رمز التحقق عبر واتساب ------------------
 const otpStore = {};
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
@@ -50,7 +41,7 @@ app.post('/send-otp', async (req, res) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000);
   otpStore[phone] = otp;
-  console.log("طلب إرسال OTP على الرقم:", phone, "| الرمز:", otp);
+  console.log("OTP to:", phone, "| code:", otp);
 
   const msg = `رمز التحقق الخاص بك في مجمع فينكس الطبي: ${otp}`;
   const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
@@ -62,7 +53,6 @@ app.post('/send-otp', async (req, res) => {
   }
 });
 
-// ----------- نظام إدارة الحسابات --------------
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -80,34 +70,17 @@ function releaseAccount(account) {
 
 // ----------- جلب الأوقات من البوت (Puppeteer) -----------
 app.post('/api/times', async (req, res) => {
-  const { clinic, month } = req.body;
-  console.log(`جلب الأوقات للعيادة: ${clinic}, الشهر: ${month}`);
   try {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
   } catch (err) {
     console.error("خطأ في /api/times:", err);
-    res.json({ times: [] });
+    res.json({ times: [], error: err.message || err.toString() });
   }
 });
 
-// ⚡️ إعداد المسار الصحيح لمتصفح Chrome على حسب البيئة
-function getChromeExecutablePath() {
-  if (process.env.RENDER) {
-    // Render.com يستخدم كروم في هذا المسار بعد التثبيت عبر render-build.sh
-    if (fs.existsSync('/usr/bin/google-chrome-stable')) {
-      return '/usr/bin/google-chrome-stable';
-    }
-    if (fs.existsSync('/usr/bin/google-chrome')) {
-      return '/usr/bin/google-chrome';
-    }
-  }
-  // على الجهاز الشخصي (لا يحتاج لمسار خاص)
-  return undefined;
-}
-
 async function getAvailableTimes({ clinic, month }) {
-  const chromePath = getChromeExecutablePath();
+  // لا تحدد executablePath هنا!
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -121,23 +94,21 @@ async function getAvailableTimes({ clinic, month }) {
       '--disable-background-networking',
       '--window-size=1200,900',
       '--window-position=0,0'
-    ],
-    executablePath: chromePath
+    ]
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   let times = [];
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', (el) => el.value = '1111111111');
-    await page.$eval('input[name="password"]', (el) => el.value = '1111111111');
+    await page.$eval('input[name="username"]', el => el.value = '1111111111');
+    await page.$eval('input[name="password"]', el => el.value = '1111111111');
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
       page.click('#submit')
     ]);
     await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
 
-    // اختيار العيادة
     const clinicValue = await page.evaluate((name) => {
       const options = Array.from(document.querySelectorAll('#clinic_id option'));
       const found = options.find(opt => opt.textContent.trim() === name);
@@ -151,7 +122,6 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // اختيار الشهر
     const months = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }));
     });
@@ -163,7 +133,6 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#month1', monthValue)
     ]);
 
-    // جلب الأوقات
     times = await page.evaluate(() => {
       function period24(timeStr) {
         if (!timeStr) return '';
@@ -180,10 +149,7 @@ async function getAvailableTimes({ clinic, month }) {
         const label = (time24)
           ? `${date} - ${time24} ${period24(time24)}`
           : `${date}`;
-        result.push({
-          label,
-          value
-        });
+        result.push({ label, value });
       }
       return result;
     });
@@ -192,7 +158,7 @@ async function getAvailableTimes({ clinic, month }) {
     return times;
   } catch (err) {
     await browser.close();
-    return [];
+    throw err;
   }
 }
 
@@ -223,7 +189,6 @@ async function processBookingQueue() {
 }
 
 async function bookAppointment({ name, phone, clinic, month, time, account }) {
-  const chromePath = getChromeExecutablePath();
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -237,8 +202,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--disable-background-networking',
       '--window-size=1200,900',
       '--window-position=0,0'
-    ],
-    executablePath: chromePath
+    ]
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
