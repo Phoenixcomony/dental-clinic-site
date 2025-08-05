@@ -1,16 +1,14 @@
 #!/bin/bash
-echo "بدء تثبيت Google Chrome..."
+echo "بدء تثبيت المتطلبات..."
 
-# تحديث الحزم (بدون sudo)
-apt-get update -y || echo "تحديث الحزم غير ممكن بدون صلاحيات"
+# تثبيت Google Chrome (مسار تنفيذي معروف على Render)
+if ! command -v google-chrome >/dev/null 2>&1; then
+  echo "Google Chrome غير مثبت. الرجاء تثبيته يدوياً على Render."
+else
+  echo "Google Chrome مثبت."
+fi
 
-# تثبيت الحزم اللازمة (بدون sudo)
-apt-get install -y wget gnupg || echo "تثبيت الحزم غير ممكن بدون صلاحيات"
+# تثبيت الحزم
+npm install
 
-# تحميل حزمة Google Chrome (الإصدار المستقر)
-wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-
-# تثبيت الحزمة
-dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y || echo "تثبيت Chrome قد فشل، حاول يدوياً"
-
-echo "تم تثبيت Google Chrome"
+echo "اكتمل البناء."
