@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer'); // لاحظ هنا puppeteer العادي
+const puppeteer = require('puppeteer');
 const axios = require('axios');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
@@ -20,8 +21,6 @@ const ACCOUNTS = [
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false }
 ];
-
-// Queue للحجوزات
 const bookingQueue = [];
 
 // دالة تصحيح الجوال
@@ -92,8 +91,23 @@ app.post('/api/times', async (req, res) => {
   }
 });
 
+// ⚡️ إعداد المسار الصحيح لمتصفح Chrome على حسب البيئة
+function getChromeExecutablePath() {
+  if (process.env.RENDER) {
+    // Render.com يستخدم كروم في هذا المسار بعد التثبيت عبر render-build.sh
+    if (fs.existsSync('/usr/bin/google-chrome-stable')) {
+      return '/usr/bin/google-chrome-stable';
+    }
+    if (fs.existsSync('/usr/bin/google-chrome')) {
+      return '/usr/bin/google-chrome';
+    }
+  }
+  // على الجهاز الشخصي (لا يحتاج لمسار خاص)
+  return undefined;
+}
+
 async function getAvailableTimes({ clinic, month }) {
-  // لا تضع executablePath هنا
+  const chromePath = getChromeExecutablePath();
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -107,7 +121,8 @@ async function getAvailableTimes({ clinic, month }) {
       '--disable-background-networking',
       '--window-size=1200,900',
       '--window-position=0,0'
-    ]
+    ],
+    executablePath: chromePath
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
@@ -208,6 +223,7 @@ async function processBookingQueue() {
 }
 
 async function bookAppointment({ name, phone, clinic, month, time, account }) {
+  const chromePath = getChromeExecutablePath();
   const browser = await puppeteer.launch({
     headless: "new",
     args: [
@@ -221,7 +237,8 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       '--disable-background-networking',
       '--window-size=1200,900',
       '--window-position=0,0'
-    ]
+    ],
+    executablePath: chromePath
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
