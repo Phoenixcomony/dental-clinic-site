@@ -1,17 +1,20 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core'); // puppeteer-core لأنه سنستخدم Chrome مثبت من النظام
 const axios = require('axios');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public'))); // تأكد مجلد static لو عندك
 
+// بيانات واتساب mywhats.cloud
 const INSTANCE_ID = '660F18AC0A49E';
 const ACCESS_TOKEN = '65bbe08452619';
 
+// الحسابات الأربعة
 const ACCOUNTS = [
   { user: "1111111111", pass: "1111111111", busy: false },
   { user: "2222222222", pass: "2222222222", busy: false },
@@ -19,25 +22,37 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false }
 ];
 
+// Queue للحجوزات إذا كل الحسابات مشغولة
 const bookingQueue = [];
 
+// دالة لتصحيح الجوال
 function normalizePhone(phone) {
   phone = (phone || '').replace(/[^0-9]/g, '');
-  if (phone.startsWith('05') && phone.length === 10) return '966' + phone.slice(1);
-  if (phone.startsWith('5') && phone.length === 9) return '966' + phone;
-  if (phone.startsWith('9665') && phone.length === 12) return phone;
+  if (phone.startsWith('05') && phone.length === 10) {
+    return '966' + phone.slice(1);
+  }
+  if (phone.startsWith('5') && phone.length === 9) {
+    return '966' + phone;
+  }
+  if (phone.startsWith('9665') && phone.length === 12) {
+    return phone;
+  }
   return phone;
 }
 
+// --------------- إرسال رمز التحقق عبر واتساب ------------------
 const otpStore = {};
 app.post('/send-otp', async (req, res) => {
   let { phone } = req.body;
   phone = normalizePhone(phone);
-  if (!/^9665\d{8}$/.test(phone)) return res.status(400).json({ success: false, message: "رقم الجوال غير صحيح" });
+
+  if (!/^9665\d{8}$/.test(phone)) {
+    return res.status(400).json({ success: false, message: "رقم الجوال غير صحيح" });
+  }
 
   const otp = Math.floor(100000 + Math.random() * 900000);
   otpStore[phone] = otp;
-  console.log("OTP sent to:", phone, "Code:", otp);
+  console.log("طلب إرسال OTP على الرقم:", phone, "| الرمز:", otp);
 
   const msg = `رمز التحقق الخاص بك في مجمع فينكس الطبي: ${otp}`;
   const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
@@ -45,10 +60,12 @@ app.post('/send-otp', async (req, res) => {
     await axios.get(url);
     res.json({ success: true });
   } catch (err) {
+    console.error("خطأ في إرسال OTP:", err.message);
     res.status(500).json({ success: false, message: "فشل إرسال الرسالة", error: err.message });
   }
 });
 
+// ------------- نظام إدارة الحسابات --------------
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -59,44 +76,46 @@ async function acquireAccount() {
     await new Promise(res => setTimeout(res, 1000));
   }
 }
-
 function releaseAccount(account) {
   const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
   if (idx !== -1) ACCOUNTS[idx].busy = false;
 }
 
+// ----------- جلب الأوقات من البوت (Puppeteer) -----------
 app.post('/api/times', async (req, res) => {
   try {
     const times = await getAvailableTimes(req.body);
     res.json({ times });
   } catch (err) {
-    console.error('خطأ في /api/times:', err);
-    res.json({ times: [] });
+    console.error("خطأ في /api/times:", err);
+    res.status(500).json({ times: [] });
   }
 });
 
 async function getAvailableTimes({ clinic, month }) {
+  console.log(`جلب الأوقات للعيادة: ${clinic}, الشهر: ${month}`);
+  const executablePath = process.env.CHROME_BIN || '/usr/bin/google-chrome-stable';
+  console.log("مسار Chrome المستخدم:", executablePath);
+  
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-background-networking',
       '--window-size=1200,900',
-      '--window-position=0,0'
     ],
+    executablePath
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
+  let times = [];
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', el => el.value = '');
-    await page.$eval('input[name="password"]', el => el.value = '');
+    // تسجيل الدخول - يجب تعديل حسب حساباتك
+    await page.$eval('input[name="username"]', (el) => el.value = '');
+    await page.$eval('input[name="password"]', (el) => el.value = '');
     await page.$eval('input[name="username"]', (el) => el.value = '1111111111');
     await page.$eval('input[name="password"]', (el) => el.value = '1111111111');
     await Promise.all([
@@ -105,12 +124,12 @@ async function getAvailableTimes({ clinic, month }) {
     ]);
     await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
 
+    // اختيار العيادة
     const clinicValue = await page.evaluate((name) => {
       const options = Array.from(document.querySelectorAll('#clinic_id option'));
       const found = options.find(opt => opt.textContent.trim() === name);
       return found ? found.value : null;
     }, clinic);
-
     if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
 
     await Promise.all([
@@ -118,10 +137,10 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
+    // اختيار الشهر
     const months = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }));
     });
-
     const monthValue = months.find(m => m.text === month || m.value === month)?.value;
     if (!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
 
@@ -130,7 +149,8 @@ async function getAvailableTimes({ clinic, month }) {
       page.select('#month1', monthValue)
     ]);
 
-    const times = await page.evaluate(() => {
+    // جلب الأوقات
+    times = await page.evaluate(() => {
       function period24(timeStr) {
         if (!timeStr) return '';
         let h = parseInt(timeStr.split(':')[0], 10);
@@ -146,26 +166,29 @@ async function getAvailableTimes({ clinic, month }) {
         const label = (time24)
           ? `${date} - ${time24} ${period24(time24)}`
           : `${date}`;
-        result.push({ label, value });
+        result.push({
+          label,
+          value
+        });
       }
       return result;
     });
-
     await browser.close();
     return times;
   } catch (err) {
+    console.error("خطأ أثناء جلب الأوقات:", err);
     await browser.close();
-    throw err;
+    return [];
   }
 }
 
+// --------------- تنفيذ الحجز مع اختيار حساب غير مشغول ------------------
 app.post('/api/book', async (req, res) => {
   bookingQueue.push({ req, res });
   processBookingQueue();
 });
 
 let processingBooking = false;
-
 async function processBookingQueue() {
   if (processingBooking || bookingQueue.length === 0) return;
   processingBooking = true;
@@ -176,6 +199,7 @@ async function processBookingQueue() {
     const result = await bookAppointment({ ...req.body, account });
     res.json({ msg: result });
   } catch (err) {
+    console.error("خطأ أثناء الحجز:", err);
     res.json({ msg: '❌ فشل الحجز! ' + err.message });
   } finally {
     if (account) releaseAccount(account);
@@ -185,30 +209,26 @@ async function processBookingQueue() {
 }
 
 async function bookAppointment({ name, phone, clinic, month, time, account }) {
+  const executablePath = process.env.CHROME_BIN || '/usr/bin/google-chrome-stable';
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: true,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-background-networking',
       '--window-size=1200,900',
-      '--window-position=0,0'
     ],
+    executablePath
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1200, height: 900 });
   try {
     await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', el => el.value = '');
-    await page.$eval('input[name="password"]', el => el.value = '');
+    await page.$eval('input[name="username"]', (el) => el.value = '');
+    await page.$eval('input[name="password"]', (el) => el.value = '');
     await page.$eval('input[name="username"]', (el, value) => el.value = value, account.user);
     await page.$eval('input[name="password"]', (el, value) => el.value = value, account.pass);
-
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
       page.click('#submit')
@@ -225,6 +245,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
       page.select('#clinic_id', clinicValue)
     ]);
+
     const months = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }));
     });
@@ -269,11 +290,9 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       }
       return false;
     });
-
     if (!btnResult) throw new Error("لم يتم العثور على زر الحجز أو لم يُضغط!");
 
     await page.waitForSelector('#popupContact', { visible: true, timeout: 15000 });
-
     const popupVisible = await page.$eval('#popupContact', el => el.style.display !== 'none');
     if (!popupVisible) throw new Error('لم تظهر نافذة تأكيد الحجز!');
 
@@ -285,6 +304,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
+// ----------- تحقق رمز OTP (ومن ثم يسمح بالانتقال للنجاح) -------------
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body;
   phone = normalizePhone(phone);
@@ -297,7 +317,7 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
