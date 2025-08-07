@@ -4,42 +4,66 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <title>تأكيد الحجز | مجمع فينكس الطبي</title>
-  <meta name="description" content="تأكيد حجز موعدك لدى مجمع فينكس الطبي وإرسال رمز التحقق عبر واتساب قبل إتمام الحجز.">
+  <title>تأكيد الحجز - مجمع فينكس الطبي</title>
+  <meta name="description" content="تأكيد بيانات الحجز وإرسال رمز التحقق عبر واتساب، ثم إتمام الحجز في مجمع فينكس الطبي.">
+  <!-- مهم: السماح بالأرشفة -->
+  <meta name="robots" content="index, follow">
+  <!-- canonical لنفس الصفحة -->
   <link rel="canonical" href="https://www.phoenixclinic.net/confirm.html">
-  <meta name="robots" content="noindex,follow">
-
-  <!-- Open Graph -->
-  <meta property="og:title" content="تأكيد الحجز | مجمع فينكس الطبي">
-  <meta property="og:description" content="أكمل الحجز بإدخال رمز التحقق الذي يصلك عبر واتساب.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://www.phoenixclinic.net/confirm.html">
-  <meta property="og:image" content="https://www.phoenixclinic.net/images/og/clinic-cover.jpg">
-  <meta property="og:locale" content="ar_SA">
-  <meta name="twitter:card" content="summary_large_image">
 
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
   <style>
-    body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background: #faf6ee; }
-    .confirm-main { max-width: 460px; margin: 50px auto; background: #fff; border-radius: 19px; box-shadow: 0 4px 32px #eadcbc; padding: 36px 22px 24px; text-align: center; position: relative; overflow: hidden;}
-    .phoenix-logo { width: 85px; margin-bottom: 15px;}
-    .title-confirm { font-size: 2em; color: #b89023; background: #fdf4dd; border-radius: 15px; padding: 9px 0; margin-bottom: 22px; font-weight: bold;}
-    .confirm-label { color: #a68e57; font-size: 1em; font-weight: bold; margin: 7px 0 2px; float: right;}
-    .confirm-input { width: 100%; background: #f5f3ee; border: 2px solid #eadcbc; border-radius: 14px; padding: 13px 8px; margin-bottom: 13px; font-size: 1.1em; color: #7a6741; font-weight: bold; text-align: right;}
-    .confirm-time { color: #8e8e8e; font-size: 1.18em; background: #f5f3ee; border: 2px solid #eadcbc; border-radius: 14px; padding: 13px 8px; margin-bottom: 13px; font-weight: bold; text-align: center;}
-    .btn-main { width: 100%; padding: 14px 0; font-size: 1.17em; border-radius: 13px; border: none; background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); color: #fff; font-weight: bold; letter-spacing: 1px; cursor: pointer; margin-top: 8px; transition: background 0.22s, box-shadow 0.22s; box-shadow: 0 1px 12px #e2be6d54;}
-    .btn-main:active { background: linear-gradient(90deg,#ad8103 60%,#bfa341 110%);}
-    #otpSection { display: none; margin-top: 12px;}
-    #message { margin-top: 13px; font-weight: bold; font-size: 1.05em; color: #17a970; min-height: 22px;}
+    body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background: #faf6ee; margin:0; }
+    .confirm-main {
+      max-width: 460px; margin: 50px auto; background: #fff; border-radius: 19px;
+      box-shadow: 0 4px 32px #eadcbc; padding: 36px 22px 24px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .phoenix-logo { width: 85px; margin-bottom: 15px; }
+    .title-confirm {
+      font-size: 2em; color: #b89023; background: #fdf4dd; border-radius: 15px;
+      padding: 9px 0; margin-bottom: 22px; font-weight: bold;
+    }
+    .confirm-label { color: #a68e57; font-size: 1em; font-weight: bold; margin: 7px 0 2px; float: right; }
+    .confirm-input {
+      width: 100%; background: #f5f3ee; border: 2px solid #eadcbc; border-radius: 14px;
+      padding: 13px 8px; margin-bottom: 13px; font-size: 1.1em; color: #7a6741; font-weight: bold; text-align: right;
+    }
+    .confirm-time {
+      color: #8e8e8e; font-size: 1.18em; background: #f5f3ee; border: 2px solid #eadcbc;
+      border-radius: 14px; padding: 13px 8px; margin-bottom: 13px; font-weight: bold; text-align: center;
+    }
+    .btn-main {
+      width: 100%; padding: 14px 0; font-size: 1.07em; border-radius: 13px; border: none;
+      background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); color: #fff; font-weight: bold;
+      letter-spacing: .4px; cursor: pointer; margin-top: 8px; transition: background .22s, box-shadow .22s;
+      box-shadow: 0 1px 12px #e2be6d54;
+    }
+    .btn-main:active { background: linear-gradient(90deg,#ad8103 60%,#bfa341 110%); }
+    #otpSection { display: none; margin-top: 12px; }
+    #message { margin-top: 13px; font-weight: bold; font-size: 1.05em; color: #17a970; min-height: 22px; }
     .social-icons { display: flex; justify-content: center; gap: 7px; margin: 12px 0 20px; }
-    .social-icons a { font-size: 1.19em; padding: 0 5px; border-radius: 50%; background: #fff3ce; color: #b89023; border: 1.2px solid #f9e9c8; transition: background 0.19s, color 0.19s;}
+    .social-icons a {
+      font-size: 1.19em; padding: 0 5px; border-radius: 50%; background: #fff3ce; color: #b89023;
+      border: 1.2px solid #f9e9c8; transition: background .19s, color .19s;
+    }
     .social-icons a:hover { background: #fffbe7; color: #84610f; }
-    #resendDiv { margin: 8px 0 0; font-size: 0.99em; color: #ad8103; font-weight: bold; min-height: 23px;}
-    #resendBtn { background: #e9be4f; color: #fff; padding: 11px 0; border: none; border-radius: 13px; width: 100%; font-size: 1.05em; font-weight: bold; cursor: pointer; margin-top: 6px; display: none; transition: background 0.19s;}
-    #resendBtn:disabled { opacity: 0.65; cursor: not-allowed; background: #ececec; color: #b8b8b8; }
-    @media (max-width: 600px) { .confirm-main { padding: 7px 1vw 6px; } .phoenix-logo { width: 60px;} }
+    #resendDiv { margin: 8px 0 0; font-size: 0.99em; color: #ad8103; font-weight: bold; min-height: 23px; }
+    #resendBtn {
+      background: #e9be4f; color: #fff; padding: 11px 0; border: none; border-radius: 13px;
+      width: 100%; font-size: 1.05em; font-weight: bold; cursor: pointer; margin-top: 6px; display: none;
+      transition: background .19s;
+    }
+    #resendBtn:disabled { opacity: .65; cursor: not-allowed; background: #ececec; color: #b8b8b8; }
+    @media (max-width: 600px) {
+      .confirm-main { padding: 7px 1vw 12px; margin: 24px auto; }
+      .phoenix-logo { width: 60px; }
+    }
+    footer {
+      background:#faf6ee; color:#8c6d1c; text-align:center; padding:12px 0 9px; font-weight:bold;
+      border-top:1px solid #f0e7d1;
+    }
   </style>
 </head>
 <body>
@@ -48,9 +72,9 @@
     <div class="title-confirm"><i class="fa fa-check-double"></i> تأكيد الحجز</div>
 
     <div class="social-icons">
-      <a href="https://wa.me/966531422555" target="_blank" rel="noopener" title="واتساب"><i class="fab fa-whatsapp"></i></a>
-      <a href="https://www.instagram.com/phoenix.shq/" target="_blank" rel="noopener" title="انستقرام"><i class="fab fa-instagram"></i></a>
-      <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" rel="noopener" title="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+      <a href="https://wa.me/966531422555" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+      <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام"><i class="fab fa-instagram"></i></a>
+      <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
     </div>
 
     <form id="confirmForm" autocomplete="off">
@@ -67,20 +91,22 @@
       <div><input type="text" id="month" class="confirm-input" readonly></div>
 
       <div class="confirm-label">الوقت:</div>
-      <div id="timeDisplay" class="confirm-time" aria-live="polite"></div>
+      <div id="timeDisplay" class="confirm-time"></div>
       <input type="hidden" id="time_raw" readonly>
 
-      <button type="button" id="sendOtpBtn" class="btn-main"><i class="fab fa-whatsapp"></i> أرسل رمز التحقق عبر واتساب</button>
+      <button type="button" id="sendOtpBtn" class="btn-main">
+        <i class="fab fa-whatsapp"></i> أرسل رمز التحقق عبر واتساب
+      </button>
 
       <div id="otpSection">
-        <input type="text" id="otp" placeholder="رمز التحقق" maxlength="6" style="margin-bottom:6px; font-size:1.09em;" inputmode="numeric">
+        <input type="text" id="otp" placeholder="رمز التحقق" maxlength="6" style="margin-bottom:6px; font-size:1.09em;">
         <button type="button" id="verifyOtpBtn" class="btn-main">تأكيد الحجز</button>
       </div>
 
-      <div id="resendDiv" aria-live="polite"></div>
+      <div id="resendDiv"></div>
       <button type="button" id="resendBtn">إعادة إرسال الرمز</button>
 
-      <div id="message" role="status" aria-live="polite"></div>
+      <div id="message"></div>
     </form>
   </div>
 
@@ -89,96 +115,64 @@
   </footer>
 
   <script>
-    // خريطة أشهر عربية
-    const monthsMap = { "1":"يناير","2":"فبراير","3":"مارس","4":"أبريل","5":"مايو","6":"يونيو","7":"يوليو","8":"أغسطس","9":"سبتمبر","10":"أكتوبر","11":"نوفمبر","12":"ديسمبر" };
-
-    // تحويل قيمة الوقت المشفرة إلى عرض مفهوم
+    // تنسيق الوقت المعروض من القيمة المشفّرة
     function formatTimeValue(raw) {
       try {
-        if (!raw) return '';
-        const [datePart, timePart = ''] = raw.split('*');
-        const [day, month, year] = datePart.includes('-') ? datePart.split('-') : ['', '', ''];
-        let outDate = datePart;
+        if(!raw) return '';
+        const [datePart, timePart=''] = raw.split('*');
+        let [day, month, year] = datePart.includes('-') ? datePart.split('-') : ['', '', ''];
 
-        if (day && month && year) {
+        // وقت 24 إلى AM/PM عربي
+        let [h='0', m='0'] = timePart.split(':');
+        let hour = parseInt(h, 10), minute = parseInt(m, 10);
+        let ampm = hour < 12 ? 'صباحاً' : 'مساءً';
+        let hour12 = hour % 12; if (hour12 === 0) hour12 = 12;
+
+        let displayDate = '';
+        if(day && month && year) {
           const d = new Date(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
-          const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-          outDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} (${weekDays[d.getDay()]})`;
+          const week = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+          displayDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} (${week[d.getDay()]})`;
+        } else {
+          displayDate = datePart;
         }
-
-        if (!timePart) return outDate;
-        const [h, m] = timePart.split(':');
-        let hour = parseInt(h,10);
-        const minute = parseInt(m,10);
-        const ampm = hour < 12 ? 'صباحاً' : 'مساءً';
-        if (hour === 0) hour = 12;
-        if (hour > 12) hour -= 12;
-
-        return `${outDate} ${hour}:${String(minute).padStart(2,'0')} ${ampm}`;
-      } catch {
-        return raw;
-      }
+        return `${displayDate} ${hour12}:${String(minute).padStart(2,'0')} ${ampm}`;
+      } catch { return raw; }
     }
 
-    // تعبئة الحقول + حراسة إن كانت البيانات ناقصة
+    // تعبئة البيانات من التخزين
     window.onload = function() {
-      const name = localStorage.getItem('pending_name');
-      const phone = localStorage.getItem('pending_phone');
-      const clinicLabel = localStorage.getItem('pending_clinic_label');
-      const clinicValue = localStorage.getItem('pending_clinic');
-      const month = localStorage.getItem('pending_month');
-      const time = localStorage.getItem('pending_time');
-
-      if (!name || !phone || !clinicValue || !month || !time) {
-        window.location.href = "appointment.html";
-        return;
-      }
-
-      document.getElementById('name').value = name || '';
-      document.getElementById('phone').value = phone || '';
-      document.getElementById('clinic').value = clinicLabel || clinicValue || '';
-      document.getElementById('month').value = monthsMap[month] || month || '';
-      document.getElementById('time_raw').value = time;
-      document.getElementById('timeDisplay').textContent = formatTimeValue(time);
+      document.getElementById('name').value   = localStorage.getItem('pending_name')   || '';
+      document.getElementById('phone').value  = localStorage.getItem('pending_phone')  || '';
+      document.getElementById('clinic').value = localStorage.getItem('pending_clinic_label') || '';
+      document.getElementById('month').value  = localStorage.getItem('pending_month')  || '';
+      const rawTime = localStorage.getItem('pending_time') || '';
+      document.getElementById('time_raw').value = rawTime;
+      document.getElementById('timeDisplay').textContent   = formatTimeValue(rawTime);
     };
 
-    // عناصر الواجهة
-    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    // مؤقّت إعادة الإرسال
+    const sendOtpBtn   = document.getElementById('sendOtpBtn');
     const verifyOtpBtn = document.getElementById('verifyOtpBtn');
-    const otpSection = document.getElementById('otpSection');
-    const messageDiv = document.getElementById('message');
-    const resendDiv = document.getElementById('resendDiv');
-    const resendBtn = document.getElementById('resendBtn');
-
+    const otpSection   = document.getElementById('otpSection');
+    const messageDiv   = document.getElementById('message');
+    const resendDiv    = document.getElementById('resendDiv');
+    const resendBtn    = document.getElementById('resendBtn');
     let resendTimer = null, resendCounter = 0;
 
-    function clearResendUi() {
-      if (resendTimer) { clearInterval(resendTimer); resendTimer = null; }
-      resendCounter = 0;
-      resendDiv.textContent = '';
+    function startResendTimer() {
       resendBtn.style.display = 'none';
-      resendBtn.disabled = true;
-    }
-
-    function startResendTimer(seconds) {
-      if (!seconds || seconds < 0) seconds = 60;
-      if (resendTimer) clearInterval(resendTimer);
-      resendCounter = seconds;
-
-      // أول تحديث فوري
+      resendCounter = 60;
       resendDiv.style.color = "#ad8103";
-      resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد: " + resendCounter + " ثانية";
-
+      resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد " + resendCounter + " ثانية";
       resendTimer = setInterval(() => {
         resendCounter--;
+        resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد " + resendCounter + " ثانية";
         if (resendCounter <= 0) {
           clearInterval(resendTimer);
-          resendTimer = null;
           resendDiv.textContent = "";
           resendBtn.style.display = 'block';
           resendBtn.disabled = false;
-        } else {
-          resendDiv.textContent = "يمكنك إعادة إرسال الرمز بعد: " + resendCounter + " ثانية";
         }
       }, 1000);
     }
@@ -189,116 +183,103 @@
         alert('يرجى إدخال رقم الجوال مثل 05xxxxxxxx');
         return;
       }
-
       sendOtpBtn.disabled = true;
       messageDiv.textContent = "جاري الإرسال ...";
       messageDiv.style.color = "#b89023";
       otpSection.style.display = 'none';
-      clearResendUi(); // ابدأ عدّاد جديد
+      startResendTimer();
 
-      try {
-        const r = await fetch('/send-otp', {
+      setTimeout(() => {
+        fetch('/send-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ phone })
-        });
-
-        const data = await r.json().catch(() => ({}));
-
-        // نجاح الإرسال: أظهر الحقل وابدأ عدّاد 60 ثانية
-        if (r.ok && data.success) {
+        })
+        .then(res => res.json())
+        .then(data => {
           otpSection.style.display = 'block';
-          messageDiv.style.color = "#17a970";
-          messageDiv.textContent = "تم إرسال رمز التحقق إلى واتساب.";
-          startResendTimer(60);
-          return;
-        }
-
-        // حالة التبريد (429): خُذ الثواني من الرسالة وابدأ العدّ منها
-        if (r.status === 429) {
-          otpSection.style.display = 'block'; // نسمح بإدخال الرمز لو وصله سابقًا
+          if (data.success) {
+            messageDiv.style.color = "#17a970";
+            messageDiv.textContent = "تم إرسال رمز التحقق إلى واتساب.";
+          } else {
+            messageDiv.style.color = "#d51a1a";
+            messageDiv.textContent = "حدث خطأ أثناء إرسال الرمز.";
+            sendOtpBtn.disabled = false;
+            clearInterval(resendTimer);
+            resendDiv.textContent = "";
+            resendBtn.style.display = 'none';
+          }
+        })
+        .catch(() => {
           messageDiv.style.color = "#d51a1a";
-          messageDiv.textContent = data.message || "يرجى الانتظار قبل إعادة الإرسال.";
-          // استخرج رقم الثواني من الرسالة إن وُجد
-          let secs = 60;
-          try {
-            if (typeof data.seconds === 'number') secs = data.seconds;
-            else {
-              const m = (data.message || '').match(/(\d+)\s*ثانية?/);
-              if (m && m[1]) secs = parseInt(m[1], 10);
-            }
-          } catch {}
-          startResendTimer(secs);
-          return;
-        }
-
-        // أخطاء أخرى
-        messageDiv.style.color = "#d51a1a";
-        messageDiv.textContent = data.message || "حدث خطأ أثناء إرسال الرمز.";
-        sendOtpBtn.disabled = false;
-        clearResendUi();
-      } catch {
-        messageDiv.style.color = "#d51a1a";
-        messageDiv.textContent = "فشل الاتصال بالخادم.";
-        sendOtpBtn.disabled = false;
-        clearResendUi();
-      }
+          messageDiv.textContent = "فشل الاتصال بالخادم.";
+          sendOtpBtn.disabled = false;
+          clearInterval(resendTimer);
+          resendDiv.textContent = "";
+          resendBtn.style.display = 'none';
+        });
+      }, 800);
     };
 
     resendBtn.onclick = function() {
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.click();
       resendBtn.disabled = true;
       resendBtn.style.display = 'none';
-      sendOtpBtn.disabled = false;
-      sendOtpBtn.click(); // أعد المحاولة مع إعادة تشغيل العدّاد بناءً على رد السيرفر
     };
 
     verifyOtpBtn.onclick = async function() {
       const phone  = (document.getElementById('phone').value || '').trim();
       const otp    = (document.getElementById('otp').value || '').trim();
       const name   = (document.getElementById('name').value || '').trim();
-      const clinic = localStorage.getItem('pending_clinic') || '';
-      const month  = localStorage.getItem('pending_month') || '';
-      const time   = localStorage.getItem('pending_time') || '';
+      const clinic = localStorage.getItem('pending_clinic') || ''; // القيمة الأصلية للبوت
+      const month  = (document.getElementById('month').value || '').trim();
+      const time   = document.getElementById('time_raw').value;
 
       if (otp.length !== 6) {
         alert("الرجاء إدخال رمز التحقق المكون من 6 أرقام");
         return;
       }
-
       verifyOtpBtn.disabled = true;
       messageDiv.textContent = "جاري التحقق ...";
       messageDiv.style.color = "#b89023";
 
-      try {
-        const v = await fetch('/verify-otp', {
+      setTimeout(() => {
+        fetch('/verify-otp', {
           method: "POST",
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify({ phone, otp })
-        });
-        const ok = await v.json();
-
-        if (ok.success) {
-          const b = await fetch('/api/book', {
-            method: "POST",
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ name, phone, clinic, month, time })
-          });
-          const resp = await b.json();
-          localStorage.setItem('booking_result_msg', resp.msg || '');
-          // تنظيف جزء من القيم
-          localStorage.removeItem('pending_time');
-          localStorage.removeItem('pending_month');
-          window.location.href = "success.html";
-        } else {
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            fetch('/api/book', {
+              method: "POST",
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ name, phone, clinic, month, time })
+            })
+            .then(res => res.json())
+            .then(data => {
+              localStorage.setItem('booking_result_msg', data.msg || '');
+              window.location.href = "success.html";
+            })
+            .catch(() => {
+              messageDiv.style.color = "#d51a1a";
+              messageDiv.textContent = "فشل الاتصال بالسيرفر أثناء الحجز.";
+              verifyOtpBtn.disabled = false;
+            });
+          } else {
+            messageDiv.style.color = "#d51a1a";
+            messageDiv.textContent = data.message || "رمز التحقق غير صحيح!";
+            verifyOtpBtn.disabled = false;
+          }
+        })
+        .catch(() => {
           messageDiv.style.color = "#d51a1a";
-          messageDiv.textContent = ok.message || "رمز التحقق غير صحيح!";
+          messageDiv.textContent = "فشل الاتصال بالخادم.";
           verifyOtpBtn.disabled = false;
-        }
-      } catch {
-        messageDiv.style.color = "#d51a1a";
-        messageDiv.textContent = "فشل الاتصال بالخادم.";
-        verifyOtpBtn.disabled = false;
-      }
+        });
+      }, 800);
     };
   </script>
 </body>
