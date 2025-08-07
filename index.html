@@ -3,262 +3,161 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
   <title>مجمع فينكس الطبي | Phoenix Clinic - عيادة الأسنان والجلدية والليزر في شقراء</title>
-  <meta name="description" content="مجمع فينكس الطبي (Phoenix Clinic) في شقراء: نقدم جميع خدمات الأسنان، الجلدية، الليزر، التجميل، والعناية بالبشرة بأفضل فريق طبي. احجز موعدك الآن في أفضل عيادة في شقراء." />
-  <meta name="keywords" content="مجمع فينكس الطبي, Phoenix Clinic, عيادة أسنان, عيادة جلدية, عيادة ليزر, عيادة تجميل, شقراء, افضل عيادة, طبيب أسنان, بشرة, تجميل" />
+  <meta name="description" content="مجمع فينكس الطبي (Phoenix Clinic) في شقراء: نقدم جميع خدمات الأسنان، الجلدية، الليزر، التجميل، والعناية بالبشرة بأفضل فريق طبي. احجز موعدك الآن في أفضل عيادة في شقراء.">
+  <meta name="keywords" content="مجمع فينكس الطبي, Phoenix Clinic, عيادة أسنان, عيادة جلدية, عيادة ليزر, عيادة تجميل, شقراء, افضل عيادة, طبيب أسنان, بشرة, تجميل">
+
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+
   <style>
-    .blur-bg-home {
-      position: fixed;
-      top: 0; right: 0; bottom: 0; left: 0;
-      background: url('images/مجمع فينكس صوره احترافيه.jpg') center center/cover no-repeat;
-      filter: blur(-100px) brightness(0.97);
-      opacity: 0.;
-      z-index: 0;
-      pointer-events: none;
+    :root{
+      --brand:#b89023;
+      --ink:#0c010a;
+      --card:#ffffff;
+      --muted:#6b6b6b;
+      --shadow:0 6px 24px rgba(0,0,0,.08);
+      --radius:18px;
+      --header-h:72px; /* ارتفاع الهيدر التقريبي */
     }
-    body > *:not(.blur-bg-home) {
-      position: relative;
-      z-index: 1;
+
+    /* خلفية أوضح */
+    .blur-bg-home{
+      position:fixed; inset:0;
+      background:url('images/مجمع فينكس صوره احترافيه.jpg') center/cover no-repeat;
+      filter:blur(10px) brightness(.95);
+      opacity:.55;
+      z-index:0; pointer-events:none;
     }
-    body {
-      font-family: 'Cairo', sans-serif;
-      background: linear-gradient(to bottom, #ffffff00, #ffffff);
-      color: #0c010a;
-      line-height: 1.8;
-      scroll-behavior: smooth;
-      margin: 0;
+    body > *:not(.blur-bg-home){ position:relative; z-index:1; }
+
+    body{
+      font-family:'Cairo',sans-serif;
+      background:linear-gradient(to bottom,#ffffff00,#ffffff);
+      color:var(--ink);
+      line-height:1.8; margin:0; scroll-behavior:smooth;
     }
-    header {
-      background: linear-gradient(to right, #f0f4f7, #80724ed2);
-      padding: 18px 0;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      position: sticky;
-      top: 0;
-      z-index: 9;
+
+    header{
+      background:linear-gradient(to right,#f0f4f7,#80724ed2);
+      padding:12px 0; box-shadow:0 2px 8px rgba(0,0,0,.15);
+      position:sticky; top:0; z-index:9;
     }
-    .header-flex {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
+    .header-flex{ display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:0 auto; padding:0 16px; }
+    .logo-container img{ width:110px; height:auto; display:block; object-fit:contain; }
+
+    nav ul{
+      list-style:none; display:flex !important; flex-direction:row !important;
+      justify-content:center; align-items:center; gap:10px; margin:0; padding:0; width:100%;
+      flex-wrap:wrap;
     }
-    .logo-container img {
-      width: 120px;
-      height: auto;
-      object-fit: contain;
-      display: block;
+    nav ul li{ margin:0; padding:0; display:flex; align-items:center; }
+    nav ul li a{
+      color:#000; text-decoration:none; padding:8px 14px; font-weight:700; border-radius:999px;
+      font-size:1.02em; transition:.25s; display:inline-block; background:transparent;
+      line-height:1.2;
     }
-    nav ul {
-      list-style: none;
-      display: flex !important;
-      flex-direction: row !important;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-      padding: 0;
-      background: transparent;
-      width: 100%;
+    nav ul li a:hover, nav ul li a.active{ background:#fff; color:#00487c; box-shadow:0 2px 8px rgba(0,72,124,.11); }
+
+    .social-icons{ display:flex !important; align-items:center; gap:8px; margin:0 0 0 8px; }
+    .social-icons .social-icon{
+      font-size:1.05em; width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;
+      border-radius:50%; background:#000; text-decoration:none; box-shadow:0 1px 6px #0000004d; transition:background .2s, box-shadow .2s, transform .2s;
     }
-    nav ul li {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      align-items: center;
+    .social-icon.wa{ color:#3cff00; border:1.5px solid #000; }
+    .social-icon.insta{ color:#ff0055; border:1.5px solid #000; }
+    .social-icon.snap{ color:#fff; border:1.5px solid #000; background:#181818; }
+    .social-icon:hover{ background:#111; opacity:.93; transform:translateY(-1px); }
+
+    /* هيرو */
+    .hero{
+      padding: calc(var(--header-h) + 12px) 12px 28px; /* مسافة فوق لتجنّب تغطية الهيدر */
+      text-align:center; position:relative;
     }
-    nav ul li a {
-      color: #000;
-      text-decoration: none;
-      padding: 8px 17px;
-      font-weight: 700;
-      border-radius: 899px;
-      font-size: 1.06em;
-      transition: 0.3s;
-      display: inline-block;
-      background: transparent;
+    .hero h2{
+      font-size:2rem; color:#fff; margin:0 0 12px;
+      background:rgba(0,0,0,.35); display:inline-block; padding:8px 18px; border-radius:14px;
+      box-shadow:var(--shadow);
     }
-    nav ul li a:hover,
-    nav ul li a.active {
-      background-color: #fff;
-      color: #00487c;
-      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    .hero p{
+      font-size:1.05rem; color:#fff; margin:0 0 16px;
+      background:rgba(0,0,0,.25); display:inline-block; padding:6px 16px; border-radius:12px;
     }
-    .social-icons {
-      display: flex !important;
-      align-items: center;
-      gap: 8px;
-      margin: 0 0 0 8px;
+    .btn{
+      background:#f76d3b; color:#000; padding:10px 22px; border:none; border-radius:30px;
+      font-size:1.02rem; font-weight:700; text-decoration:none; display:inline-block; box-shadow:0 4px 10px rgba(39,16,7,.09); transition:transform .18s, background .2s;
     }
-    .social-icons .social-icon {
-      font-size: 1.2em;
-      padding: 0 2px;
-      border-radius: 50%;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 33px;
-      height: 33px;
-      background: #000;
-      transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #0000004d;
-      text-decoration: none;
+    .btn:hover{ background:#fffdfb; transform:translateY(-1px); }
+
+    /* بانر */
+    .main-slider-banner{
+      margin:16px auto 0; display:flex; justify-content:center; align-items:center;
+      width:100%; max-width:900px; border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 2px 15px #f0b88e55;
     }
-    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
-    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
-    .social-icon.snap  { color: #fff; border: 1.5px solid #000; background: #181818; }
-    .social-icon:hover {
-      background: #111;
-      opacity: 0.93;
+    .main-slider-banner img{
+      width:100%; height:220px; object-fit:cover; object-position:center; display:block; transition:opacity .6s;
+      background:#fff;
     }
-    .hero {
-      background: none;
-      padding: 36px 10px 25px 10px;
-      text-align: center;
-      position: relative;
+
+    /* ===== شبكة كروت (باقات + الجديد) ===== */
+    .section{ padding:48px 16px; margin:28px 0; background:rgba(255,255,255,.75); }
+    .section.dark{ background:rgba(0,0,0,.62); }
+    .section .title{ text-align:center; font-size:1.6rem; margin:0 0 22px; color:#222; }
+    .section.dark .title{ color:#fff; }
+
+    .grid{
+      --min: 240px;
+      display:grid; gap:18px;
+      grid-template-columns: repeat(auto-fit, minmax(var(--min),1fr));
+      max-width:1200px; margin:0 auto;
     }
-    .hero h2 {
-      font-size: 2.1em;
-      color: #fff;
-      margin-bottom: 12px;
-      background: rgba(0,0,0,0.31);
-      display: inline-block;
-      padding: 6px 18px;
-      border-radius: 15px;
+
+    .card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .18s, box-shadow .18s; display:flex; flex-direction:column; }
+    .card:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.12); }
+
+    .media-frame{ aspect-ratio:16/9; width:100%; overflow:hidden; background:#f6f6f6; }
+    .media-frame img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+
+    .card-body{ padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .card-title{ font-weight:700; color:#2a2a2a; font-size:1rem; margin:0; }
+    .card-muted{ color:var(--muted); font-size:.92rem; margin:0; }
+
+    /* تحسينات موبايل */
+    @media (max-width:900px){
+      :root{ --header-h:68px; }
+      .logo-container img{ width:100px; }
+      nav ul li a{ font-size:.95em; padding:7px 12px; }
+      .main-slider-banner img{ height:200px; }
     }
-    .hero p {
-      font-size: 1.07em;
-      color: #fff;
-      margin-bottom: 17px;
-      background: rgba(0,0,0,0.25);
-      display: inline-block;
-      padding: 5px 18px;
-      border-radius: 15px;
+    @media (max-width:600px){
+      :root{ --header-h:74px; }
+      nav ul{ gap:4px !important; flex-wrap:wrap !important; padding:2px 0 !important; }
+      nav ul li a{ font-size:.86em; padding:6px 10px; }
+      .social-icons .social-icon{ font-size:.95em; width:28px; height:28px; }
+      .hero h2{ font-size:1.25rem; }
+      .hero p{ font-size:.95rem; }
+      .btn{ font-size:.92rem; padding:8px 16px; }
+      .main-slider-banner img{ height:170px; }
+      .section{ padding:36px 12px; }
+      .section .title{ font-size:1.25rem; }
+      .grid{ --min: 160px; gap:12px; }
     }
-    .btn {
-      background-color: #f76d3b;
-      color: #000;
-      padding: 9px 24px;
-      border: none;
-      border-radius: 30px;
-      font-size: 1.12em;
-      font-weight: 700;
-      text-decoration: none;
-      margin-top: 6px;
-      transition: background 0.3s;
-      box-shadow: 0 4px 10px rgba(39, 16, 7, 0.09);
-      display: inline-block;
+
+    /* تقليل “التكبير” للبنر على الشاشات الكبيرة: استخدم contain */
+    @media (min-width: 992px){
+      .main-slider-banner{ max-width:1000px; }
+      .main-slider-banner img{ height:300px; object-fit:contain; background:#fff; }
     }
-    .btn:hover {
-      background-color: #fffcfa;
-    }
-    .main-slider-banner {
-      margin: 16px auto 0 auto;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 100%;
-      max-width: 540px;
-      min-height: 150px;
-      border-radius: 15px;
-      overflow: hidden;
-      background: #fff;
-      box-shadow: 0 2px 15px #f0b88e55;
-    }
-    .main-slider-banner img {
-      width: 100%;
-      max-height: 170px;
-      object-fit: cover;
-      border-radius: 15px;
-      display: block;
-      transition: opacity 0.8s;
-    }
-    .services-preview, .customer-reviews {
-      background-color: #000000b2;
-      padding: 55px 16px;
-      text-align: center;
-    }
-    .services-preview h3, .customer-reviews h2 {
-      color: #fff;
-      font-size: 2em;
-      margin-bottom: 24px;
-    }
-    .reviews-container, .services-preview .services-row {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 20px;
-    }
-    .review-card, .service {
-      background: rgb(205, 190, 159);
-      border-radius: 14px;
-      box-shadow: 0 2px 8px #0001;
-      margin: 7px 5px;
-      padding: 7px 5px 14px 5px;
-      max-width: 220px;
-      min-width: 120px;
-      flex: 1 1 150px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      transition: transform 0.2s;
-    }
-    .review-card img, .service img {
-      width: 95%;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      object-fit: cover;
-      max-height: 140px;
-      min-height: 60px;
-    }
-    .service p, .review-card p {
-      color: #000;
-      font-size: 0.97em;
-      margin-top: 0;
-      text-align: center;
-      font-weight: 600;
-    }
-    @media (max-width: 800px) {
-      .header-flex { flex-direction: column; gap: 9px; }
-      nav ul { gap: 3px; }
-      .logo-container { margin-bottom: 5px; }
-      .main-slider-banner { max-width: 97vw; }
-    }
-    @media (max-width: 600px) {
-      .header-flex { flex-direction: column; padding: 0 5px; }
-      nav ul {
-        gap: 1vw !important;
-        flex-wrap: wrap !important;
-        padding: 2px 0 !important;
-      }
-      nav ul li a, .social-icons .social-icon {
-        font-size: 0.8em !important;
-        padding: 4px 3px !important;
-      }
-      .social-icons { gap: 3px !important; }
-      .hero h2 { font-size: 1.04em !important; }
-      .btn { font-size: 0.85em !important; padding: 5px 11px !important; }
-      .services-preview h3, .customer-reviews h2 { font-size: 1em; }
-      .review-card, .service { max-width: 99vw; min-width: 43vw; padding: 5px 2px 8px 2px; }
-      .review-card img, .service img { max-height: 80px; min-height: 30px; }
-      .main-slider-banner { min-height: 65px; max-height: 97vw; }
-    }
-    footer {
-      background-color: #dac6a28e;
-      color: #000;
-      text-align: center;
-      padding: 10px 0;
-      font-weight: 600;
-    }
+
+    footer{ background-color:#dac6a28e; color:#000; text-align:center; padding:10px 0; font-weight:600; }
   </style>
 </head>
 <body>
   <div class="blur-bg-home"></div>
+
   <header>
     <div class="container header-flex">
       <div class="logo-container">
@@ -280,16 +179,62 @@
       </nav>
     </div>
   </header>
+
   <!-- الهيرو -->
-  <section class="hero fade-in">
+  <section class="hero" data-aos="fade-in">
     <h2>نرحب بكم في مجمع فينكس الطبي | Phoenix Clinic</h2>
     <p>رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات. مجمع فينكس الطبي: عناية تستحقها!</p>
     <a href="appointment.html" class="btn">احجز الآن</a>
   </section>
-  <!-- إعلان متحرك أسفل زر احجز الآن -->
+
+  <!-- بانر -->
   <div class="main-slider-banner">
     <img id="mainBannerImg" src="images/1.jpg" alt="إعلان متغير مجمع فينكس الطبي">
   </div>
+
+  <!-- الباقات -->
+  <section class="section dark" data-aos="fade-up">
+    <h3 class="title">باقات مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.28_33eb8cb2.jpg" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_5cf675ae.jpg" alt="باقة 2"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_9aa0dca3.jpg" alt="باقة 3"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_019de5c2.jpg" alt="باقة 4"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_62ca12e2.jpg" alt="باقة 5"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_92c96eb1.jpg" alt="باقة 6"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_af3d04c9.jpg" alt="باقة 7"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.30_0ba87301.jpg" alt="باقة 8"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.17_3f16e147.jpg" alt="باقة 10"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_140cc7aa.jpg" alt="باقة 11"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_2310964a.jpg" alt="باقة 12"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_84657668.jpg" alt="باقة 13"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.19_719d7a32.jpg" alt="باقة 14"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/9.jpg" alt="باقة 9"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+    </div>
+  </section>
+
+  <!-- ما الجديد -->
+  <section class="section" data-aos="fade-up">
+    <h3 class="title">الجديد في مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">تكنولوجيا متقدمة</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro2.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">دقة وأمان</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/البروفايلو.jpg" alt="علاج البروفايلو"></div><div class="card-body"><p class="card-title">علاج البروفايلو</p><p class="card-muted">ترطيب وتجديد</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/ابره السالمون.jpg" alt="ابرة السالمون"></div><div class="card-body"><p class="card-title">ابرة السالمون</p><p class="card-muted">نضارة طبيعية</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/فراكشنال ليزر .jpg" alt="فراكشنال ليزر"></div><div class="card-body"><p class="card-title">فراكشنال ليزر</p><p class="card-muted">تحسين ملمس البشرة</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/الحشوه التجميليه.jpg" alt="الحشوة التجميلية"></div><div class="card-body"><p class="card-title">الحشوة التجميلية</p><p class="card-muted">ابتسامة أجمل</p></div></article>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي | Phoenix Clinic - شقراء</p>
+  </footer>
+
+  <!-- AOS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script> AOS.init({ duration: 800, once: true }); </script>
+
+  <!-- سلايدر بسيط -->
   <script>
     const bannerImgs = [
       "images/WhatsApp Image 2025-07-27 at 20.34.57_225f1c7a.jpg",
@@ -301,73 +246,15 @@
       "images/WhatsApp Image 2025-07-27 at 20.34.59_69ea3ef6.jpg"
     ];
     let bannerIndex = 0;
-    const bannerImg = document.getElementById('mainBannerImg'); 
+    const bannerImg = document.getElementById('mainBannerImg');
     setInterval(() => {
       bannerIndex = (bannerIndex + 1) % bannerImgs.length;
       bannerImg.style.opacity = "0";
       setTimeout(() => {
         bannerImg.src = bannerImgs[bannerIndex];
         bannerImg.style.opacity = "1";
-      }, 400);
+      }, 300);
     }, 3200);
-  </script>
-  <!-- قسم الباقات -->
-  <section class="services-preview" data-aos="fade-up">
-    <h3>باقات مجمع فينكس الطبي</h3>
-    <div class="reviews-container">
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.28_33eb8cb2.jpg" alt="باقة 1 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_5cf675ae.jpg" alt="باقة 2 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_9aa0dca3.jpg" alt="باقة 3 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_019de5c2.jpg" alt="باقة 4 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_62ca12e2.jpg" alt="باقة 5 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_92c96eb1.jpg" alt="باقة 6 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.29_af3d04c9.jpg" alt="باقة 7 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 14.00.30_0ba87301.jpg" alt="باقة 8 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 15.36.17_3f16e147.jpg" alt="باقة 10 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 15.36.18_140cc7aa.jpg" alt="باقة 11 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 15.36.18_2310964a.jpg" alt="باقة 12 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 15.36.18_84657668.jpg" alt="باقة 13 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/WhatsApp Image 2025-07-29 at 15.36.19_719d7a32.jpg" alt="باقة 14 مجمع فينكس" /></div>
-      <div class="review-card" data-aos="zoom-in"><img src="images/9.jpg" alt="باقة 9 مجمع فينكس" /></div>
-    </div>
-  </section>
-  <!-- ما الجديد -->
-  <section class="services-preview" data-aos="fade-up">
-    <h3>الجديد في مجمع فينكس الطبي</h3>
-    <div class="services-row">
-      <div class="service" data-aos="zoom-in">
-        <img src="images/new image pro.jpg" alt="جهاز سبلندر اكس الأمريكي - فينكس الطبي" />
-        <p>جهاز سبلندر اكس الأمريكي</p>
-      </div>
-      <div class="service" data-aos="zoom-in">
-        <img src="images/new image pro2.jpg" alt="جهاز سبلندر اكس الأمريكي - فينكس الطبي" />
-        <p>جهاز سبلندر اكس الأمريكي</p>
-      </div>
-      <div class="service" data-aos="zoom-in">
-        <img src="images/البروفايلو.jpg" alt="علاج البروفايلو - فينكس الطبي" />
-        <p>علاج البروفايلو</p>
-      </div>
-      <div class="service" data-aos="zoom-in">
-        <img src="images/ابره السالمون.jpg" alt="ابرة السالمون - فينكس الطبي" />
-        <p>ابرة السالمون</p>
-      </div>
-      <div class="service" data-aos="zoom-in">
-        <img src="images/فراكشنال ليزر .jpg" alt="فراكشنال ليزر - فينكس الطبي" />
-        <p>فراكشنال ليزر</p>
-      </div>
-      <div class="service" data-aos="zoom-in">
-        <img src="images/الحشوه التجميليه.jpg" alt="الحشوة التجميلية - فينكس الطبي" />
-        <p>الحشوة التجميلية</p>
-      </div>
-    </div>
-  </section>
-  <footer>
-    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي | Phoenix Clinic - شقراء</p>
-  </footer>
-  <!-- AOS Scripts -->
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-  <script>
-    AOS.init({ duration: 1000 });
   </script>
 </body>
 </html>
