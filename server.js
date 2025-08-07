@@ -15,23 +15,27 @@ app.use(express.static(__dirname));
 const INSTANCE_ID = process.env.INSTANCE_ID || 'CHANGE_ME';
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || 'CHANGE_ME';
 
-// ===== اكتشاف تلقائي لمسار المتصفح داخل Railway =====
+// ===== اكتشاف تلقائي لمسار المتصفح داخل الحاوية =====
+// ملاحظة: نتجاهل '/usr/bin/chromium-browser' لأنه wrapper يطلب snap داخل Ubuntu 24.04
 const CANDIDATE_PATHS = [
-  process.env.PUPPETEER_EXECUTABLE_PATH, // إن تم تحديده من Variables
+  process.env.PUPPETEER_EXECUTABLE_PATH, // إن تم تحديده من Variables (اختياري)
   '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable'
 ].filter(Boolean);
 
 function resolveChromePath() {
   for (const p of CANDIDATE_PATHS) {
-    try { if (fs.existsSync(p)) return p; } catch {}
+    try {
+      if (p && fs.existsSync(p)) return p;
+    } catch {}
   }
+  // null يعني: خَلِّ Puppeteer يستخدم المتصفح المدمج الذي نزّله أثناء npm ci
   return null;
 }
+
 const CHROMIUM_PATH = resolveChromePath();
-console.log('Using Chromium path:', CHROMIUM_PATH || '(none found)');
+console.log('Using Chromium path:', CHROMIUM_PATH || '(bundled by puppeteer)');
 
 // ===== حسابات الدخول للنظام الخارجي =====
 const ACCOUNTS = [
@@ -67,7 +71,7 @@ function releaseAccount(account) {
 // ===== إعدادات إطلاق المتصفح + تهيئة الصفحة =====
 function getLaunchOptions() {
   return {
-    executablePath: CHROMIUM_PATH || undefined, // إن لم يوجد، يحاول Puppeteer الافتراضي
+    executablePath: CHROMIUM_PATH || undefined, // undefined => استخدم المدمج
     headless: true,
     args: [
       '--no-sandbox',
@@ -334,10 +338,12 @@ app.post('/verify-otp', async (req, res) => {
 });
 
 // ===== Healthcheck =====
-app.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString(), chrome: CHROMIUM_PATH || null }));
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, time: new Date().toISOString(), chrome: CHROMIUM_PATH || 'bundled' });
+});
 
 // ===== تشغيل السيرفر =====
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Railway يمرر PORT تلقائيًا
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
