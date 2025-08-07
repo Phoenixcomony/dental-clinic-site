@@ -4,23 +4,36 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer');
 const axios = require('axios');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// ====== بيئة التشغيل / المتغيرات الحساسة ======
+// ===== متغيرات حسّاسة من البيئة (لا تضعها صريحة في الكود) =====
 const INSTANCE_ID = process.env.INSTANCE_ID || 'CHANGE_ME';
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || 'CHANGE_ME';
 
-// اجعل Railway يضبط هذا المتغير: PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-const CHROMIUM_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
+// ===== اكتشاف تلقائي لمسار المتصفح داخل Railway =====
+const CANDIDATE_PATHS = [
+  process.env.PUPPETEER_EXECUTABLE_PATH, // إن تم تحديده من Variables
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable'
+].filter(Boolean);
 
-// (اختياري) ثبّت Node 18 في Railway: NIXPACKS_NODE_VERSION=18
-// يفضل إضافة ملف .npmrc فيه: unsafe-perm=true
+function resolveChromePath() {
+  for (const p of CANDIDATE_PATHS) {
+    try { if (fs.existsSync(p)) return p; } catch {}
+  }
+  return null;
+}
+const CHROMIUM_PATH = resolveChromePath();
+console.log('Using Chromium path:', CHROMIUM_PATH || '(none found)');
 
-// ====== حسابات الدخول للنظام الخارجي ======
+// ===== حسابات الدخول للنظام الخارجي =====
 const ACCOUNTS = [
   { user: "1111111111", pass: "1111111111", busy: false },
   { user: "2222222222", pass: "2222222222", busy: false },
@@ -30,7 +43,7 @@ const ACCOUNTS = [
 
 const bookingQueue = [];
 
-// ====== أدوات مساعدة ======
+// ===== أدوات مساعدة =====
 function normalizePhone(phone) {
   phone = (phone || '').replace(/[^0-9]/g, '');
   if (phone.startsWith('05') && phone.length === 10) return '966' + phone.slice(1);
@@ -42,10 +55,7 @@ function normalizePhone(phone) {
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
-    if (idx !== -1) {
-      ACCOUNTS[idx].busy = true;
-      return ACCOUNTS[idx];
-    }
+    if (idx !== -1) { ACCOUNTS[idx].busy = true; return ACCOUNTS[idx]; }
     await new Promise(res => setTimeout(res, 1000));
   }
 }
@@ -54,10 +64,10 @@ function releaseAccount(account) {
   if (idx !== -1) ACCOUNTS[idx].busy = false;
 }
 
-// إعدادات إطلاق المتصفح موحدة
+// ===== إعدادات إطلاق المتصفح + تهيئة الصفحة =====
 function getLaunchOptions() {
   return {
-    executablePath: CHROMIUM_PATH, // مهم على Railway
+    executablePath: CHROMIUM_PATH || undefined, // إن لم يوجد، يحاول Puppeteer الافتراضي
     headless: true,
     args: [
       '--no-sandbox',
@@ -74,17 +84,16 @@ function getLaunchOptions() {
   };
 }
 
-// تهيئة الصفحة بشكل موحد
 async function prepPage(page) {
   await page.setViewport({ width: 1200, height: 900 });
-  page.setDefaultNavigationTimeout(30000);   // 30s
+  page.setDefaultNavigationTimeout(30000);
   page.setDefaultTimeout(30000);
   await page.setUserAgent(
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
   );
 }
 
-// ====== OTP عبر mywhats.cloud ======
+// ===== OTP عبر mywhats.cloud =====
 const otpStore = {};
 app.post('/send-otp', async (req, res) => {
   try {
@@ -114,7 +123,7 @@ app.post('/send-otp', async (req, res) => {
   }
 });
 
-// ====== جلب الأوقات ======
+// ===== جلب الأوقات =====
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month } = req.body || {};
@@ -194,7 +203,7 @@ async function getAvailableTimes({ clinic, month }) {
   }
 }
 
-// ====== الحجز (مع طابور) ======
+// ===== الحجز (بطابور) =====
 app.post('/api/book', async (req, res) => {
   bookingQueue.push({ req, res });
   processBookingQueue();
@@ -311,7 +320,7 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
   }
 }
 
-// ====== تحقق رمز OTP ======
+// ===== تحقق رمز OTP =====
 app.post('/verify-otp', async (req, res) => {
   let { phone, otp } = req.body || {};
   phone = normalizePhone(phone);
@@ -324,10 +333,10 @@ app.post('/verify-otp', async (req, res) => {
   }
 });
 
-// ====== Healthcheck ======
-app.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+// ===== Healthcheck =====
+app.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString(), chrome: CHROMIUM_PATH || null }));
 
-// ====== تشغيل السيرفر ======
+// ===== تشغيل السيرفر =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
