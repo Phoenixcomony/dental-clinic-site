@@ -11,14 +11,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-// ===== متغيرات حسّاسة من البيئة (لا تضعها صريحة في الكود) =====
+// ===== متغيرات حسّاسة من البيئة =====
 const INSTANCE_ID = process.env.INSTANCE_ID || 'CHANGE_ME';
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || 'CHANGE_ME';
 
-// ===== اكتشاف تلقائي لمسار المتصفح داخل الحاوية =====
-// ملاحظة: نتجاهل '/usr/bin/chromium-browser' لأنه wrapper يطلب snap داخل Ubuntu 24.04
+// ===== اكتشاف مسار المتصفح =====
 const CANDIDATE_PATHS = [
-  process.env.PUPPETEER_EXECUTABLE_PATH, // إن تم تحديده من Variables (اختياري)
+  process.env.PUPPETEER_EXECUTABLE_PATH,
   '/usr/bin/chromium',
   '/usr/bin/google-chrome',
   '/usr/bin/google-chrome-stable'
@@ -26,12 +25,9 @@ const CANDIDATE_PATHS = [
 
 function resolveChromePath() {
   for (const p of CANDIDATE_PATHS) {
-    try {
-      if (p && fs.existsSync(p)) return p;
-    } catch {}
+    try { if (p && fs.existsSync(p)) return p; } catch {}
   }
-  // null يعني: خَلِّ Puppeteer يستخدم المتصفح المدمج الذي نزّله أثناء npm ci
-  return null;
+  return null; // استخدم المتصفح المدمج من Puppeteer إن وجد
 }
 
 const CHROMIUM_PATH = resolveChromePath();
@@ -56,6 +52,11 @@ function normalizePhone(phone) {
   return phone;
 }
 
+function saMobileOk(phone) {
+  const d = (phone || '').replace(/[^0-9]/g, '');
+  return /^05\d{8}$/.test(d) || /^5\d{8}$/.test(d) || /^9665\d{8}$/.test(d);
+}
+
 async function acquireAccount() {
   while (true) {
     const idx = ACCOUNTS.findIndex(acc => !acc.busy);
@@ -71,7 +72,7 @@ function releaseAccount(account) {
 // ===== إعدادات إطلاق المتصفح + تهيئة الصفحة =====
 function getLaunchOptions() {
   return {
-    executablePath: CHROMIUM_PATH || undefined, // undefined => استخدم المدمج
+    executablePath: CHROMIUM_PATH || undefined,
     headless: true,
     args: [
       '--no-sandbox',
@@ -126,6 +127,99 @@ app.post('/send-otp', async (req, res) => {
     return res.status(500).json({ success: false, message: "فشل إرسال الرسالة", error: err?.message });
   }
 });
+
+// ===== NEW: فحص وجود المريض قبل الحجز =====
+app.post('/api/check-patient', async (req, res) => {
+  try {
+    const { name, phone } = req.body || {};
+    if (!name || !phone) return res.status(400).json({ found: false, error: 'الاسم أو الجوال مفقود' });
+
+    // تحقق بسيط: الاسم ثلاثي عربي
+    const fullNameOk = /^[\u0600-\u06FF]+(?:\s+[\u0600-\u06FF]+){2}$/.test(name.trim());
+    if (!fullNameOk) {
+      return res.status(400).json({ found: false, error: 'الاسم يجب أن يكون ثلاثيًا بالعربية' });
+    }
+    if (!saMobileOk(phone)) {
+      return res.status(400).json({ found: false, error: 'رقم الجوال غير صحيح' });
+    }
+
+    const account = await acquireAccount();
+    try {
+      const exists = await checkPatientExists({ name: name.trim(), phone: phone.trim(), account });
+      return res.json(exists);
+    } finally {
+      releaseAccount(account);
+    }
+  } catch (e) {
+    console.error('check-patient error:', e?.message || e);
+    return res.status(500).json({ found: false, error: e?.message || String(e) });
+  }
+});
+
+async function checkPatientExists({ name, phone, account }) {
+  const browser = await puppeteer.launch(getLaunchOptions());
+  const page = await browser.newPage();
+  await prepPage(page);
+
+  const digits = phone.replace(/[^0-9]/g, '');
+  const last9 = digits.slice(-9);     // 503274885 مثلًا
+  const last10 = digits.slice(-10);   // 0503274885
+
+  try {
+    // تسجيل دخول
+    await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
+    await page.$eval('input[name="username"]', (el, v) => el.value = v, account.user);
+    await page.$eval('input[name="password"]', (el, v) => el.value = v, account.pass);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
+      page.click('#submit')
+    ]);
+
+    // الذهاب لصفحة المواعيد
+    await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
+
+    // اكتب الاسم في مربع البحث الذي يولّد قائمة اقتراحات
+    await page.focus('#SearchBox120');
+    await page.$eval('#SearchBox120', (el, v) => { el.value = v; el.dispatchEvent(new Event('keyup', {bubbles:true})); }, name);
+
+    // انتظر ظهور قائمة الاقتراحات قليلاً
+    let suggestions = [];
+    try {
+      await page.waitForSelector('#suggestme120 ul.searchsugg120 li', { timeout: 5000 });
+      suggestions = await page.$$eval('#suggestme120 ul.searchsugg120 li', lis =>
+        lis.map(li => li.textContent.trim())
+      );
+    } catch {
+      // جرّب تحفيز آخر (مسافة/باك سبيس) لإطلاق onkeyup إن لزم
+      await page.keyboard.press('Space');
+      await page.keyboard.press('Backspace');
+      try {
+        await page.waitForSelector('#suggestme120 ul.searchsugg120 li', { timeout: 3000 });
+        suggestions = await page.$$eval('#suggestme120 ul.searchsugg120 li', lis =>
+          lis.map(li => li.textContent.trim())
+        );
+      } catch {}
+    }
+
+    // فلترة: أي عنصر يحتوي الاسم كاملًا أو يحتوى على رقم الجوال
+    const norm = s => s.replace(/\s+/g,' ').trim();
+    const nName = norm(name);
+    const match = suggestions.find(s => {
+      const ns = norm(s);
+      return ns.includes(nName) || ns.includes(last9) || ns.includes(last10);
+    });
+
+    await browser.close();
+    if (match) {
+      return { found: true, match };
+    } else {
+      return { found: false };
+    }
+  } catch (err) {
+    await browser.close();
+    throw err;
+  }
+}
 
 // ===== جلب الأوقات =====
 app.post('/api/times', async (req, res) => {
@@ -274,9 +368,9 @@ async function bookAppointment({ name, phone, clinic, month, time, account }) {
       page.select('#month1', monthValue)
     ]);
 
-    await page.$eval('#SearchBox120', (el, v) => { el.value = v; }, name);
-    await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, phone);
-    await page.$eval('input[name="notes"]', (el, v) => { el.value = v; }, 'حجز أوتوماتيكي');
+    await page.$eval('#SearchBox120', (el, v) => el.value = v, name);
+    await page.$eval('input[name="phone"]', (el, v) => el.value = v, phone);
+    await page.$eval('input[name="notes"]', (el, v) => el.value = v, 'حجز أوتوماتيكي');
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
 
@@ -343,7 +437,7 @@ app.get('/health', (_req, res) => {
 });
 
 // ===== تشغيل السيرفر =====
-const PORT = process.env.PORT || 3000; // Railway يمرر PORT تلقائيًا
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
