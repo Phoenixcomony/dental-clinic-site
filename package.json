@@ -7,6 +7,7 @@
     "node": "18.x"
   },
   "scripts": {
+    "postinstall": "node -e \"if(process.platform==='linux'){process.env.PUPPETEER_PRODUCT='chrome';process.env.PUPPETEER_CACHE_DIR=process.env.PUPPETEER_CACHE_DIR||'/app/.cache/puppeteer';process.env.PUPPETEER_DOWNLOAD_PATH=process.env.PUPPETEER_DOWNLOAD_PATH||process.env.PUPPETEER_CACHE_DIR;require('child_process').execSync('npx puppeteer browsers install chrome@stable --platform=linux',{stdio:'inherit'});}else{console.log('Skipping Chrome install on non-Linux dev machine');}\"",
     "start": "node server.js",
     "health": "node -e \"require('http').createServer((_,r)=>r.end('ok')).listen(8080)\""
   },

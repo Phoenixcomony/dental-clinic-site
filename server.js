@@ -1,6 +1,6 @@
 // server.js
 // ===============================
-// Phoenix Clinic - Backend Server (Railway-ready, Hardened w/ Chrome autodetect)
+// Phoenix Clinic - Backend Server (Railway-ready, Hardened w/ Chrome autodetect + New-File A/B open)
 // ===============================
 
 const express = require('express');
@@ -41,12 +41,12 @@ function findChromeUnder(dir) {
   try {
     if (!dir || !fs.existsSync(dir)) return null;
 
-    // أمثلة بنية Puppeteer:
-    // /app/.cache/puppeteer/chrome/linux-139.0.7258.68/chrome-linux64/chrome
-    // /app/.cache/puppeteer/chrome-headless-shell/linux-139.../chrome-headless-shell-linux64/chrome-headless-shell
+    // بنية Puppeteer النموذجية:
+    // /app/.cache/puppeteer/chrome/linux-<ver>/chrome-linux64/chrome
+    // /app/.cache/puppeteer/chrome-headless-shell/linux-<ver>/chrome-headless-shell-linux64/chrome-headless-shell
     const channelDirs = fs.readdirSync(dir, { withFileTypes: true })
       .filter(d => d.isDirectory())
-      .map(d => d.name); // "chrome", "chrome-headless-shell", "chromium" أحيانًا
+      .map(d => d.name); // أمثلة: "chrome", "chrome-headless-shell", "chromium"
 
     const stacks = [
       { root: 'chrome', sub: ['linux-', 'chrome-linux64', 'chrome'] },
@@ -58,12 +58,11 @@ function findChromeUnder(dir) {
       const matchRoot = channelDirs.find(n => n.startsWith(s.root));
       if (!matchRoot) continue;
 
-      const lvl1 = path.join(dir, matchRoot); // e.g., /app/.cache/puppeteer/chrome
+      const lvl1 = path.join(dir, matchRoot);
       const linuxReleases = fs.readdirSync(lvl1, { withFileTypes: true })
         .filter(d => d.isDirectory() && d.name.startsWith('linux-'))
         .map(d => d.name)
-        // رتب تنازلياً على أمل اختيار الأحدث
-        .sort((a, b) => b.localeCompare(a));
+        .sort((a, b) => b.localeCompare(a)); // اختر الأحدث
 
       for (const rel of linuxReleases) {
         const candidate = path.join(lvl1, rel, s.sub[1], s.sub[2]);
@@ -82,15 +81,12 @@ const CANDIDATE_PATHS = [
 ].filter(Boolean);
 
 function resolveChromePath() {
-  // 1) مسارات النظام/ENV
   for (const p of CANDIDATE_PATHS) {
     try { if (p && fs.existsSync(p)) return p; } catch {}
   }
-  // 2) المسار الذي نزّل فيه Puppeteer المتصفح
   const found = findChromeUnder(BASE_DL_DIR);
   if (found) return found;
-  // 3) اترك Puppeteer يستخدم النسخة المضمّنة إن وُجدت
-  return null;
+  return null; // استخدم النسخة المضمّنة لو موجودة
 }
 
 const CHROMIUM_PATH = resolveChromePath();
@@ -281,6 +277,37 @@ async function pickFirstSuggestionOnAppointments(page, timeoutMs = 10000) {
     await sleep(300);
   }
   return picked;
+}
+
+/** ===== Open New-File page robustly (A/B + auto-accept dialogs) ===== */
+async function openNewFilePage(page){
+  // قبول أي Alert/Confirm تلقائيًا
+  page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
+
+  // خطة A: مباشرة
+  await page.goto('https://phoenix.imdad.cloud/medica13/stq_add.php', { waitUntil: 'domcontentloaded' }).catch(()=>{});
+  const gotDirect = await page.waitForSelector('#fname', { timeout: 6000 }).then(()=>true).catch(()=>false);
+  if (gotDirect) return true;
+
+  // خطة B: من الصفحة الرئيسية/القائمة
+  await page.goto('https://phoenix.imdad.cloud/medica13/home2.php', { waitUntil: 'domcontentloaded' }).catch(()=>{});
+  const clicked = await page.evaluate(()=>{
+    const links = Array.from(document.querySelectorAll('a'));
+    const a = links.find(x=>{
+      const t=(x.textContent||'').trim();
+      const href = (x.getAttribute && x.getAttribute('href')) || '';
+      return (href.includes('stq_add.php')) || /فتح ملف جديد|إضافة مريض|ملف جديد/i.test(t);
+    });
+    if (a) { a.click(); return true; }
+    return false;
+  });
+  if (clicked) {
+    await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 10000 }).catch(()=>{});
+  } else {
+    await page.goto('https://phoenix.imdad.cloud/medica13/stq_add.php', { waitUntil: 'domcontentloaded' }).catch(()=>{});
+  }
+
+  return await page.waitForSelector('#fname', { timeout: 6000 }).then(()=>true).catch(()=>false);
 }
 
 /** ===== WhatsApp OTP (send + 60s throttle) ===== */
@@ -548,7 +575,7 @@ app.post('/api/login', async (req, res) => {
 async function isDuplicatePhoneWarning(page){
   try {
     const found = await page.evaluate(()=>{
-      const txt = (document.body.innerText||'').replace(/\s+/g,' ');
+      const txt = (document.body.innerText||'').replace(/\س+/g,' ').replace(/\s+/g,' ');
       return /رقم هاتف موجود يخص المريض\s*:/.test(txt);
     });
     return !!found;
@@ -601,10 +628,10 @@ app.post('/api/update-identity', async (req, res) => {
 /** ===== API: /api/create-patient =====
  * يكتب الجوال ببطء → ينتظر 2s → إن ظهر تحذير "رقم هاتف موجود..." يكنسل فورًا ويُرجع سببًا واضحًا.
  * إن لم يظهر التحذير → يكمل طبيعيًا.
- * + تفادي التعليق: مهلة قصوى لاختيار الحساب + مهلة إجمالية للعملية.
+ * + تفادي التعليق: مهلة قصوى لاختيار الحساب + مهلة إجمالية (90s) + فتح صفحة ملف جديد بخطة A/B.
  */
 app.post('/api/create-patient', async (req, res) => {
-  const MASTER_TIMEOUT_MS = 60000;
+  const MASTER_TIMEOUT_MS = 90000;
   const masterTimeout = new Promise((_, rej)=> setTimeout(()=>rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
 
   const handler = (async ()=>{
@@ -624,24 +651,37 @@ app.post('/api/create-patient', async (req, res) => {
 
       const browser = await puppeteer.launch(launchOpts());
       const page = await browser.newPage(); await prepPage(page);
+      // قبول أي Dialog مبكرًا
+      page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
+
       let account=null;
       try{
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
 
-        await page.goto('https://phoenix.imdad.cloud/medica13/stq_add.php', { waitUntil:'domcontentloaded' });
+        // فتح صفحة "فتح ملف جديد" بخطة A/B
+        const opened = await openNewFilePage(page);
+        if (!opened) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({ success:false, message:'تعذّر فتح صفحة الملف الجديد' });
+        }
+
         await page.waitForSelector('#fname', { timeout: 30000 });
         await page.waitForSelector('#phone', { timeout: 30000 });
 
+        // الاسم + الهوية
         await page.$eval('#fname', (el,v)=>{ el.value=v; }, _normalize(fullName));
         await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
 
+        // تاريخ الميلاد
         await page.select('#day12',   String(day));
         await page.select('#month12', String(month));
         await page.select('#year12',  String(year));
 
+        // الجنس
         await page.select('#gender', String(gender));
 
+        // الجنسية (تعيين مشروط بوجود القيمة)
         if (nationalityValue) {
           await page.evaluate((val)=>{
             const sel = document.querySelector('#n');
@@ -653,6 +693,7 @@ app.post('/api/create-patient', async (req, res) => {
           }, String(nationalityValue));
         }
 
+        // ====== كتابة الجوال ببطء ثم انتظار ثانيتين للتحذير ======
         const localPhone = toLocal05(phone);
 
         async function typePhoneSlowAndEnsure(p){
@@ -674,6 +715,7 @@ app.post('/api/create-patient', async (req, res) => {
 
         await typePhoneSlowAndEnsure(localPhone);
 
+        // انتظر بالضبط ثانيتين ثم افحص التحذير — إن وُجد يكنسل فورًا
         await sleep(2000);
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if(account) releaseAccount(account);
@@ -684,13 +726,16 @@ app.post('/api/create-patient', async (req, res) => {
           });
         }
 
+        // ====== لم يظهر تحذير → أكمل طبيعي ======
         await page.waitForSelector('#submit', { timeout: 20000 });
         await page.evaluate(() => {
           const btn = document.querySelector('#submit');
           if (btn) { btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); }
         });
 
+        // قد لا يحدث تنقل إن كان الحفظ سريعًا
         await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(()=>{});
+        // فحص متأخر قليلًا لاكتشاف التحذير لو ظهر بعد الإرسال
         await sleep(1500);
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if(account) releaseAccount(account);
