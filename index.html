@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <link rel="icon" type="image/png" href="images/logo phoenix-Photoroom.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
+  <title>مجمع فينكس الطبي | Phoenix Clinic - عيادة الأسنان والجلدية والليزر في شقراء</title>
+  <meta name="description" content="مجمع فينكس الطبي (Phoenix Clinic) في شقراء: نقدم جميع خدمات الأسنان، الجلدية، الليزر، التجميل، والعناية بالبشرة بأفضل فريق طبي. احجز موعدك الآن في أفضل عيادة في شقراء.">
+  <meta name="keywords" content="مجمع فينكس الطبي, Phoenix Clinic, عيادة أسنان, عيادة جلدية, عيادة ليزر, عيادة تجميل, شقراء, افضل عيادة, طبيب أسنان, بشرة, تجميل">
+
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+
+  <style>
+    :root{
+      --brand:#b89023;
+      --ink:#0c010a;
+      --card:#ffffff;
+      --muted:#6b6b6b;
+      --shadow:0 6px 24px rgba(0,0,0,.08);
+      --radius:18px;
+      --header-h:72px; /* ارتفاع الهيدر التقريبي */
+    }
+
+    /* خلفية أوضح — تم فقط تعديل القيم أدناه */
+    .blur-bg-home{
+      position:fixed; inset:0;
+      background:url('images/مجمع فينكس صوره احترافيه.jpg') center/cover no-repeat;
+      filter:blur(0px) brightness(1);
+      opacity:1;
+      z-index:0; pointer-events:none;
+    }
+    body > *:not(.blur-bg-home){ position:relative; z-index:1; }
+
+    body{
+      font-family:'Cairo',sans-serif;
+      background:linear-gradient(to bottom,#ffffff00,#ffffff);
+      color:var(--ink);
+      line-height:1.8; margin:0; scroll-behavior:smooth;
+    }
+
+    header{
+      background:linear-gradient(to right,#f0f4f7,#80724ed2);
+      padding:12px 0; box-shadow:0 2px 8px rgba(0,0,0,.15);
+      position:sticky; top:0; z-index:9;
+    }
+    .header-flex{ display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:0 auto; padding:0 16px; }
+    .logo-container img{ width:110px; height:auto; display:block; object-fit:contain; }
+
+    nav ul{
+      list-style:none; display:flex !important; flex-direction:row !important;
+      justify-content:center; align-items:center; gap:10px; margin:0; padding:0; width:100%;
+      flex-wrap:wrap;
+    }
+    nav ul li{ margin:0; padding:0; display:flex; align-items:center; }
+    nav ul li a{
+      color:#000; text-decoration:none; padding:8px 14px; font-weight:700; border-radius:999px;
+      font-size:1.02em; transition:.25s; display:inline-block; background:transparent;
+      line-height:1.2;
+    }
+    nav ul li a:hover, nav ul li a.active{ background:#fff; color:#00487c; box-shadow:0 2px 8px rgba(0,72,124,.11); }
+
+    .social-icons{ display:flex !important; align-items:center; gap:8px; margin:0 0 0 8px; }
+    .social-icons .social-icon{
+      font-size:1.05em; width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;
+      border-radius:50%; background:#000; text-decoration:none; box-shadow:0 1px 6px #0000004d; transition:background .2s, box-shadow .2s, transform .2s;
+    }
+    .social-icon.wa{ color:#3cff00; border:1.5px solid #000; }
+    .social-icon.insta{ color:#ff0055; border:1.5px solid #000; }
+    .social-icon.snap{ color:#fff; border:1.5px solid #000; background:#181818; }
+    .social-icon:hover{ background:#111; opacity:.93; transform:translateY(-1px); }
+
+    /* هيرو */
+    .hero{
+      padding: calc(var(--header-h) + 12px) 12px 28px; /* مسافة فوق لتجنّب تغطية الهيدر */
+      text-align:center; position:relative;
+    }
+    .hero h2{
+      font-size:2rem; color:#fff; margin:0 0 12px;
+      background:rgba(0,0,0,.35); display:inline-block; padding:8px 18px; border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+    .hero p{
+      font-size:1.05rem; color:#fff; margin:0 0 16px;
+      background:rgba(0,0,0,.25); display:inline-block; padding:6px 16px; border-radius:12px;
+    }
+    .btn{
+      background:#f76d3b; color:#000; padding:10px 22px; border:none; border-radius:30px;
+      font-size:1.02rem; font-weight:700; text-decoration:none; display:inline-block; box-shadow:0 4px 10px rgba(39,16,7,.09); transition:transform .18s, background .2s;
+    }
+    .btn:hover{ background:#fffdfb; transform:translateY(-1px); }
+
+    /* بانر */
+    .main-slider-banner{
+      margin:16px auto 0; display:flex; justify-content:center; align-items:center;
+      width:100%; max-width:900px; border-radius:16px; overflow:hidden; background:#fff; box-shadow:0 2px 15px #f0b88e55;
+    }
+    .main-slider-banner img{
+      width:100%; height:220px; object-fit:cover; object-position:center; display:block; transition:opacity .6s;
+      background:#fff;
+    }
+
+    /* ===== شبكة كروت (باقات + الجديد) ===== */
+    .section{ padding:48px 16px; margin:28px 0; background:rgba(255,255,255,.75); }
+    .section.dark{ background:rgba(0,0,0,.62); }
+    .section .title{ text-align:center; font-size:1.6rem; margin:0 0 22px; color:#222; }
+    .section.dark .title{ color:#fff; }
+
+    .grid{
+      --min: 240px;
+      display:grid; gap:18px;
+      grid-template-columns: repeat(auto-fit, minmax(var(--min),1fr));
+      max-width:1200px; margin:0 auto;
+    }
+
+    .card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .18s, box-shadow .18s; display:flex; flex-direction:column; }
+    .card:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.12); }
+
+    .media-frame{ aspect-ratio:16/9; width:100%; overflow:hidden; background:#f6f6f6; }
+    .media-frame img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+
+    .card-body{ padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .card-title{ font-weight:700; color:#2a2a2a; font-size:1rem; margin:0; }
+    .card-muted{ color:var(--muted); font-size:.92rem; margin:0; }
+
+    /* تحسينات موبايل */
+    @media (max-width:900px){
+      :root{ --header-h:68px; }
+      .logo-container img{ width:100px; }
+      nav ul li a{ font-size:.95em; padding:7px 12px; }
+      .main-slider-banner img{ height:200px; }
+    }
+    @media (max-width:600px){
+      :root{ --header-h:74px; }
+      nav ul{ gap:4px !important; flex-wrap:wrap !important; padding:2px 0 !important; }
+      nav ul li a{ font-size:.86em; padding:6px 10px; }
+      .social-icons .social-icon{ font-size:.95em; width:28px; height:28px; }
+      .hero h2{ font-size:1.25rem; }
+      .hero p{ font-size:.95rem; }
+      .btn{ font-size:.92rem; padding:8px 16px; }
+      .main-slider-banner img{ height:170px; }
+      .section{ padding:36px 12px; }
+      .section .title{ font-size:1.25rem; }
+      .grid{ --min: 160px; gap:12px; }
+    }
+
+    /* تقليل “التكبير” للبنر على الشاشات الكبيرة: استخدم contain */
+    @media (min-width: 992px){
+      .main-slider-banner{ max-width:1000px; }
+      .main-slider-banner img{ height:300px; object-fit:contain; background:#fff; }
+    }
+
+    footer{ background-color:#dac6a28e; color:#000; text-align:center; padding:10px 0; font-weight:600; }
+  </style>
+</head>
+<body>
+  <div class="blur-bg-home"></div>
+
+  <header>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار مجمع فينكس الطبي" class="logo-img" />
+      </div>
+      <nav>
+        <ul>
+          <li><a href="index.html" class="active">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- الهيرو -->
+  <section class="hero" data-aos="fade-in">
+    <h2>نرحب بكم في مجمع فينكس الطبي | Phoenix Clinic</h2>
+    <p>رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات. مجمع فينكس الطبي: عناية تستحقها!</p>
+    <a href="appointment.html" class="btn">احجز الآن</a>
+  </section>
+
+  <!-- بانر -->
+  <div class="main-slider-banner">
+    <img id="mainBannerImg" src="images/WhatsApp Image 2025-07-29 at 14.00.28_33eb8cb2.jpg" alt="إعلان متغير مجمع فينكس الطبي">
+  </div>
+
+  <!-- الباقات -->
+  <section class="section dark" data-aos="fade-up">
+    <h3 class="title">باقات مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.28_33eb8cb2.jpg" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_5cf675ae.jpg" alt="باقة 2"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_9aa0dca3.jpg" alt="باقة 3"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_019de5c2.jpg" alt="باقة 4"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_62ca12e2.jpg" alt="باقة 5"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_92c96eb1.jpg" alt="باقة 6"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.29_af3d04c9.jpg" alt="باقة 7"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 14.00.30_0ba87301.jpg" alt="باقة 8"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.17_3f16e147.jpg" alt="باقة 10"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_140cc7aa.jpg" alt="باقة 11"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_2310964a.jpg" alt="باقة 12"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.18_84657668.jpg" alt="باقة 13"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/WhatsApp Image 2025-07-29 at 15.36.19_719d7a32.jpg" alt="باقة 14"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/9.jpg" alt="باقة 9"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+    </div>
+  </section>
+
+  <!-- ما الجديد -->
+  <section class="section" data-aos="fade-up">
+    <h3 class="title">الجديد في مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">تكنولوجيا متقدمة</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro2.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">دقة وأمان</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/البروفايلو.jpg" alt="علاج البروفايلو"></div><div class="card-body"><p class="card-title">علاج البروفايلو</p><p class="card-muted">ترطيب وتجديد</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/ابره السالمون.jpg" alt="ابرة السالمون"></div><div class="card-body"><p class="card-title">ابرة السالمون</p><p class="card-muted">نضارة طبيعية</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/فراكشنال ليزر .jpg" alt="فراكشنال ليزر"></div><div class="card-body"><p class="card-title">فراكشنال ليزر</p><p class="card-muted">تحسين ملمس البشرة</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/الحشوه التجميليه.jpg" alt="الحشوة التجميلية"></div><div class="card-body"><p class="card-title">الحشوة التجميلية</p><p class="card-muted">ابتسامة أجمل</p></div></article>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي </p>
+  </footer>
+
+  <!-- AOS -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script> AOS.init({ duration: 800, once: true }); </script>
+
+  <!-- سلايدر بسيط -->
+  <script>
+    const bannerImgs = [
+      "images/WhatsApp Image 2025-07-27 at 20.34.57_225f1c7a.jpg",
+      "images/WhatsApp Image 2025-07-27 at 20.34.58_70f01b82.jpg",
+      "images/WhatsApp Image 2025-07-27 at 20.34.59_3b1fb1d2.jpg",
+      "images/اطباء مجمع فينكس.png",
+      "images/Image 2025-07-10 at 16.38.10_f435f3bd.jpg",
+      "images/WhatsApp Image 2025-07-28 at 15.27.26_2aed0e33.jpg",
+      "images/WhatsApp Image 2025-07-27 at 20.34.59_69ea3ef6.jpg"
+    ];
+    let bannerIndex = 0;
+    const bannerImg = document.getElementById('mainBannerImg');
+    setInterval(() => {
+      bannerIndex = (bannerIndex + 1) % bannerImgs.length;
+      bannerImg.style.opacity = "0";
+      setTimeout(() => {
+        bannerImg.src = bannerImgs[bannerIndex];
+        bannerImg.style.opacity = "1";
+      }, 300);
+    }, 3200);
+  </script>
+</body>
+</html>

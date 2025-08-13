@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>عيادة النساء والولادة - مجمع فينكس الطبي</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .services-preview {
+      position: relative;
+      overflow: hidden;
+      min-height: 380px;
+      padding-bottom: 32px;
+    }
+    .blur-bg {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/نساء و ولاده.png') center center/cover no-repeat;
+      filter: blur(13px) brightness(0.9);
+      opacity: 0.53;
+      z-index: 0;
+      pointer-events: none;
+      transition: filter 0.3s;
+    }
+    .services-preview > *:not(.blur-bg) {
+      position: relative;
+      z-index: 1;
+    }
+    .services-preview h3 {
+      color: #e26a9e;
+      text-align: center;
+      font-size: 2em;
+      margin-top: 32px;
+      margin-bottom: 23px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      background: rgba(255,255,255,0.45);
+      border-radius: 12px;
+      display: inline-block;
+      padding: 0 16px;
+      box-shadow: 0 1px 7px #f2f2f2;
+    }
+    .service {
+      background: rgba(255,255,255,0.86);
+      border-radius: 18px;
+      box-shadow: 0 2px 24px #e3e3e3;
+      margin: 0 auto;
+      max-width: 480px;
+      padding: 32px 20px 18px 20px;
+      text-align: center;
+    }
+    .service img {
+      width: 80px;
+      margin-bottom: 16px;
+      margin-top: -7px;
+    }
+    .service p {
+      font-size: 1.09em;
+      color: #444;
+      text-align: right;
+      margin: 0 0 14px 0;
+      line-height: 2.1;
+      letter-spacing: 0.5px;
+    }
+    .btn, .back-btn {
+      padding: 11px 40px;
+      font-size: 1.13em;
+      border-radius: 13px;
+      border: none;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background 0.22s;
+      box-shadow: 0 1px 12px #ffb6c5a1;
+      text-decoration: none;
+      display: inline-block;
+      margin-top: 7px;
+    }
+    .btn {
+      background: linear-gradient(90deg,#e26a9e 60%,#ff9c67b6 110%);
+      color: #fff;
+      margin-left: 6px;
+    }
+    .btn:hover {
+      background: linear-gradient(90deg,#d41b7b 60%,#f68a45b6 110%);
+    }
+    .back-btn {
+      background: #fff;
+      color: #e26a9e;
+      border: 1.5px solid #e26a9e;
+      margin-top: 25px;
+      margin-left: 0;
+    }
+    .back-btn:hover {
+      background: #e26a9e;
+      color: #fff;
+    }
+    /* ====== تعديل القوائم وأيقونات التواصل ====== */
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 15px;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 7px 14px;
+      font-weight: 700;
+      border-radius: 899px;
+      font-size: 1.03em;
+      transition: 0.3s;
+      background: transparent;
+      display: inline-block;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #e26a9e;
+      box-shadow: 0 2px 8px #e26a9e33;
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 7px;
+      margin: 0 0 0 6px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.13em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      background: #000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #0000004d;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.2px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.2px solid #000000; }
+    .social-icon.snap  { color: #fff; border: 1.2px solid #000; background: #181818; }
+    .social-icon:hover { background: #111; opacity: 0.95; }
+    @media (max-width:600px) {
+      .service {
+        padding: 14px 5vw 8px 5vw;
+      }
+      .services-preview {
+        min-height: 260px;
+      }
+      .service img { width: 55px;}
+      .services-preview h3 { font-size: 1.22em;}
+      .btn, .back-btn { font-size: 1em; padding: 9px 19px;}
+      .header-flex { flex-direction: column; gap: 7px; padding: 0 3px; }
+      nav ul {
+        gap: 1vw !important;
+        flex-wrap: wrap !important;
+        padding: 2.5px 0 !important;
+        justify-content: center;
+        align-items: center;
+      }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.77em !important;
+        padding: 3px 4px !important;
+      }
+      .social-icons { gap: 2px !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img">
+      </div>
+      <nav>
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html" class="active">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="services-preview">
+    <div class="blur-bg"></div>
+    <h3>عيادة النساء والولادة</h3>
+    <div class="service">
+      <img src="images/logo phoenix-Photoroom.png" alt="النساء والولادة">
+      <p>
+        <strong>تشمل خدماتنا:</strong><br><br>
+        - الكشف والتشخيص<br>
+        - السونار (3D/4D/5D)<br>
+        - متابعة الحمل والولادة<br>
+        - متابعة التبويض<br>
+        - تركيب وإزالة موانع الحمل<br>
+        - تحاليل النساء<br>
+        - التجميل النسائي (حقن، بلازما، جراحات)
+      </p>
+      <a href="appointment.html" class="btn">احجز الآن</a>
+      <a href="services.html" class="back-btn">الرجوع لقائمة الخدمات</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+  </footer>
+</body>
+</html>

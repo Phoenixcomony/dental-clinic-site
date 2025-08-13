@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
+    <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجمع فينكس الطبي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+      body {
+        background: url('images/فينكس الشعر الرسمي.png') center center/cover no-repeat fixed !important;
+      }
+      header {
+        background: linear-gradient(to right, #f0f4f7, #80724ed2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        padding: 14px 0;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        transition: top 0.35s;
+      }
+      .header-hide {
+        top: -120px !important; /* إخفاء الهيدر */
+      }
+      .container.header-flex {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 16px;
+      }
+      .logo-container { flex-shrink: 0; }
+      .logo-img { width: 110px; height: auto; display: block; }
+      nav ul {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 8px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        flex-wrap: wrap;
+      }
+      nav ul li { display: flex; align-items: center; margin: 0; }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 1.05em;
+        padding: 7px 12px;
+        border-radius: 23px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .social-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-right: 0;
+      }
+      .social-icons .social-icon {
+        font-size: 1.17em;
+        width: 31px;
+        height: 31px;
+        background: #000;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 1.5px;
+        box-shadow: 0 1px 6px #000000b6;
+        text-decoration: none;
+      }
+      .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000;}
+      .social-icon.insta { color: #ff0055; border: 1.5px solid #000000;}
+      .social-icon.snap  { color: #fff; border: 1.5px solid #000000; background: #181818; }
+      .social-icon:hover { background: #222; opacity: 0.9; }
+      @media (max-width: 800px) {
+        .container.header-flex { flex-direction: column; gap: 7px; padding: 0 6px; }
+        .logo-img { width: 80px; }
+        nav ul { gap: 2.5px !important; }
+        nav ul li a, .social-icons .social-icon { font-size: 0.89em; padding: 4px 4px; }
+        .social-icons .social-icon { width: 23px; height: 23px; }
+      }
+      @media (max-width: 520px) {
+        .container.header-flex { flex-direction: column; gap: 3px; padding: 0 1px; }
+        nav ul { gap: 1px !important; }
+        nav ul li a, .social-icons .social-icon { font-size: 0.75em; padding: 2px 2px; }
+        .logo-img { width: 47px; }
+      }
+
+      /* ============ العنوان وزر احجز الآن ============= */
+      .hero {
+        padding: 43px 0 17px 0;
+        text-align: center;
+        background: transparent;
+      }
+      .hero h2 {
+        font-size: 2.3rem;
+        color: #fff;
+        margin-bottom: 12px;
+        text-shadow: 0 3px 16px #00000072, 0 1px 0px #b17638;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        transition: font-size 0.23s;
+      }
+      .hero p {
+        font-size: 1.07rem;
+        color: #f7e7e7;
+        margin-bottom: 16px;
+        text-shadow: 0 2px 8px #33333368;
+      }
+      .hero .btn {
+        background-color: #f76d3b;
+        color: rgb(11, 11, 11);
+        padding: 9px 29px;
+        border: none;
+        border-radius: 30px;
+        font-size: 1rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background-color 0.3s, font-size 0.2s;
+        box-shadow: 0 4px 10px rgba(39, 16, 7, 0.4);
+        margin-bottom: 8px;
+      }
+      .hero .btn:hover {
+        background-color: #fff;
+        color: #f76d3b;
+      }
+      @media (max-width: 800px) {
+        .hero h2 { font-size: 1.35rem;}
+        .hero p  { font-size: 0.89rem;}
+        .hero .btn { font-size: 0.85rem; padding: 7px 17px; }
+      }
+      @media (max-width: 520px) {
+        .hero { padding: 26px 0 11px 0;}
+        .hero h2 { font-size: 1.04rem;}
+        .hero .btn { font-size: 0.77rem; padding: 4px 13px; }
+      }
+      /* الخدمات */
+      .services-preview {
+        background: #000000b2;
+        padding: 40px 0 28px 0;
+        text-align: center;
+      }
+      .services-preview h3 {
+        font-size: 31px;
+        margin-bottom: 28px;
+        color: #fff;
+        letter-spacing: 1px;
+      }
+      .services-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 27px;
+        margin: 0 auto;
+        max-width: 1100px;
+      }
+      .service {
+        background: #cdb49f;
+        border-radius: 13px;
+        padding: 17px 13px 8px 13px;
+        box-shadow: 0 4px 13px rgba(12, 92, 145, 0.09);
+        width: 230px;
+        margin-bottom: 20px;
+        transition: transform 0.3s;
+        text-align: center;
+      }
+      .service img {
+        width: 100%;
+        max-width: 180px;
+        border-radius: 12px;
+        margin-bottom: 13px;
+        object-fit: cover;
+      }
+      .service p {
+        font-size: 17px;
+        font-weight: 700;
+        color: #191919;
+        margin: 0;
+      }
+      .service a { text-decoration: none; color: inherit;}
+      .service:hover {
+        transform: translateY(-8px) scale(1.03);
+        box-shadow: 0 8px 25px rgba(10, 10, 233, 0.11);
+      }
+      @media (max-width: 800px) {
+        .services-row { gap: 14px; }
+        .service { width: 42vw; max-width: 260px; min-width: 140px; padding: 10px 6px 7px 6px; }
+        .service img { max-width: 100px; }
+        .services-preview h3 { font-size: 21px; }
+      }
+      @media (max-width: 520px) {
+        .service { width: 97vw; max-width: 300px; min-width: 70px; padding: 5px 1vw 6px 1vw; }
+        .services-row { gap: 5px; }
+        .service img { max-width: 70vw; }
+        .services-preview h3 { font-size: 17px; }
+      }
+    </style>
+</head>
+<body>
+
+  <header id="mainHeader">
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img">
+      </div>
+      <nav>
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html" class="active">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero fade-in">
+    <h2>نرحب بكم في مجمع فينكس الطبي</h2>
+    <p>رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
+    <a href="appointment.html" class="btn">احجز الآن</a>
+  </section>
+
+  <section class="about-us"></section>
+
+  <section class="services-preview">
+    <h3>خدماتنا</h3>
+    <div class="services-row">
+      <div class="service">
+        <a href="gynecology.html">
+          <img src="images/نساء و توليد.png" alt="عيادة النساء و الولادة">
+          <p>عيادة النساء و الولادة</p>
+        </a>
+      </div>
+      <div class="service">
+        <a href="dermatology.html">
+          <img src="images/ChatGPT Image Jul 28, 2025, 12_42_01 AM.png" alt="عيادة الجلدية والتجميل">
+          <p>عيادة الجلدية والتجميل</p>
+        </a>
+      </div>
+      <div class="service">
+        <a href="laser-hair-removal.html">
+          <img src="images/hear remove.png" alt="جلسات الليزر">
+          <p>جلسات الليزر</p>
+        </a>
+      </div>
+      <div class="service">
+        <a href="dental.html">
+          <img src="images/طب الاسنان 3.png" alt="طب الأسنان">
+          <p>طب الأسنان</p>
+        </a>
+      </div>
+      <div class="service">
+        <a href="general-medicine.html">
+          <img src="images/الطواريئ و طب عام.png" alt="عيادة الطوارئ والطب العام">
+          <p>عيادة الطوارئ والطب العام</p>
+        </a>
+      </div>
+      <div class="service">
+        <a href="hydrafacial.html">
+          <img src="images/تنضييف البشره.png" alt="عيادة تنظيف البشره">
+          <p>عيادة تنظيف البشره</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+  </footer>
+
+  <script>
+    // إخفاء الهيدر عند النزول وإظهاره عند الصعود
+    let lastScrollTop = 0;
+    const header = document.getElementById("mainHeader");
+    window.addEventListener("scroll", function() {
+      let st = window.pageYOffset || document.documentElement.scrollTop;
+      if (st > lastScrollTop && st > 70) {
+        // نزول: أخفِ الهيدر
+        header.classList.add("header-hide");
+      } else {
+        // صعود: أظهر الهيدر
+        header.classList.remove("header-hide");
+      }
+      lastScrollTop = st <= 0 ? 0 : st;
+    }, false);
+  </script>
+</body>
+</html>

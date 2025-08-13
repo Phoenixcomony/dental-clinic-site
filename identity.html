@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>استكمال البيانات – مجمع فينكس الطبي</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    :root{ --gold-main:#e2be6d; }
+    body{ font-family:'Cairo',sans-serif; margin:0; background:#fdfbf6; }
+    .wrap{ max-width:520px; margin:30px auto; background:#fff; border:1px solid #e8ca7c80; border-radius:18px; box-shadow:0 4px 16px #e2be6d33; padding:18px; }
+    h1{ text-align:center; color:#a67c0e; margin-bottom:20px; }
+    label{ display:block; margin:.6rem 0 .3rem; font-weight:700; color:#b18836; }
+    input, select{ width:100%; padding:12px; border-radius:14px; border:1.4px solid #e2be6d99; background:#fffdfa; font-size:1rem; }
+    input:focus, select:focus{ border-color:var(--gold-main); background:#fff9e0; outline:none; }
+    .btn{ width:100%; padding:13px 0; border:none; border-radius:16px; font-weight:800; background:linear-gradient(90deg,#e8ca7c 10%, #fff8e6 100%); color:#6b4b00; cursor:pointer; margin-top:14px; box-shadow:0 6px 16px #e2be6d33; }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+    .muted{ text-align:center; color:#7a6d4e; margin-top:10px; min-height:22px; }
+  </style>
+</head>
+<body>
+  <section class="wrap">
+    <h1>استكمال البيانات</h1>
+
+    <label>الاسم الثلاثي</label>
+    <input type="text" id="fullName" readonly>
+
+    <label>رقم الجوال</label>
+    <input type="text" id="phone" readonly>
+
+    <label>رقم الملف</label>
+    <input type="text" id="fileId" readonly>
+
+    <label for="idNumber">رقم الهوية</label>
+    <input type="text" id="idNumber" placeholder="أدخل رقم الهوية" maxlength="10" inputmode="numeric">
+
+    <label for="birthYear">سنة الميلاد</label>
+    <select id="birthYear"><option value="">اختر السنة</option></select>
+
+    <button id="saveBtn" class="btn">حفظ البيانات</button>
+    <div id="msg" class="muted"></div>
+  </section>
+
+<script>
+  // تعبئة السنوات
+  const yearSel = document.getElementById('birthYear');
+  const currentYear = new Date().getFullYear();
+  for(let y = currentYear; y >= 1900; y--){
+    const opt = document.createElement('option'); opt.value = y; opt.textContent = y;
+    yearSel.appendChild(opt);
+  }
+
+  // تعبئة تلقائية
+  document.getElementById('fullName').value = localStorage.getItem('auth_name') || '';
+  document.getElementById('phone').value    = localStorage.getItem('auth_phone') || '';
+  document.getElementById('fileId').value   = localStorage.getItem('auth_fileId') || '';
+
+  const saveBtn = document.getElementById('saveBtn');
+  const msg = document.getElementById('msg');
+
+  saveBtn.addEventListener('click', async () => {
+    const fileId = localStorage.getItem('auth_fileId') || '';
+    const idNumber = document.getElementById('idNumber').value.trim();
+    const birthYear = document.getElementById('birthYear').value;
+
+    if(!fileId){ msg.textContent='رقم الملف غير معروف.'; return; }
+    if(!idNumber){ msg.textContent='رقم الهوية مطلوب.'; return; }
+    if(!birthYear){ msg.textContent='سنة الميلاد مطلوبة.'; return; }
+
+    saveBtn.disabled = true;
+    msg.textContent = 'جارٍ حفظ البيانات...';
+
+    try {
+      const res = await fetch('/api/update-identity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, nationalId:idNumber, birthYear })
+      });
+      const data = await res.json();
+      if(data.success){
+        // بعد التحديث ارجع لصفحة الحجز
+        window.location.href = 'appointment.html';
+      } else {
+        msg.textContent = data.message || 'تعذر حفظ البيانات';
+        saveBtn.disabled = false;
+      }
+    } catch {
+      msg.textContent = 'حدث خطأ في الاتصال';
+      saveBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

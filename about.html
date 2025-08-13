@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مجمع فينكس الطبي - من نحن</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .blur-bg-about {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/فينكس الشعر الرسمي.png') center center/cover no-repeat;
+      filter: blur(14px) brightness(0.97);
+      opacity: 0.;
+      z-index: 0;
+      pointer-events: none;
+    }
+    body > *:not(.blur-bg-about) { position: relative; z-index: 1; }
+    header {
+      background: linear-gradient(to right, #f0f4f7, #80724ed2);
+      padding: 18px 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      position: sticky;
+      top: 0;
+      z-index: 9;
+    }
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .logo-container img {
+      width: 120px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center;
+      align-items: center;
+      gap: 11px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 8px 17px;
+      font-weight: 700;
+      border-radius: 899px;
+      font-size: 1.05em;
+      transition: 0.3s;
+      display: inline-block;
+      background: transparent;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 0 8px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.17em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 33px;
+      height: 33px;
+      background: #000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #0000004d;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
+    .social-icon.snap  { color: #fff; border: 1.5px solid #000; background: #181818; }
+    .social-icon:hover {
+      background: #111;
+      opacity: 0.93;
+    }
+    .hero {
+      background: none;
+      padding: 36px 10px 23px 10px;
+      text-align: center;
+      position: relative;
+    }
+    .hero h2 {
+      font-size: 1.6em;  /* أصغر بكثير للجوال والكمبيوتر */
+      color: #fff;
+      margin-bottom: 12px;
+      background: rgba(0,0,0,0.32);
+      display: inline-block;
+      padding: 4px 13px;
+      border-radius: 14px;
+      font-weight: bold;
+      letter-spacing: .5px;
+      line-height: 1.3;
+    }
+    .hero p {
+      font-size: 0.99em;
+      color: #fff;
+      margin-bottom: 14px;
+      background: rgba(0,0,0,0.22);
+      display: inline-block;
+      padding: 4px 11px;
+      border-radius: 13px;
+    }
+    .btn {
+      background-color: #f76d3b;
+      color: #000;
+      padding: 5px 16px;
+      border: none;
+      border-radius: 30px;
+      font-size: 0.98em;
+      font-weight: 700;
+      text-decoration: none;
+      margin-top: 6px;
+      transition: background 0.3s;
+      box-shadow: 0 4px 10px rgba(39, 16, 7, 0.09);
+      display: inline-block;
+    }
+    .btn:hover { background-color: #fffcfa; }
+
+    /* Responsive */
+    @media (max-width: 650px) {
+      .header-flex { flex-direction: column; gap: 8px; }
+      nav ul {
+        gap: 1vw !important;
+        flex-wrap: wrap !important;
+        padding: 2px 0 !important;
+      }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.78em !important;
+        padding: 4px 2px !important;
+      }
+      .social-icons { gap: 2px !important; }
+      .hero h2 {
+        font-size: 1.16em !important;
+        padding: 4px 7px !important;
+        border-radius: 12px !important;
+      }
+      .hero p {
+        font-size: 0.88em !important;
+        padding: 3px 7px !important;
+        border-radius: 10px !important;
+      }
+      .btn {
+        font-size: 0.84em !important;
+        padding: 4px 13px !important;
+        border-radius: 18px !important;
+      }
+    }
+  </style>
+ </head>
+ <body>
+   <div class="blur-bg-about"></div>
+  <header>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img" />
+      </div>
+       <nav>
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html" class="active">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+           <li><a href="contact.html">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- البانر -->
+  <section class="hero fade-in">
+    <h2>نرحب بكم في مجمع فينكس الطبي</h2>
+    <p>رعايتكم هي أولويتنا، ونقدم خدمات طبية شاملة بأعلى المعايير في جميع التخصصات</p>
+    <a href="appointment.html" class="btn">احجز الآن</a>
+  </section>
+
+  <!-- من نحن -->
+  <section style="background-color: #000000c6; padding: 60px 20px;">
+    <div class="container">
+      <h2 style="color: #c9560e; font-size: 36px; margin-bottom: 30px; text-align: center;">
+        من نحن
+      </h2>
+      <p style="font-size: 18px; color: #ffffff; line-height: 2; text-align: center; max-width: 900px; margin: auto;">
+        مجمع فينكس الطبي هو منشأة متكاملة تجمع بين التخصصات الطبية والتجميلية بأعلى معايير الجودة والراحة.
+        نحرص على تقديم خدمات مبتكرة باستخدام أحدث التقنيات الطبية الحديثة، وبأيدي نخبة من الكوادر المؤهلة.
+      </p>
+    </div>
+  </section>
+
+  <!-- رؤيتنا ورسالتنا -->
+  <section style="background-color: #000000bd; padding: 60px 20px;">
+    <div class="container" style="display: flex; flex-wrap: wrap; gap: 40px; justify-content: center;">
+      <div style="flex: 1 1 300px; background-color: #e6f2fb; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" data-aos="fade-up">
+        <h3 style="color: #0c5c91; font-size: 24px;">رؤيتنا</h3>
+        <p style="font-size: 16px; color: #333; line-height: 1.8;">
+          أن نكون الوجهة الأولى للرعاية الصحية المتكاملة والمتميزة، عبر بيئة متطورة تواكب أحدث معايير الطب الحديث.
+        </p>
+      </div>
+      <div style="flex: 1 1 300px; background-color: #fff5e6; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" data-aos="fade-up">
+        <h3 style="color: #d35400; font-size: 24px;">رسالتنا</h3>
+        <p style="font-size: 16px; color: #333; line-height: 1.8;">
+          تقديم خدمات صحية متميزة وآمنة ترتكز على احترام المريض واحتياجاته، مع التزام مستمر بالتطوير وتحقيق رضا العملاء.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- آراء العملاء -->
+  <section class="customer-reviews fade-in">
+    <h2>آراء عملائنا</h2>
+    <div class="reviews-container">
+      <div class="review-card">
+        <img src="images/Screenshot 2025-07-09 152346.png" alt="رأي عميل 1" />
+      </div>
+      <div class="review-card">
+        <img src="images/Screenshot 2025-07-09 152500.png" alt="رأي عميل 2" />
+      </div>
+      <div class="review-card">
+        <img src="images/Screenshot 2025-07-09 152538.png" alt="رأي عميل 3" />
+      </div>
+    </div>
+  </section>
+
+  <!-- الفريق الطبي -->
+  <section class="services-preview">
+    <h3>الفريق الطبي لمجمع فينكس الطبي</h3>
+
+    <div class="service" data-aos="zoom-in">
+      <img src="images/ريان صديق خيرالله.jpg" alt="الدكتورة ريان صديق" />
+      <p><strong>د. ريان صديق</strong><br>“أنا حاصلة على بكالوريوس طب وجراحة الأسنان من الجامعة الوطنية، وأملك خبرة 10 سنوات مع دورات في التركيبات والتجميل.”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
+      <img src="images/RONALDO ALEGRE CRUZ.jpg" alt="د. رونالدو كروز" />
+      <p><strong>د. رونالدو كروز</strong><br>“بكالوريوس طب وجراحة الأسنان، متخصص في علاج الجذور بخبرة تمتد لأكثر من 32 عامًا.”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
+      <img src="images/هنادي ادريس محمد علي.jpg" alt="د. هنادي إدريس" />
+      <p><strong>د. هنادي إدريس</strong><br>“بكالوريوس طب وجراحة عامة، حاصلة على شهادة MRCP، أعمل في الطب العام منذ 15 عامًا.”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
+      <img src="images/حسناء محمد الموافي (1).jpg" alt="د. حسناء الموافي" />
+      <p><strong>د. حسناء الموافي</strong><br>“أخصائية نساء وولادة، ماجستير في الجراحة العامة والتجميل، لديّ خبرة تمتد إلى 26 عامًا.”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
+      <img src="images/معاذ علي ميرغني.jpg" alt="د. معاذ علي" />
+      <p><strong>د. معاذ علي</strong><br>“بكالوريوس من جامعة الرازي، ودبلوم تجميل الأسنان من ليدز البريطانية، مع خبرة في التركيبات الثابتة لمدة 4 سنوات.”</p>
+    </div>
+  </section>
+<!-- ما الجديد -->
+  <section class="services-preview" data-aos="fade-up">
+    <h3>ما الجديد</h3>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/new image pro.jpg" alt="ما الجديد 1" />
+      <p>جهاز سبلندر اكس الأمريكي</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/new image pro2.jpg" alt="ما الجديد 2" />
+      <p>جهاز سبلندر اكس الأمريكي</p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/البروفايلو.jpg" alt="ما الجديد 1" />
+      <p>   علاج البروفايلوا</p>
+    </div>
+     <div class="service" data-aos="zoom-in">
+      <img src="images/ابره السالمون.jpg" alt="ما الجديد 1" />
+      <p>    ابرة السالمون</p>
+    </div>
+     <div class="service" data-aos="zoom-in">
+      <img src="images/فراكشنال ليزر .jpg" alt="ما الجديد 1" />
+      <p>    فراكشنال ليزر </p>
+    </div>
+    <div class="service" data-aos="zoom-in">
+      <img src="images/الحشوه التجميليه.jpg" alt="ما الجديد 1" />
+      <p> الحشوة التجميلية</p>
+    </div>
+  </section>
+  <!-- الفوتر -->
+  <footer>
+    <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
+  </footer>
+
+  <!-- AOS Scripts -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script>
+    AOS.init({ duration: 1000 });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "name": "dental-clinic-site",
+  "version": "1.0.0",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Phoenixcomony/dental-clinic-site.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Phoenixcomony/dental-clinic-site/issues"
+  },
+  "homepage": "https://github.com/Phoenixcomony/dental-clinic-site#readme",
+  "dependencies": {
+    "@vonage/server-sdk": "^3.22.0",
+    "airtable": "^0.12.2",
+    "axios": "^1.10.0",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "googleapis": "^153.0.0",
+    "node-fetch": "^3.3.2",
+    "puppeteer": "^24.15.0",
+    "twilio": "^5.7.3"
+  },
+  "description": ""
+}
+
+

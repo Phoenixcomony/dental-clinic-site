@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مجمع فينكس الطبي</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    .blur-bg-contact {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      background: url('images/اطباء مجمع فينكس.png') center center/cover no-repeat;
+      filter: blur(14px) brightness(0.97);
+      opacity: 0.38;
+      z-index: 0;
+      pointer-events: none;
+    }
+    body > *:not(.blur-bg-contact) {
+      position: relative;
+      z-index: 1;
+    }
+    /* القوائم الرئيسية */
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 18px;
+    }
+    .logo-container img {
+      width: 105px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+    nav ul {
+      list-style: none;
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      width: 100%;
+    }
+    nav ul li {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+    nav ul li a {
+      color: #000;
+      text-decoration: none;
+      padding: 7px 16px;
+      font-weight: 700;
+      border-radius: 799px;
+      font-size: 1em;
+      transition: 0.3s;
+      display: inline-block;
+      background: transparent;
+    }
+    nav ul li a:hover,
+    nav ul li a.active {
+      background-color: #fff;
+      color: #00487c;
+      box-shadow: 0 2px 8px rgba(0, 72, 124, 0.11);
+    }
+    .social-icons {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 0 8px;
+    }
+    .social-icons .social-icon {
+      font-size: 1.18em;
+      padding: 0 2px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 31px;
+      height: 31px;
+      background: #000000;
+      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 6px #000000b6;
+      text-decoration: none;
+    }
+    .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
+    .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
+    .social-icon.snap  { color: #fff; border: 1.5px solid #000000; background: #181818; }
+    .social-icon:hover {
+      background: #111;
+      opacity: 0.95;
+    }
+    @media (max-width: 768px) {
+      .header-flex { flex-direction: column; gap: 9px; padding: 0 4px;}
+      nav ul { gap: 1vw !important; flex-wrap: wrap !important; }
+      .logo-container { margin-bottom: 5px; }
+      .social-icons { gap: 5px !important; }
+      nav ul li a, .social-icons .social-icon {
+        font-size: 0.81em !important;
+        padding: 4px 6px !important;
+      }
+    }
+    /* محتوى التواصل */
+    .contact-info {
+      background: #fffefad2;
+      max-width: 890px;
+      margin: 44px auto 28px auto;
+      border-radius: 16px;
+      box-shadow: 0 2px 14px #dac38e3a;
+      padding: 36px 17px 30px 17px;
+    }
+    .contact-info h2 {
+      color: #e38102;
+      font-size: 1.26em;
+      margin-bottom: 12px;
+      text-align: right;
+      font-weight: bold;
+    }
+    .contact-info p {
+      font-size: 1.05em;
+      color: #2e2923;
+      margin-bottom: 7px;
+      margin-right: 6px;
+      line-height: 2.1;
+      text-align: right;
+    }
+    /* جدول ساعات العمل */
+    .hours-table-wrap {
+      overflow-x: auto;
+      margin: 18px auto 7px auto;
+      border-radius: 11px;
+      box-shadow: 0 2px 14px #ffe5c620;
+      background: #fffefaee;
+      padding: 8px 2px;
+    }
+    .hours-table {
+      width: 100%;
+      min-width: 370px;
+      border-collapse: collapse;
+      background: transparent;
+      text-align: center;
+      font-size: 1.04em;
+    }
+    .hours-table th, .hours-table td {
+      border: 1px solid #f8d9a2;
+      padding: 9px 6px;
+    }
+    .hours-table th {
+      background: #fff3e6;
+      color: #c57804;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+    .hours-table td {
+      background: #fff;
+      color: #222;
+    }
+    .hours-table td[colspan] {
+      background: #fffbe9;
+      color: #bb7d0a;
+      font-weight: bold;
+      font-size: .98em;
+    }
+    @media (max-width:600px){
+      .contact-info { padding: 12px 3px 15px 3px; }
+      .hours-table th, .hours-table td { font-size: 0.87em; padding: 5px 2px; }
+      .contact-info h2 { font-size: 1em; }
+    }
+    /* الخريطة */
+    .map-section {
+      margin: 45px auto 26px auto;
+      max-width: 820px;
+      background: #fffefaee;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px #dac38e2a;
+      padding: 20px 10px;
+      text-align: center;
+    }
+    .map-section h2 {
+      color: #e38102;
+      font-size: 1.16em;
+      margin-bottom: 13px;
+      font-weight: bold;
+      text-align: right;
+    }
+    .google-map {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 14px #dac38e4a;
+    }
+    /* الفوتر */
+    footer {
+      background-color: #dac6a28e;
+      color: #000;
+      text-align: center;
+      padding: 10px 0;
+      font-weight: 600;
+      margin-top: 35px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="blur-bg-contact"></div>
+
+  <!-- الهيدر -->
+  <header>
+    <div class="container header-flex">
+      <div class="logo-container">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار العيادة" class="logo-img">
+      </div>
+      <nav>
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html">احجز موعد</a></li>
+          <li><a href="contact.html" class="active">اتصل بنا</a></li>
+          <li class="social-icons">
+            <a href="https://wa.me/966531422555" target="_blank" title="واتساب" class="social-icon wa"><i class="fab fa-whatsapp"></i></a>
+            <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام" class="social-icon insta"><i class="fab fa-instagram"></i></a>
+            <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات" class="social-icon snap"><i class="fab fa-snapchat-ghost"></i></a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- بيانات التواصل -->
+  <section class="contact-info">
+    <h2>بيانات التواصل</h2>
+    <p><strong>الجوال:</strong> 0559904222</p>
+    <p><strong>الجوال 2:</strong> 0531422555</p>
+    <p><strong>الهاتف:</strong> 0116227222</p>
+    <p><strong>البريد الإلكتروني:</strong> ph.clinic@outlook.sa</p>
+
+    <h2 style="margin-top:35px;font-size:1.13em;color:#e38102;">ساعات العمل</h2>
+    <div class="hours-table-wrap">
+      <table class="hours-table">
+        <thead>
+          <tr>
+            <th>القسم / الطبيب</th>
+            <th>الأيام</th>
+            <th>الفترة الصباحية</th>
+            <th>الفترة المسائية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>عيادة الأسنان 1 (د. عبير)</td>
+            <td>السبت - الخميس</td>
+            <td>9:00 ص – 12:00 م</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 2 (د. ريان)</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 ص</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 3 (د. معاذ)</td>
+            <td>السبت - الخميس</td>
+            <td>12:00 م – 8:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 4 (د. رونالدو)</td>
+            <td>السبت - الخميس</td>
+            <td>2:00 م – 10:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+            <td>الأحد - الخميس</td>
+            <td>-</td>
+            <td>3:30 م – 10:30 م</td>
+          </tr>
+          <tr>
+            <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+            <td>السبت - الخميس</td>
+            <td>-</td>
+            <td>2:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة النساء والولادة (د. حسناء)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر 1</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر 2</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
+              يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  
+  <!-- الخريطة -->
+  <section class="map-section">
+    <h2>موقع العيادة</h2>
+    <div class="google-map">
+      <iframe
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.637294418528!2d45.2621617!3d25.2312078!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e2a6971af1a9585%3A0xafede48b7960cc4a!2z2YXYr9mK2YXYuSDYp9mE2K3YqSDYp9mE2YXZitmE2Kkg2KfZhNmF2YbZiNin2YTZhNmK!5e0!3m2!1sar!2ssa!4v1720523413549!5m2!1sar!2ssa"
+        width="100%" height="350"
+        style="border:0; border-radius:12px;"
+        allowfullscreen=""
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+  </section>
+
+  <!-- الفوتر -->
+  <footer>
+    <p>جميع الحقوق محفوظة ©مجمع فينكس الطبي 2025</p>
+  </footer>
+
+</body>
+</html>
