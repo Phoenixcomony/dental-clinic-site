@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "Phoenix Clinic server (Express + Puppeteer)",
   "main": "server.js",
-  "engines": { "node": "18.x" },
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
-    "postinstall": "node -e \"process.env.PUPPETEER_CACHE_DIR=process.cwd()+'/_.cache/puppeteer';process.env.PUPPETEER_DOWNLOAD_PATH=process.env.PUPPETEER_CACHE_DIR;require('child_process').execSync('npx puppeteer browsers install chrome@stable --platform=linux',{stdio:'inherit'})\"",
-    "start": "node -e \"process.env.PUPPETEER_CACHE_DIR=process.cwd()+'/_.cache/puppeteer';process.env.PUPPETEER_DOWNLOAD_PATH=process.env.PUPPETEER_CACHE_DIR;require('./server.js')\"",
+    "start": "node server.js",
     "health": "node -e \"require('http').createServer((_,r)=>r.end('ok')).listen(8080)\""
   },
   "dependencies": {
