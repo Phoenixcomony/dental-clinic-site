@@ -109,7 +109,6 @@
     }
     @keyframes spin{ to{ transform:rotate(360deg);} }
 
-    /* ضغط إضافي لشاشات أصغر من 360px */
     @media (max-width:360px){
       .wrap{ padding:8px; border-radius:10px; }
       input, select{ padding:6px 26px 6px 24px; font-size:.88rem; }
@@ -184,7 +183,7 @@
       <div>
         <label for="n">الجنسية</label>
         <div class="field">
-          <select name="nationality" id="n">
+          <select name="nationality" id="n" disabled title="يتم تحديد الجنسية تلقائيًا من أول رقم في الهوية">
             <option value=""></option>
             <option value="27">Other</option>
             <option value="1" selected="selected">Saudi</option>
@@ -268,6 +267,16 @@
         else{ msg.textContent=data.message||'تعذّر إرسال الرمز'; }
       }catch{ msg.textContent='تعذّر الاتصال بالخادم'; }
       finally{ showLoader(false); }
+    });
+
+    // تغيير الجنسية تلقائيًا حسب أول رقم من الهوية (1 = Saudi، غير ذلك = Other)
+    $('idNumber').addEventListener('input', function(){
+      const firstDigit = this.value.trim().charAt(0);
+      if(firstDigit === '1'){
+        $('n').value = '1'; // Saudi
+      } else if(firstDigit && firstDigit !== '1'){
+        $('n').value = '27'; // Other
+      }
     });
 
     // حفظ البيانات

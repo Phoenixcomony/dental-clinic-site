@@ -19,6 +19,7 @@
       pointer-events: none;
     }
     body > *:not(.blur-bg-about) { position: relative; z-index: 1; }
+
     header {
       background: linear-gradient(to right, #f0f4f7, #80724ed2);
       padding: 18px 0;
@@ -53,12 +54,7 @@
       background: transparent;
       width: 100%;
     }
-    nav ul li {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      align-items: center;
-    }
+    nav ul li { margin: 0; padding: 0; display: flex; align-items: center; }
     nav ul li a {
       color: #000;
       text-decoration: none;
@@ -99,10 +95,8 @@
     .social-icon.wa    { color: #3cff00; border: 1.5px solid #000000; }
     .social-icon.insta { color: #ff0055; border: 1.5px solid #000000; }
     .social-icon.snap  { color: #fff; border: 1.5px solid #000; background: #181818; }
-    .social-icon:hover {
-      background: #111;
-      opacity: 0.93;
-    }
+    .social-icon:hover { background: #111; opacity: 0.93; }
+
     .hero {
       background: none;
       padding: 36px 10px 23px 10px;
@@ -110,7 +104,7 @@
       position: relative;
     }
     .hero h2 {
-      font-size: 1.6em;  /* أصغر بكثير للجوال والكمبيوتر */
+      font-size: 1.6em;
       color: #fff;
       margin-bottom: 12px;
       background: rgba(0,0,0,0.32);
@@ -146,7 +140,83 @@
     }
     .btn:hover { background-color: #fffcfa; }
 
-    /* Responsive */
+    /* =========================
+       تنسيق أنيق ومتناسق للبطاقات والصور (بدون تغيير ألوان الصفحة)
+       يطبَّق على قسمي الأطباء و"ما الجديد" لأن كلاهما يستخدم .services-preview
+    ==========================*/
+    .services-preview{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 36px 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+    .services-preview > h3{
+      grid-column: 1 / -1;
+      text-align: center;
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+    .services-preview .service{
+      border-radius: 16px;        /* حواف ناعمة */
+      overflow: hidden;           /* قصّ الصورة ضمن الإطار */
+      padding: 10px 10px 12px;    /* مسافة داخلية بسيطة */
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .services-preview .service img{
+      width: 100%;
+      display: block;
+      border-radius: 14px;        /* تقويس الصورة نفسها */
+      aspect-ratio: 4 / 3;        /* نسبة أبعاد ثابتة لظهور متناسق */
+      object-fit: cover;          /* قصّ أنيق بدون تمديد */
+      object-position: center;
+      transform: translateZ(0);   /* ثبات بصري */
+      will-change: transform;
+      transition: transform .25s ease;
+    }
+    .services-preview .service:hover img{
+      transform: scale(1.02);     /* فخامة خفيفة عند المرور */
+    }
+    .services-preview .service p{
+      margin: 6px 4px 0;
+      line-height: 1.8;
+      font-size: .98rem;
+      text-align: center;
+    }
+
+    /* على الشاشات العريضة نرفع الحد الأقصى قليلًا */
+    @media (min-width: 900px){
+      .services-preview .service img{
+        aspect-ratio: 16 / 10;    /* مظهر أكثر أفقية على الديسكتوب */
+      }
+    }
+
+    /* آراء العملاء (بدون تغيير ألوان) */
+    .customer-reviews { padding: 40px 16px; }
+    .customer-reviews h2 { text-align: center; margin: 0 0 16px; }
+    .customer-reviews .reviews-container{
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .review-card{
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .review-card img{
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: cover;
+    }
+
+    /* Responsive للهيدر والأزرار */
     @media (max-width: 650px) {
       .header-flex { flex-direction: column; gap: 8px; }
       nav ul {
@@ -173,6 +243,11 @@
         font-size: 0.84em !important;
         padding: 4px 13px !important;
         border-radius: 18px !important;
+      }
+      /* على الجوال نخلي الصور تتمدد طبيعيًا داخل نفس النسبة */
+      .services-preview .service img{
+        aspect-ratio: 4 / 3;
+        object-fit: cover;
       }
     }
   </style>
@@ -265,6 +340,11 @@
     </div>
 
     <div class="service" data-aos="zoom-in">
+      <img src="images/دكتورة ولاء.jpg" alt="الدكتورة ولاء " />
+      <p><strong>د. ولاء</strong><br>“أناالدكتوره ولاء عيون, اخصائية جلدية وتجميل .. نائب جلدية و  خبرة 13 سنة .”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
       <img src="images/RONALDO ALEGRE CRUZ.jpg" alt="د. رونالدو كروز" />
       <p><strong>د. رونالدو كروز</strong><br>“بكالوريوس طب وجراحة الأسنان، متخصص في علاج الجذور بخبرة تمتد لأكثر من 32 عامًا.”</p>
     </div>
@@ -280,11 +360,17 @@
     </div>
 
     <div class="service" data-aos="zoom-in">
+      <img src="images/دكتورة عبير.jpg" alt="د. عبير ابراهيم " />
+      <p><strong>د. عبير ابراهيم </strong><br>“اخصائية اصلاح وتجميل الاسنان وعلاج الجذور ماجستير العلاج التحفظي والتجميلي وعلاج الجذور دبلوم التركيبات - جامعة المنصوره خبره 14 سنة .”</p>
+    </div>
+
+    <div class="service" data-aos="zoom-in">
       <img src="images/معاذ علي ميرغني.jpg" alt="د. معاذ علي" />
       <p><strong>د. معاذ علي</strong><br>“بكالوريوس من جامعة الرازي، ودبلوم تجميل الأسنان من ليدز البريطانية، مع خبرة في التركيبات الثابتة لمدة 4 سنوات.”</p>
     </div>
   </section>
-<!-- ما الجديد -->
+
+  <!-- ما الجديد -->
   <section class="services-preview" data-aos="fade-up">
     <h3>ما الجديد</h3>
     <div class="service" data-aos="zoom-in">
@@ -297,21 +383,22 @@
     </div>
     <div class="service" data-aos="zoom-in">
       <img src="images/البروفايلو.jpg" alt="ما الجديد 1" />
-      <p>   علاج البروفايلوا</p>
+      <p>علاج البروفايلو</p>
     </div>
-     <div class="service" data-aos="zoom-in">
+    <div class="service" data-aos="zoom-in">
       <img src="images/ابره السالمون.jpg" alt="ما الجديد 1" />
-      <p>    ابرة السالمون</p>
+      <p>ابرة السالمون</p>
     </div>
-     <div class="service" data-aos="zoom-in">
+    <div class="service" data-aos="zoom-in">
       <img src="images/فراكشنال ليزر .jpg" alt="ما الجديد 1" />
-      <p>    فراكشنال ليزر </p>
+      <p>فراكشنال ليزر</p>
     </div>
     <div class="service" data-aos="zoom-in">
       <img src="images/الحشوه التجميليه.jpg" alt="ما الجديد 1" />
-      <p> الحشوة التجميلية</p>
+      <p>الحشوة التجميلية</p>
     </div>
   </section>
+
   <!-- الفوتر -->
   <footer>
     <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي</p>
