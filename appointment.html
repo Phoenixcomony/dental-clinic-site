@@ -108,6 +108,45 @@
       box-shadow: 0 8px 28px #e2be6d55;
     }
     @keyframes spin { to { transform: rotate(360deg);} }
+
+    /* ===== زر "عرض ساعات العمل" بنفس الألوان ===== */
+    .btn-hours{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 14px; border-radius:14px; border:none;
+      font-weight:800; cursor:pointer;
+      background: var(--gold-gradient); color:#6b4b00;
+      box-shadow: 0 6px 16px #e2be6d33;
+    }
+    .btn-hours i{ font-size:1.05em; }
+
+    /* ===== المودال الذهبي ===== */
+    .hours-modal{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background: rgba(0,0,0,.55); z-index:9999;
+    }
+    .hours-modal.show{ display:flex; }
+    .hours-modal .panel{
+      width:min(920px, 92vw); max-height:85vh; overflow:auto;
+      background:#fffbe9; border:1px solid #f1e4c5; border-radius:16px;
+      box-shadow:0 20px 60px rgba(0,0,0,.25);
+      padding:16px 14px 18px;
+      animation: hm-pop .18s ease-out;
+    }
+    @keyframes hm-pop{ from{ opacity:0; transform:translateY(-10px) scale(.98);} to{ opacity:1; transform:none; } }
+    .hours-modal .panel-header{
+      display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
+    }
+    .hours-modal .panel-title{
+      margin:0; color:#e38102; font-weight:800; font-size:1.12rem;
+      display:flex; align-items:center; gap:8px;
+    }
+    .hours-modal .close-btn{
+      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:36px; height:36px; border-radius:10px;
+      box-shadow:0 2px 8px #e2be6d2e; cursor:pointer;
+    }
+    .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
+    .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
+    .hours-table th{ background:#e38102; color:#fff; }
   </style>
 </head>
 <body>
@@ -172,6 +211,13 @@
   <section id="bookingSection" class="wrap" style="display:none;">
     <div class="title"><i class="fa-solid fa-calendar-check"></i> الحجز</div>
 
+    <!-- زر الساعات: تحت "الحجز" وفوق اختيار العيادة -->
+    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
+      <button id="openHoursModal" type="button" class="btn-hours">
+        <i class="fa-solid fa-clock"></i> عرض ساعات العمل
+      </button>
+    </div>
+
     <label for="clinic">اختر العيادة</label>
     <select id="clinic">
       <option value="">اختر العيادة</option>
@@ -216,6 +262,96 @@
   </section>
 
   <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
+
+  <!-- ===== نافذة ساعات العمل (Modal) ===== -->
+  <div id="hoursModal" class="hours-modal" aria-hidden="true">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="hmTitle">
+      <div class="panel-header">
+        <h3 id="hmTitle" class="panel-title"><i class="fa-solid fa-clock"></i> ساعات العمل</h3>
+        <button id="closeHoursModal" class="close-btn" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="hours-table-wrap">
+        <table class="hours-table">
+          <thead>
+            <tr>
+              <th>القسم / الطبيب</th>
+              <th>الأيام</th>
+              <th>الفترة الصباحية</th>
+              <th>الفترة المسائية</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>عيادة الأسنان 1 (د. عبير)</td>
+              <td>السبت - الخميس</td>
+              <td>9:00 ص – 12:00 م</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 2 (د. ريان)</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 ص</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 3 (د. معاذ)</td>
+              <td>السبت - الخميس</td>
+              <td>12:00 م – 8:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 4 (د. رونالدو)</td>
+              <td>السبت - الخميس</td>
+              <td>2:00 م – 10:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+              <td>الأحد - الخميس</td>
+              <td>-</td>
+              <td>3:30 م – 10:30 م</td>
+            </tr>
+            <tr>
+              <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+              <td>السبت - الخميس</td>
+              <td>-</td>
+              <td>2:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة النساء والولادة (د. حسناء)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر 1</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر 2</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
+                يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <!-- ===== /نافذة ساعات العمل ===== -->
 
 <script>
   // Helpers
@@ -395,6 +531,15 @@
     localStorage.setItem('pending_time', timeSel.value);
     window.location.href = 'confirm.html';
   });
+
+  // ====== تشغيل نافذة ساعات العمل ======
+  const hoursModal = document.getElementById('hoursModal');
+  const openHoursModal = document.getElementById('openHoursModal');
+  const closeHoursModal = document.getElementById('closeHoursModal');
+
+  openHoursModal.addEventListener('click', ()=> hoursModal.classList.add('show'));
+  closeHoursModal.addEventListener('click', ()=> hoursModal.classList.remove('show'));
+  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) hoursModal.classList.remove('show'); });
 </script>
 </body>
 </html>
