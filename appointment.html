@@ -50,6 +50,7 @@
     .logo-container{ display:flex; align-items:center; gap:10px; }
     .logo-img{ height:46px; margin-left:9px; }
 
+    /* أجبر القوائم أفقية حتى على الجوال */
     header nav ul{
       list-style:none; display:flex !important; flex-direction:row !important;
       align-items:center; gap:18px; margin:0; padding:0; background:transparent;
@@ -65,6 +66,7 @@
       background-color:#fffbe7; color:#a8861c; box-shadow:0 2px 10px #e2be6d23;
     }
 
+    /* أيقونات التواصل بالعرض */
     .social-icons{
       display:flex !important; align-items:center; gap:8px; margin-inline-start:8px;
       flex-wrap:nowrap;
@@ -107,26 +109,20 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر ساعات العمل (أحمر + يتنفس) ===== */
-    .btn-hours-red{
+    /* ===== زر "عرض ساعات العمل" بنفس الألوان ===== */
+    .btn-hours{
       display:inline-flex; align-items:center; gap:8px;
-      padding:10px 16px; border-radius:14px; border:none;
-      font-weight:800; cursor:pointer; color:#fff;
-      background: linear-gradient(135deg,#e53935,#d32f2f);
-      box-shadow: 0 8px 18px rgba(227, 57, 53, .35);
-      animation: breathe 1.8s ease-in-out infinite;
+      padding:10px 14px; border-radius:14px; border:none;
+      font-weight:800; cursor:pointer;
+      background: var(--gold-gradient); color:#6b4b00;
+      box-shadow: 0 6px 16px #e2be6d33;
     }
-    .btn-hours-red i{ font-size:1.05em; }
-    @keyframes breathe{
-      0%{ transform:scale(1); box-shadow:0 8px 18px rgba(227,57,53,.35); }
-      50%{ transform:scale(1.035); box-shadow:0 14px 28px rgba(227,57,53,.45); }
-      100%{ transform:scale(1); box-shadow:0 8px 18px rgba(227,57,53,.35); }
-    }
+    .btn-hours i{ font-size:1.05em; }
 
-    /* ===== المودال: وسط الشاشة + تغبيش الخلفية ===== */
+    /* ===== المودال الذهبي ===== */
     .hours-modal{
       position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background: rgba(0,0,0,.55); z-index:9999; backdrop-filter: blur(3px);
+      background: rgba(0,0,0,.55); z-index:9999;
     }
     .hours-modal.show{ display:flex; }
     .hours-modal .panel{
@@ -145,15 +141,12 @@
       display:flex; align-items:center; gap:8px;
     }
     .hours-modal .close-btn{
-      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:38px; height:38px; border-radius:10px;
+      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:36px; height:36px; border-radius:10px;
       box-shadow:0 2px 8px #e2be6d2e; cursor:pointer;
     }
     .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#e38102; color:#fff; }
-
-    /* منع التمرير بالخلفية عند فتح المودال */
-    body.noscroll{ overflow:hidden; }
   </style>
 </head>
 <body>
@@ -220,7 +213,7 @@
 
     <!-- زر الساعات: تحت "الحجز" وفوق اختيار العيادة -->
     <div style="display:flex; justify-content:center; margin:6px 0 12px;">
-      <button id="openHoursModal" type="button" class="btn-hours-red" aria-haspopup="dialog" aria-controls="hoursModal">
+      <button id="openHoursModal" type="button" class="btn-hours">
         <i class="fa-solid fa-clock"></i> عرض ساعات العمل
       </button>
     </div>
@@ -365,7 +358,7 @@
   const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
-  // عناصر تسجيل الدخول
+  // Elemente
   const sendOtpBtn = document.getElementById('sendOtp');
   const loginBtn = document.getElementById('loginBtn');
   const loginMsg = document.getElementById('loginMsg');
@@ -412,7 +405,7 @@
     otpTimer = setInterval(tick, 1000);
   }
 
-  // إرسال OTP
+  // إرسال OTP مع شاشة انتظار
   sendOtpBtn.addEventListener('click', async ()=>{
     const phone = mobile.value.trim();
     if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
@@ -441,7 +434,7 @@
     window.location.href = 'new-file.html';
   });
 
-  // تسجيل الدخول
+  // تسجيل الدخول مع شاشة انتظار
   loginBtn.addEventListener('click', async ()=>{
     loginBtn.disabled = true; sendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
@@ -487,7 +480,7 @@
     }
   });
 
-  // الحجز
+  // الحجز (بدون تغيير)
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
   const goConfirm = document.getElementById('goConfirm');
@@ -544,21 +537,9 @@
   const openHoursModal = document.getElementById('openHoursModal');
   const closeHoursModal = document.getElementById('closeHoursModal');
 
-  function openModal(){
-    hoursModal.classList.add('show');
-    document.body.classList.add('noscroll');
-  }
-  function closeModal(){
-    hoursModal.classList.remove('show');
-    document.body.classList.remove('noscroll');
-  }
-
-  openHoursModal.addEventListener('click', openModal);
-  closeHoursModal.addEventListener('click', closeModal);
-  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) closeModal(); });
-
-  // إغلاق بـ Esc
-  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hoursModal.classList.contains('show')) closeModal(); });
+  openHoursModal.addEventListener('click', ()=> hoursModal.classList.add('show'));
+  closeHoursModal.addEventListener('click', ()=> hoursModal.classList.remove('show'));
+  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) hoursModal.classList.remove('show'); });
 </script>
 </body>
 </html>
