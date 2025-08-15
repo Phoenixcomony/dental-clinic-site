@@ -109,15 +109,21 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر "عرض ساعات العمل" بنفس الألوان ===== */
+    /* ===== زر "عرض ساعات العمل" أحمر ويتنفس (التعديل الوحيد) ===== */
     .btn-hours{
       display:inline-flex; align-items:center; gap:8px;
       padding:10px 14px; border-radius:14px; border:none;
       font-weight:800; cursor:pointer;
-      background: var(--gold-gradient); color:#6b4b00;
-      box-shadow: 0 6px 16px #e2be6d33;
+      background: linear-gradient(135deg,#e53935,#d32f2f); color:#fff;
+      box-shadow: 0 6px 16px rgba(229,57,53,.45);
+      animation: breathe 1.8s ease-in-out infinite;
     }
     .btn-hours i{ font-size:1.05em; }
+    @keyframes breathe{
+      0%{ transform:scale(1); box-shadow:0 6px 16px rgba(229,57,53,.45); }
+      50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(229,57,53,.6); }
+      100%{ transform:scale(1); box-shadow:0 6px 16px rgba(229,57,53,.45); }
+    }
 
     /* ===== المودال الذهبي ===== */
     .hours-modal{
