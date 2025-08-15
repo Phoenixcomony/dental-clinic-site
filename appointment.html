@@ -26,7 +26,7 @@
     .row{ display:flex; gap:8px; } .row > *{ flex:1; }
     footer{ margin-top:auto; text-align:center; padding:10px; color:#8c6d1c; font-weight:700; background:rgba(255,255,255,0.219); border-top:1.5px solid #eee; letter-spacing:.6px; box-shadow:0 -2px 12px #e2be6d54; }
 
-    /* خلفية ضبابية عامة */
+    /* خلفية ضبابية عامة للصفحة */
     .blur-bg-appointment{
       position: fixed; inset: 0;
       background: url('images/حجز الموعد.png') center/cover no-repeat;
@@ -35,7 +35,7 @@
     }
     body > *:not(.blur-bg-appointment){ position: relative; z-index: 1; }
 
-    /* ====== الهيدر المتجاوب ====== */
+    /* ====== الهيدر ====== */
     header{
       backdrop-filter: blur(6px);
       background: rgba(255,255,255,0.7);
@@ -50,7 +50,6 @@
     .logo-container{ display:flex; align-items:center; gap:10px; }
     .logo-img{ height:46px; margin-left:9px; }
 
-    /* أجبر القوائم أفقية حتى على الجوال */
     header nav ul{
       list-style:none; display:flex !important; flex-direction:row !important;
       align-items:center; gap:18px; margin:0; padding:0; background:transparent;
@@ -66,7 +65,6 @@
       background-color:#fffbe7; color:#a8861c; box-shadow:0 2px 10px #e2be6d23;
     }
 
-    /* أيقونات التواصل بالعرض */
     .social-icons{
       display:flex !important; align-items:center; gap:8px; margin-inline-start:8px;
       flex-wrap:nowrap;
@@ -92,7 +90,7 @@
       .wrap{ margin:16px auto; border-radius:16px; }
     }
 
-    /* ====== شاشة التحميل (انتظار) ====== */
+    /* ===== شاشة الانتظار ===== */
     .screen-loader{
       position: fixed; inset:0; display:none; align-items:center; justify-content:center;
       background: rgba(255,255,255,0.55);
@@ -109,20 +107,26 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر "عرض ساعات العمل" بنفس الألوان ===== */
-    .btn-hours{
+    /* ===== زر ساعات العمل (أحمر + يتنفس) ===== */
+    .btn-hours-red{
       display:inline-flex; align-items:center; gap:8px;
-      padding:10px 14px; border-radius:14px; border:none;
-      font-weight:800; cursor:pointer;
-      background: var(--gold-gradient); color:#6b4b00;
-      box-shadow: 0 6px 16px #e2be6d33;
+      padding:10px 16px; border-radius:14px; border:none;
+      font-weight:800; cursor:pointer; color:#fff;
+      background: linear-gradient(135deg,#e53935,#d32f2f);
+      box-shadow: 0 8px 18px rgba(227, 57, 53, .35);
+      animation: breathe 1.8s ease-in-out infinite;
     }
-    .btn-hours i{ font-size:1.05em; }
+    .btn-hours-red i{ font-size:1.05em; }
+    @keyframes breathe{
+      0%{ transform:scale(1); box-shadow:0 8px 18px rgba(227,57,53,.35); }
+      50%{ transform:scale(1.035); box-shadow:0 14px 28px rgba(227,57,53,.45); }
+      100%{ transform:scale(1); box-shadow:0 8px 18px rgba(227,57,53,.35); }
+    }
 
-    /* ===== المودال الذهبي ===== */
+    /* ===== المودال ===== */
     .hours-modal{
       position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background: rgba(0,0,0,.55); z-index:9999;
+      background: rgba(0,0,0,.55); z-index:9999; backdrop-filter: blur(3px);
     }
     .hours-modal.show{ display:flex; }
     .hours-modal .panel{
@@ -141,12 +145,20 @@
       display:flex; align-items:center; gap:8px;
     }
     .hours-modal .close-btn{
-      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:36px; height:36px; border-radius:10px;
+      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:38px; height:38px; border-radius:10px;
       box-shadow:0 2px 8px #e2be6d2e; cursor:pointer;
     }
     .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#e38102; color:#fff; }
+
+    /* شارة حمراء للنص داخل العمود */
+    .inline-badge{
+      display:inline-block; margin-right:.35rem; font-weight:900; color:#c62828;
+    }
+
+    /* منع تمرير الخلفية عند فتح المودال */
+    body.noscroll{ overflow:hidden; }
   </style>
 </head>
 <body>
@@ -213,7 +225,7 @@
 
     <!-- زر الساعات: تحت "الحجز" وفوق اختيار العيادة -->
     <div style="display:flex; justify-content:center; margin:6px 0 12px;">
-      <button id="openHoursModal" type="button" class="btn-hours">
+      <button id="openHoursModal" type="button" class="btn-hours-red" aria-haspopup="dialog" aria-controls="hoursModal">
         <i class="fa-solid fa-clock"></i> عرض ساعات العمل
       </button>
     </div>
@@ -312,7 +324,7 @@
               <td>3:30 م – 10:30 م</td>
             </tr>
             <tr>
-              <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+              <td>التشقير وتنظيف البشرة (أخصائية هدى) <span class="inline-badge">(الحجز متوفر في المجمع)</span></td>
               <td>السبت - الخميس</td>
               <td>-</td>
               <td>2:00 م – 10:00 م</td>
@@ -330,13 +342,13 @@
               <td>4:00 م – 10:00 م</td>
             </tr>
             <tr>
-              <td>عيادة الليزر 1</td>
+              <td>عيادة الليزر 1 <span class="inline-badge">(الحجز متوفر في المجمع)</span></td>
               <td>السبت - الخميس</td>
               <td>8:00 ص – 11:00 م</td>
               <td>-</td>
             </tr>
             <tr>
-              <td>عيادة الليزر 2</td>
+              <td>عيادة الليزر 2 <span class="inline-badge">(الحجز متوفر في المجمع)</span></td>
               <td>السبت - الخميس</td>
               <td>8:00 ص – 11:00 م</td>
               <td>-</td>
@@ -358,7 +370,7 @@
   const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
-  // Elemente
+  // عناصر تسجيل الدخول
   const sendOtpBtn = document.getElementById('sendOtp');
   const loginBtn = document.getElementById('loginBtn');
   const loginMsg = document.getElementById('loginMsg');
@@ -405,7 +417,7 @@
     otpTimer = setInterval(tick, 1000);
   }
 
-  // إرسال OTP مع شاشة انتظار
+  // إرسال OTP
   sendOtpBtn.addEventListener('click', async ()=>{
     const phone = mobile.value.trim();
     if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
@@ -434,7 +446,7 @@
     window.location.href = 'new-file.html';
   });
 
-  // تسجيل الدخول مع شاشة انتظار
+  // تسجيل الدخول
   loginBtn.addEventListener('click', async ()=>{
     loginBtn.disabled = true; sendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
@@ -480,7 +492,7 @@
     }
   });
 
-  // الحجز (بدون تغيير)
+  // الحجز
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
   const goConfirm = document.getElementById('goConfirm');
@@ -537,9 +549,23 @@
   const openHoursModal = document.getElementById('openHoursModal');
   const closeHoursModal = document.getElementById('closeHoursModal');
 
-  openHoursModal.addEventListener('click', ()=> hoursModal.classList.add('show'));
-  closeHoursModal.addEventListener('click', ()=> hoursModal.classList.remove('show'));
-  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) hoursModal.classList.remove('show'); });
+  function openModal(){
+    hoursModal.classList.add('show');
+    document.body.classList.add('noscroll');
+    // تأكد أن الجزء العلوي من اللوحة ظاهر دومًا
+    document.querySelector('.hours-modal .panel').scrollTop = 0;
+  }
+  function closeModal(){
+    hoursModal.classList.remove('show');
+    document.body.classList.remove('noscroll');
+  }
+
+  openHoursModal.addEventListener('click', openModal);
+  closeHoursModal.addEventListener('click', closeModal);
+  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) closeModal(); });
+
+  // إغلاق بـ Esc
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hoursModal.classList.contains('show')) closeModal(); });
 </script>
 </body>
 </html>
