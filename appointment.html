@@ -123,12 +123,15 @@
       100%{ transform:scale(1); box-shadow:0 8px 18px rgba(227,57,53,.35); }
     }
 
-    /* ===== المودال ===== */
+    /* ===== المودال (مع !important لضمان الظهور) ===== */
     .hours-modal{
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background: rgba(0,0,0,.55); z-index:9999; backdrop-filter: blur(3px);
+      position:fixed; inset:0; display:none !important;
+      align-items:center; justify-content:center;
+      background: rgba(0,0,0,.55);
+      z-index:100000; backdrop-filter: blur(3px);
     }
-    .hours-modal.show{ display:flex; }
+    .hours-modal.show{ display:flex !important; }
+
     .hours-modal .panel{
       width:min(920px, 92vw); max-height:85vh; overflow:auto;
       background:#fffbe9; border:1px solid #f1e4c5; border-radius:16px;
@@ -152,12 +155,10 @@
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#e38102; color:#fff; }
 
-    /* شارة حمراء للنص داخل العمود */
     .inline-badge{
       display:inline-block; margin-right:.35rem; font-weight:900; color:#c62828;
     }
 
-    /* منع تمرير الخلفية عند فتح المودال */
     body.noscroll{ overflow:hidden; }
   </style>
 </head>
@@ -544,27 +545,26 @@
     window.location.href = 'confirm.html';
   });
 
-  // ====== تشغيل نافذة ساعات العمل ======
+  // ====== تشغيل نافذة ساعات العمل (مع Fallback) ======
   const hoursModal = document.getElementById('hoursModal');
   const openHoursModal = document.getElementById('openHoursModal');
   const closeHoursModal = document.getElementById('closeHoursModal');
 
   function openModal(){
     hoursModal.classList.add('show');
+    hoursModal.style.display = 'flex'; // Fallback ضد أي CSS خارجي
     document.body.classList.add('noscroll');
-    // تأكد أن الجزء العلوي من اللوحة ظاهر دومًا
     document.querySelector('.hours-modal .panel').scrollTop = 0;
   }
   function closeModal(){
     hoursModal.classList.remove('show');
+    hoursModal.style.display = ''; // رجوع للتحكم عبر CSS
     document.body.classList.remove('noscroll');
   }
 
   openHoursModal.addEventListener('click', openModal);
   closeHoursModal.addEventListener('click', closeModal);
   hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) closeModal(); });
-
-  // إغلاق بـ Esc
   window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hoursModal.classList.contains('show')) closeModal(); });
 </script>
 </body>
