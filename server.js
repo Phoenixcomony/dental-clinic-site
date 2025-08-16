@@ -347,6 +347,39 @@ async function pickFirstSuggestionOnAppointments(page, timeoutMs = 10000) {
   return picked;
 }
 
+/** ======= (جديد) انتقاء عنصر المواعيد بالمطابقة الصارمة للاسم + الجوال ======= */
+async function pickSuggestionByNameAndPhoneOnAppointments(page, fullName, expectedPhone05, timeoutMs = 12000){
+  const deadline = Date.now() + timeoutMs;
+  let last = [];
+
+  while (Date.now() < deadline) {
+    last = (await readApptSuggestions(page)).map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+
+    // 1) طابق الجوال أولاً
+    let match = last.find(it => phonesEqual05(it.parsed.phone, expectedPhone05) && nameSimilar(fullName, it.parsed.name));
+    if (match) {
+      const idx = match.idx;
+      const ok = await page.evaluate((i)=>{
+        const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
+        if(lis && lis[i]){ lis[i].click(); return true; }
+        return false;
+      }, idx);
+      if (ok) return true;
+    }
+
+    // 2) جرّب تحفيز الاقتراحات
+    await page.evaluate(()=>{
+      const el = document.querySelector('#SearchBox120');
+      if (el) {
+        ['input','keyup','change'].forEach(ev => el.dispatchEvent(new Event(ev, {bubbles:true})));
+      }
+    });
+    await sleep(300);
+  }
+
+  return false;
+}
+
 /** ===== Open New-File page robustly (A/B + auto-accept dialogs) ===== */
 async function openNewFilePage(page){
   page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
@@ -439,38 +472,25 @@ async function searchSuggestionsByPhoneOnAppointments(page, phone05){
   return items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
 }
 
-/** ===== High-level search + open by best match ===== */
+/** ===== High-level search + open by best match (LOGIN) ===== */
 async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   // 1) ابحث بالاسم
   let items = await searchSuggestionsByName(page, fullName);
 
-  // تفضيل المطابقة بالهاتف إن متاح
+  // جرّب المرور على كل العناصر لمطابقة الاسم + الجوال
   let chosen = null;
-  if (expectedPhone05) {
-    const withPhone = items.find(it => phonesEqual05(it.parsed.phone, expectedPhone05));
-    if (withPhone) chosen = withPhone;
+  if (items.length) {
+    chosen = items.find(it => nameSimilar(fullName, it.parsed.name) && phonesEqual05(it.parsed.phone, expectedPhone05));
   }
 
-  // ثم اسم مطابق أو مشابه
-  if (!chosen && items.length) {
-    const exact = items.find(it => normalizeArabic(it.parsed.name) === normalizeArabic(fullName));
-    if (exact) chosen = exact;
-  }
-  if (!chosen && items.length) {
-    const similar = items.find(it => nameSimilar(fullName, it.parsed.name));
-    if (similar) chosen = similar;
-  }
-
-  // إن لم نجد من الاسم، جرّب برقم الجوال (Navbar ثم المواعيد)
+  // fallback: بالهاتف (Navbar ثم المواعيد)
   if (!chosen && expectedPhone05) {
     items = await searchSuggestionsByPhoneOnNavbar(page, expectedPhone05);
-    const byPhone = items.find(it => phonesEqual05(it.parsed.phone, expectedPhone05));
-    if (byPhone) chosen = byPhone;
+    chosen = items.find(it => phonesEqual05(it.parsed.phone, expectedPhone05) && nameSimilar(fullName, it.parsed.name));
   }
   if (!chosen && expectedPhone05) {
     items = await searchSuggestionsByPhoneOnAppointments(page, expectedPhone05);
-    const byPhone = items.find(it => phonesEqual05(it.parsed.phone, expectedPhone05));
-    if (byPhone) chosen = byPhone;
+    chosen = items.find(it => phonesEqual05(it.parsed.phone, expectedPhone05) && nameSimilar(fullName, it.parsed.name));
   }
 
   if (!chosen) return { ok:false, reason:'no_suggestions' };
@@ -588,7 +608,7 @@ function verifyOtpInline(phone, otp){
   return !!(rec && String(rec.code)===String(otp));
 }
 
-/** ===== Search by name/phone → open patient ===== */
+/** ===== Search by name/phone → open patient (LOGIN) ===== */
 app.post('/api/login', async (req, res) => {
   try {
     const { name, phone, otp } = req.body || {};
@@ -955,7 +975,7 @@ async function processQueue(){
   }
 }
 
-/** ===== Booking flow (CONFIRM) ===== */
+/** ===== Booking flow (CONFIRM) — مطابقة الاسم + الجوال قبل الاختيار ===== */
 async function bookNow({ name, phone, clinic, month, time, account }){
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
@@ -982,9 +1002,24 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#month1', monthValue)
     ]);
 
+    // اكتب الاسم ثم اختر من القائمة بالمطابقة الصارمة للاسم + الجوال
+    const phone05 = toLocal05(phone);
     await typeSlow(page, '#SearchBox120', normalizeArabic(name), 140);
-    const picked = await pickFirstSuggestionOnAppointments(page, 12000);
-    if (!picked) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
+
+    let picked = await pickSuggestionByNameAndPhoneOnAppointments(page, normalizeArabic(name), phone05, 12000);
+
+    // إن لم يجد عبر الاسم، جرب بالهاتف
+    if (!picked) {
+      await page.$eval('#SearchBox120', el => el.value = '');
+      await typeSlow(page, '#SearchBox120', phone05, 140);
+      picked = await pickSuggestionByNameAndPhoneOnAppointments(page, normalizeArabic(name), phone05, 8000);
+    }
+
+    // fallback أخير (قديم): أول نتيجة — لكن سنمنعها إن ما في مطابقة رقم
+    if (!picked) {
+      // لا نسمح بالحجز بدون مطابقة رقم صريحة
+      throw new Error('تعذر مطابقة الاسم مع رقم الجوال في قائمة المرضى.');
+    }
 
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
     await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, 'حجز أوتوماتيكي');
