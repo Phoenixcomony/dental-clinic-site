@@ -561,7 +561,7 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15000 });
+    await axios.get(url, { timeout: 15015 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -599,7 +599,6 @@ app.post('/api/login', async (req, res) => {
       });
 
       if(!searchRes.ok){
-        console.log('[IMDAD] search result:', searchRes);
         await browser.close(); if(account) releaseAccount(account);
         return res.json({ success:false, exists:false, message:'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).' });
       }
@@ -612,8 +611,6 @@ app.post('/api/login', async (req, res) => {
           await browser.close(); if(account) releaseAccount(account);
           return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الاسم' });
         }
-      } else {
-        console.log('[IMDAD] patient has no phone on file; accepting name match.');
       }
 
       const idStatus = await readIdentityStatus(page, fileId);
@@ -629,20 +626,17 @@ app.post('/api/login', async (req, res) => {
         matchedText: searchRes.pickedText
       });
     }catch(e){
-      console.error('[IMDAD] /api/login error:', e?.message||e);
       try{ await browser.close(); }catch(_){}
       if(account) releaseAccount(account);
       return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
     }
   } catch (e) {
-    console.error('/api/login fatal', e?.message||e);
     return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
   }
 });
 
 /** ===== Read identity (SSN) ===== */
 async function readIdentityStatus(page, fileId) {
-  console.log('[IMDAD] checking identity…');
   await page.goto(`https://phoenix.imdad.cloud/medica13/stq_edit.php?id=${fileId}`, { waitUntil:'domcontentloaded' }).catch(()=>{});
 
   try {
@@ -702,7 +696,6 @@ app.post('/api/update-identity', async (req, res) => {
       await browser.close(); if(account) releaseAccount(account);
       return res.json({ success:true, message:'تم التحديث بنجاح' });
     }catch(e){
-      console.error('/api/update-identity error', e?.message||e);
       try{ await browser.close(); }catch(_){}
       if(account) releaseAccount(account);
       return res.json({ success:false, message:'فشل التحديث: ' + (e?.message||e) });
@@ -723,7 +716,7 @@ app.post('/api/create-patient', async (req, res) => {
 
       const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
       const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
-      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
+      const _normalize = (s='') => (s||'').replace(/\س+/g,' ').trim();
 
       if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
       if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
@@ -832,7 +825,6 @@ app.post('/api/create-patient', async (req, res) => {
         return res.json({ success:true, message:'تم إنشاء الملف بنجاح' });
 
       }catch(e){
-        console.error('/api/create-patient error', e?.message||e);
         try{ await browser.close(); }catch(_){}
         if(account) releaseAccount(account);
         if(String(e?.message||e)==='imdad_busy'){
@@ -856,18 +848,16 @@ app.post('/api/create-patient', async (req, res) => {
 
 /** ===== Helper: تطبيق "1 month" قبل اختيار الشهر ===== */
 async function applyOneMonthView(page){
-  // تحاول إيجاد أي select يحوي خيار 1 month أو قيمة day_no=30
   const didSet = await page.evaluate(()=>{
     const selects = Array.from(document.querySelectorAll('select'));
     for (const sel of selects) {
       const opts = Array.from(sel.options || []);
       const opt = opts.find(o => (o.textContent||'').trim().toLowerCase() === '1 month')
-              || opts.find(o => String(o.value||'').includes('day_no=30'));
+               || opts.find(o => String(o.value||'').includes('day_no=30'));
       if (opt) {
         try {
           sel.value = opt.value;
           sel.dispatchEvent(new Event('change', { bubbles:true }));
-          // إن كانت القيمة رابطًا ل appoint_display.php فنفّذ انتقالًا صريحًا
           if (/appoint_display\.php/i.test(String(opt.value||''))) {
             try { window.location.href = opt.value; } catch(_) {}
           }
@@ -878,17 +868,25 @@ async function applyOneMonthView(page){
     return false;
   });
   if (didSet) {
-    // امنح الصفحة فرصة للتنقل أو إعادة التحميل
     await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
   }
   return didSet;
 }
 
-/** ===== /api/times ===== */
+/** ===== /api/times =====
+ * يقبل: clinic, month, period(optional: 'morning' | 'evening')
+ * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
+ */
 app.post('/api/times', async (req, res) => {
   try {
-    const { clinic, month } = req.body || {};
+    const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+
+    // Helpers محلية لفلترة/تنسيق الوقت
+    const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
+    const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
+    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };   // 08:00 → 11:30
+    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=12*60 && m<=23*60+30; };  // 12:00 → 23:30
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -911,7 +909,7 @@ app.post('/api/times', async (req, res) => {
       // ✅ طبّق "1 month" قبل اختيار الشهر
       await applyOneMonthView(page);
 
-      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
+      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
       const monthValue = months.find(m => m.text === month || m.value === month)?.value;
       if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
 
@@ -920,18 +918,26 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      const times = await page.evaluate(()=>{
-        function p(t){ if(!t) return ''; const h=parseInt(t.split(':')[0],10); return h<12?'ص':'م'; }
+      // اجلب كل المواعيد بقيمتها (24h) ثم فلتر ونسّق 12h في الـ label فقط
+      const raw = await page.evaluate(()=>{
         const out=[];
         const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
         for(const r of radios){
-          const value=r.value||''; // date*time
+          const value=r.value||''; // date*time (مثال: 30-8-2025*13:30)
           const [date,time24]=value.split('*');
-          const label = time24 ? `${date} - ${time24} ${p(time24)}` : `${date}`;
-          out.push({label,value});
+          out.push({ value, date: (date||'').trim(), time24: (time24||'').trim() });
         }
         return out;
       });
+
+      let filtered = raw;
+      if (period === 'morning')   filtered = raw.filter(x => x.time24 && inMorning(x.time24));
+      if (period === 'evening')   filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+
+      const times = filtered.map(x => ({
+        value: x.value,                       // تبقى 24h كما هي للحجز
+        label: `${x.date} - ${to12h(x.time24)}` // تُعرض 12h ص/م كما في امداد
+      }));
 
       await browser.close();
       res.json({ times });
@@ -991,7 +997,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
     // ✅ طبّق "1 month" قبل اختيار الشهر
     await applyOneMonthView(page);
 
-    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
     const monthValue = months.find(m => m.text === month || m.value === month)?.value;
     if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
     await Promise.all([
@@ -999,11 +1005,10 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#month1', monthValue)
     ]);
 
-    // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض (وليس أول عنصر)
+    // مطابقة الاسم مع رقم الجوال
     const phone05 = toLocal05(phone);
     await typeSlow(page, '#SearchBox120', normalizeArabic(name), 140);
 
-    // انتظر الاقتراحات واقتنص المطابق للرقم
     let picked = false;
     const deadline = Date.now() + 12000;
     while (!picked && Date.now() < deadline) {
@@ -1018,7 +1023,6 @@ async function bookNow({ name, phone, clinic, month, time, account }){
         picked = true;
         break;
       }
-      // حفّز القائمة
       await page.evaluate(()=>{
         const el = document.querySelector('#SearchBox120');
         if (el) {
@@ -1027,7 +1031,6 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       });
       await sleep(250);
     }
-    // لو ما حصلنا رقم مطابق، نرجع للسلوك السابق: أول عنصر
     if (!picked) {
       const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
       if (!fallback) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
