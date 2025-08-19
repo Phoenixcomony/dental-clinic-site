@@ -669,7 +669,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\s+/g,' ');
+      const ascii = toAscii(val).replace(/\س+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
@@ -879,10 +879,41 @@ app.post('/api/create-patient', async (req, res) => {
   });
 });
 
+/** ===== (جديد) فلترة الأوقات حسب الفترة المطلوبة ===== */
+function filterTimesByPeriod(list, period) {
+  function toTotalMinutes(t24) {
+    if (!t24) return -1;
+    const [hStr, mStr] = String(t24).split(':');
+    const h = parseInt(hStr, 10);
+    const m = parseInt(mStr || '0', 10);
+    if (Number.isNaN(h) || Number.isNaN(m)) return -1;
+    return h * 60 + m;
+  }
+  function within(t24, fromH, fromM, toH, toM) {
+    const x = toTotalMinutes(t24);
+    if (x < 0) return false;
+    const a = fromH * 60 + fromM;
+    const b = toH   * 60 + toM;
+    return x >= a && x <= b;
+  }
+
+  // morning:  08:00 → 11:30
+  // evening:  12:00 → 23:30
+  // default:  09:00 → 23:30 (الساعات الرسمية العامة)
+  return list.filter((it) => {
+    const value = it?.value || '';
+    const time24 = (value.split('*')[1] || '').trim();
+    if (!time24) return false;
+    if (period === 'morning') return within(time24, 8, 0, 11, 30);
+    if (period === 'evening') return within(time24, 12, 0, 23, 30);
+    return within(time24, 9, 0, 23, 30);
+  });
+}
+
 /** ===== API: /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
-    const { clinic, month } = req.body || {};
+    const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
     const browser = await launchBrowserSafe();
@@ -930,8 +961,8 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      // ✅ تحويل label إلى 12 ساعة (ص/م) مع تنسيق الدقائق
-      const times = await page.evaluate(()=>{
+      // ✅ تحويل label إلى 12 ساعة (ص/م) مع استخراج value = date*time24
+      const timesAll = await page.evaluate(()=>{
         function to12hLabel(time24){
           if(!time24) return '';
           const parts = String(time24).split(':');
@@ -953,6 +984,9 @@ app.post('/api/times', async (req, res) => {
         }
         return out;
       });
+
+      // ✅ فلترة حسب الفترة المطلوبة دون تغيير باقي البوتات
+      const times = filterTimesByPeriod(timesAll, (period||'').toLowerCase());
 
       await browser.close();
       res.json({ times });
