@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -294,51 +294,6 @@ async function loginToImdad(page, {user, pass}){
 async function gotoAppointments(page){
   console.log('[IMDAD] goto appointments…');
   await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil:'domcontentloaded' });
-}
-
-/** ===== NEW: robust month navigation for <select id="month1"> with URL values ===== */
-async function navigateByMonthSelect(page, wantMonth) {
-  // يدعم: "8" أو 8 أو "08" أو أسماء أشهر بالعربي/الإنجليزي
-  const MONTH_MAP = {
-    '1':'1','01':'1','january':'1','يناير':'1','يناير/كانون الثاني':'1',
-    '2':'2','02':'2','february':'2','فبراير':'2','شباط':'2',
-    '3':'3','03':'3','march':'3','مارس':'3','آذار':'3',
-    '4':'4','04':'4','april':'4','أبريل':'4','نيسان':'4',
-    '5':'5','05':'5','may':'5','مايو':'5','أيار':'5',
-    '6':'6','06':'6','june':'6','يونيو':'6','حزيران':'6',
-    '7':'7','07':'7','july':'7','يوليو':'7','تموز':'7',
-    '8':'8','08':'8','august':'8','أغسطس':'8','آب':'8',
-    '9':'9','09':'9','september':'9','سبتمبر':'9','أيلول':'9',
-    '10':'10','october':'10','أكتوبر':'10','تشرين الأول':'10',
-    '11':'11','november':'11','نوفمبر':'11','تشرين الثاني':'11',
-    '12':'12','december':'12','ديسمبر':'12','كانون الأول':'12'
-  };
-  const key = String(wantMonth || '').trim().toLowerCase();
-  const monthNum = MONTH_MAP[key] || key.replace(/^0+/,''); // fallback إلى الرقم نفسه
-
-  const did = await page.evaluate((monthNum) => {
-    function fireChange(el){ if(!el) return; el.dispatchEvent(new Event('change', {bubbles:true})); }
-    const sel = document.querySelector('#month1');
-    if (!sel) return false;
-    const opts = Array.from(sel.options);
-    let opt = opts.find(o => (o.textContent||'').trim() === monthNum);
-    if (!opt) {
-      try {
-        opt = opts.find(o => new URL(o.value, location.href).searchParams.get('month') === monthNum);
-      } catch(_) {}
-    }
-    if (!opt) return false;
-    sel.value = opt.value;
-    fireChange(sel); // لبعض النسخ قد تكفي
-    try { window.location = opt.value; } catch(_) {}
-    return true;
-  }, monthNum);
-
-  if (did) {
-    await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 120000 }).catch(()=>{});
-  } else {
-    throw new Error('لم يتم العثور على الشهر المطلوب!');
-  }
 }
 
 /** ===== Utilities used by multiple bots ===== */
@@ -579,7 +534,7 @@ async function existsPatientByPhone(page, phone05){
   if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
 
   // ثم شاشة المواعيد
-  items = await searchSuggestionsByPhoneOnAppointments(page, phone05);
+  items = await readApptSuggestions(page);
   if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
 
   return false;
@@ -714,7 +669,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\س+/g,' ');
+      const ascii = toAscii(val).replace(/\s+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
@@ -924,11 +879,32 @@ app.post('/api/create-patient', async (req, res) => {
   });
 });
 
-/** ===== API: /api/times ===== */
+/** ===== API: /api/times =====
+ * يجلب الأوقات بعد اختيار العيادة → "الشهر كامل" → الشهر المطلوب
+ * ويفلتر حسب الفترة:
+ *  - morning / am  : 08:00 → 11:30
+ *  - evening / pm  : 12:00 → 23:30
+ * إن لم تُرسل فترة، يعيد كل الأوقات.
+ */
 app.post('/api/times', async (req, res) => {
   try {
-    const { clinic, month } = req.body || {};
+    const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+
+    // دوال مساعدة للفلترة
+    const normPeriod = (p='')=>{
+      const s = String(p||'').toLowerCase().trim();
+      if (['morning','am','ص','mor', 'morning_shift'].includes(s)) return 'morning';
+      if (['evening','pm','م','eve', 'evening_shift'].includes(s)) return 'evening';
+      return 'all';
+    };
+    const hhmmToMin = (t)=>{
+      if(!t) return null;
+      const [h,m] = String(t).split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      return h*60 + m;
+    };
+    const want = normPeriod(period);
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -936,6 +912,7 @@ app.post('/api/times', async (req, res) => {
       await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
       await gotoAppointments(page);
 
+      // اختر العيادة
       const clinicValue = await page.evaluate((name) => {
         const opts = Array.from(document.querySelectorAll('#clinic_id option'));
         const f = opts.find(o => (o.textContent||'').trim() === name);
@@ -948,7 +925,7 @@ app.post('/api/times', async (req, res) => {
         page.select('#clinic_id', clinicValue)
       ]);
 
-      // ✅ خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع
+      // خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع
       const clickedOneMonth = await page.evaluate(()=>{
         const sel = document.querySelector('#month1');
         if(!sel) return false;
@@ -966,11 +943,18 @@ app.post('/api/times', async (req, res) => {
         await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
       }
 
-      // ✅ اختيار الشهر بشكل مضمون
-      await navigateByMonthSelect(page, month);
+      // اختر الشهر المطلوب
+      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
+      const monthValue = months.find(m => m.text === month || m.value === month)?.value;
+      if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
 
-      // ✅ تحويل label إلى 12 ساعة (ص/م) مع تنسيق الدقائق
-      const times = await page.evaluate(()=>{
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#month1', monthValue)
+      ]);
+
+      // اجلب كل الأوقات المتاحة (غير المعطلة) + أعِد الوقت بصيغة 24h للمقارنة
+      const rawTimes = await page.evaluate(()=>{
         function to12hLabel(time24){
           if(!time24) return '';
           const parts = String(time24).split(':');
@@ -988,13 +972,28 @@ app.post('/api/times', async (req, res) => {
           const value=r.value||''; // date*time
           const [date,time24]=value.split('*');
           const label = time24 ? `${date} - ${to12hLabel(time24)}` : `${date}`;
-          out.push({label,value});
+          out.push({label,value,time24});
         }
         return out;
       });
 
+      // فلترة حسب الفترة المطلوبة
+      const filtered = rawTimes.filter(t=>{
+        if (!t.time24) return false;
+        const mins = hhmmToMin(t.time24);
+        if (mins == null) return false;
+        if (want === 'morning') {
+          // 08:00 → 11:30
+          return mins >= (8*60) && mins <= (11*60 + 30);
+        } else if (want === 'evening') {
+          // 12:00 → 23:30
+          return mins >= (12*60) && mins <= (23*60 + 30);
+        }
+        return true; // all
+      }).map(({label,value})=>({label,value}));
+
       await browser.close();
-      res.json({ times });
+      res.json({ times: filtered });
     }catch(e){
       try{ await browser.close(); }catch(_){}
       res.json({ times:[], error:e?.message||String(e) });
@@ -1066,8 +1065,13 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
     }
 
-    // ✅ اختيار الشهر بشكل مضمون
-    await navigateByMonthSelect(page, month);
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
+    const monthValue = months.find(m => m.text === month || m.value === month)?.value;
+    if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.select('#month1', monthValue)
+    ]);
 
     // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض (وليس أول عنصر)
     const phone05 = toLocal05(phone);
