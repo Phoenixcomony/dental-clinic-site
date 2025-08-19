@@ -534,7 +534,7 @@ async function existsPatientByPhone(page, phone05){
   if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
 
   // ثم شاشة المواعيد
-  items = await readApptSuggestions(page);
+  items = await searchSuggestionsByPhoneOnAppointments(page, phone05);
   if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
 
   return false;
@@ -879,32 +879,11 @@ app.post('/api/create-patient', async (req, res) => {
   });
 });
 
-/** ===== API: /api/times =====
- * يجلب الأوقات بعد اختيار العيادة → "الشهر كامل" → الشهر المطلوب
- * ويفلتر حسب الفترة:
- *  - morning / am  : 08:00 → 11:30
- *  - evening / pm  : 12:00 → 23:30
- * إن لم تُرسل فترة، يعيد كل الأوقات.
- */
+/** ===== API: /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
-    const { clinic, month, period } = req.body || {};
+    const { clinic, month } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
-
-    // دوال مساعدة للفلترة
-    const normPeriod = (p='')=>{
-      const s = String(p||'').toLowerCase().trim();
-      if (['morning','am','ص','mor', 'morning_shift'].includes(s)) return 'morning';
-      if (['evening','pm','م','eve', 'evening_shift'].includes(s)) return 'evening';
-      return 'all';
-    };
-    const hhmmToMin = (t)=>{
-      if(!t) return null;
-      const [h,m] = String(t).split(':').map(Number);
-      if (Number.isNaN(h) || Number.isNaN(m)) return null;
-      return h*60 + m;
-    };
-    const want = normPeriod(period);
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -912,7 +891,6 @@ app.post('/api/times', async (req, res) => {
       await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
       await gotoAppointments(page);
 
-      // اختر العيادة
       const clinicValue = await page.evaluate((name) => {
         const opts = Array.from(document.querySelectorAll('#clinic_id option'));
         const f = opts.find(o => (o.textContent||'').trim() === name);
@@ -925,7 +903,7 @@ app.post('/api/times', async (req, res) => {
         page.select('#clinic_id', clinicValue)
       ]);
 
-      // خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع
+      // ✅ خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع
       const clickedOneMonth = await page.evaluate(()=>{
         const sel = document.querySelector('#month1');
         if(!sel) return false;
@@ -943,7 +921,6 @@ app.post('/api/times', async (req, res) => {
         await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
       }
 
-      // اختر الشهر المطلوب
       const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
       const monthValue = months.find(m => m.text === month || m.value === month)?.value;
       if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
@@ -953,8 +930,8 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      // اجلب كل الأوقات المتاحة (غير المعطلة) + أعِد الوقت بصيغة 24h للمقارنة
-      const rawTimes = await page.evaluate(()=>{
+      // ✅ تحويل label إلى 12 ساعة (ص/م) مع تنسيق الدقائق
+      const times = await page.evaluate(()=>{
         function to12hLabel(time24){
           if(!time24) return '';
           const parts = String(time24).split(':');
@@ -972,28 +949,13 @@ app.post('/api/times', async (req, res) => {
           const value=r.value||''; // date*time
           const [date,time24]=value.split('*');
           const label = time24 ? `${date} - ${to12hLabel(time24)}` : `${date}`;
-          out.push({label,value,time24});
+          out.push({label,value});
         }
         return out;
       });
 
-      // فلترة حسب الفترة المطلوبة
-      const filtered = rawTimes.filter(t=>{
-        if (!t.time24) return false;
-        const mins = hhmmToMin(t.time24);
-        if (mins == null) return false;
-        if (want === 'morning') {
-          // 08:00 → 11:30
-          return mins >= (8*60) && mins <= (11*60 + 30);
-        } else if (want === 'evening') {
-          // 12:00 → 23:30
-          return mins >= (12*60) && mins <= (23*60 + 30);
-        }
-        return true; // all
-      }).map(({label,value})=>({label,value}));
-
       await browser.close();
-      res.json({ times: filtered });
+      res.json({ times });
     }catch(e){
       try{ await browser.close(); }catch(_){}
       res.json({ times:[], error:e?.message||String(e) });
