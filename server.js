@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -294,6 +294,51 @@ async function loginToImdad(page, {user, pass}){
 async function gotoAppointments(page){
   console.log('[IMDAD] goto appointments…');
   await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil:'domcontentloaded' });
+}
+
+/** ===== NEW: robust month navigation for <select id="month1"> with URL values ===== */
+async function navigateByMonthSelect(page, wantMonth) {
+  // يدعم: "8" أو 8 أو "08" أو أسماء أشهر بالعربي/الإنجليزي
+  const MONTH_MAP = {
+    '1':'1','01':'1','january':'1','يناير':'1','يناير/كانون الثاني':'1',
+    '2':'2','02':'2','february':'2','فبراير':'2','شباط':'2',
+    '3':'3','03':'3','march':'3','مارس':'3','آذار':'3',
+    '4':'4','04':'4','april':'4','أبريل':'4','نيسان':'4',
+    '5':'5','05':'5','may':'5','مايو':'5','أيار':'5',
+    '6':'6','06':'6','june':'6','يونيو':'6','حزيران':'6',
+    '7':'7','07':'7','july':'7','يوليو':'7','تموز':'7',
+    '8':'8','08':'8','august':'8','أغسطس':'8','آب':'8',
+    '9':'9','09':'9','september':'9','سبتمبر':'9','أيلول':'9',
+    '10':'10','october':'10','أكتوبر':'10','تشرين الأول':'10',
+    '11':'11','november':'11','نوفمبر':'11','تشرين الثاني':'11',
+    '12':'12','december':'12','ديسمبر':'12','كانون الأول':'12'
+  };
+  const key = String(wantMonth || '').trim().toLowerCase();
+  const monthNum = MONTH_MAP[key] || key.replace(/^0+/,''); // fallback إلى الرقم نفسه
+
+  const did = await page.evaluate((monthNum) => {
+    function fireChange(el){ if(!el) return; el.dispatchEvent(new Event('change', {bubbles:true})); }
+    const sel = document.querySelector('#month1');
+    if (!sel) return false;
+    const opts = Array.from(sel.options);
+    let opt = opts.find(o => (o.textContent||'').trim() === monthNum);
+    if (!opt) {
+      try {
+        opt = opts.find(o => new URL(o.value, location.href).searchParams.get('month') === monthNum);
+      } catch(_) {}
+    }
+    if (!opt) return false;
+    sel.value = opt.value;
+    fireChange(sel); // لبعض النسخ قد تكفي
+    try { window.location = opt.value; } catch(_) {}
+    return true;
+  }, monthNum);
+
+  if (did) {
+    await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 120000 }).catch(()=>{});
+  } else {
+    throw new Error('لم يتم العثور على الشهر المطلوب!');
+  }
 }
 
 /** ===== Utilities used by multiple bots ===== */
@@ -903,79 +948,39 @@ app.post('/api/times', async (req, res) => {
         page.select('#clinic_id', clinicValue)
       ]);
 
-      // ======= تفعيل عرض "شهر كامل" بشكل قوي (عربي/إنجليزي/روابط) =======
-      const didSetMonthMode = await page.evaluate(async () => {
-        function fireChange(el){ if(!el) return; el.dispatchEvent(new Event('change', {bubbles:true})); }
-        function clickEl(el){ if(!el) return false; el.click(); return true; }
-
-        // 1) عبر select#month1 إن وجد
+      // ✅ خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع
+      const clickedOneMonth = await page.evaluate(()=>{
         const sel = document.querySelector('#month1');
-        if (sel && sel.tagName === 'SELECT') {
-          const candidates = Array.from(sel.options);
-          const pick = candidates.find(o => {
-            const t = (o.textContent || '').trim().toLowerCase();
-            return /(1\s*month|month\s*1)/.test(t) || /شهر/.test(t);
-          });
-          if (pick) {
-            sel.value = pick.value;
-            fireChange(sel);
-            return true;
-          }
+        if(!sel) return false;
+        const opts = [...sel.options];
+        const opt = opts.find(o => (o.textContent||'').trim().toLowerCase() === '1 month')
+                  || opts.find(o => ((o.value||'').includes('appoint_display.php') && /(1\s*month)/i.test(o.textContent||'')));
+        if(opt){
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change', { bubbles:true }));
+          return true;
         }
-
-        // 2) عبر روابط/أزرار
-        const links = Array.from(document.querySelectorAll('a,button,input[type="button"],option'));
-        const link = links.find(x=>{
-          const t = (x.textContent || x.value || '').trim().toLowerCase();
-          const href = (x.getAttribute && x.getAttribute('href')) || '';
-          if (/appoint_display\.php/.test(href) && /(month|شهر)/i.test(t)) return true;
-          if (/(عرض\s*شهر|شهر\s*واحد|1\s*شهر)/i.test(t)) return true;
-          if (/(1\s*month)/i.test(t)) return true;
-          return false;
-        });
-        if (link) return clickEl(link);
-
-        // 3) أخيرًا حاول استدعاء دوال معروفة إن وجدت
-        try {
-          if (typeof window.showmonth === 'function') { window.showmonth(); return true; }
-          if (typeof window.submitmonth === 'function') { window.submitmonth(1); return true; }
-        } catch(_) {}
-
         return false;
       });
-      if (didSetMonthMode) {
+      if (clickedOneMonth) {
         await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
       }
 
-      // اختر الشهر المطلوب
-      const monthValue = await page.evaluate((wantMonth)=>{
-        const opts = Array.from(document.querySelectorAll('#month1 option'));
-        // طابق النص أو القيمة
-        const m = opts.find(o => (o.textContent||'').trim() === wantMonth || (o.value||'') === wantMonth);
-        return m ? m.value : null;
-      }, month);
-      if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
+      // ✅ اختيار الشهر بشكل مضمون
+      await navigateByMonthSelect(page, month);
 
-      await Promise.all([
-        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-        page.select('#month1', monthValue)
-      ]);
-
-      // انتظر ظهور راديوهات الأوقات أو على الأقل الجسم
-      await page.waitForSelector('body', { timeout: 20000 }).catch(()=>{});
-
-      // اجمع الأوقات ثم صفِّها حسب السياسة المطلوبة
-      const timesRaw = await page.evaluate(()=>{
+      // ✅ تحويل label إلى 12 ساعة (ص/م) مع تنسيق الدقائق
+      const times = await page.evaluate(()=>{
         function to12hLabel(time24){
           if(!time24) return '';
-          const [hh, mm='00'] = String(time24).split(':');
-          let h = parseInt(hh||'0', 10);
-          let m = parseInt(mm||'0', 10);
+          const parts = String(time24).split(':');
+          let h = parseInt(parts[0] || '0', 10);
+          let m = parseInt(parts[1] || '0', 10);
           if (isNaN(h)) return time24;
           const period = h < 12 ? 'ص' : 'م';
           let h12 = h % 12; if (h12 === 0) h12 = 12;
-          const mm2 = String(m).padStart(2,'0');
-          return `${h12}:${mm2} ${period}`;
+          const mm = String(m).padStart(2,'0');
+          return `${h12}:${mm} ${period}`;
         }
         const out=[];
         const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
@@ -983,34 +988,13 @@ app.post('/api/times', async (req, res) => {
           const value=r.value||''; // date*time
           const [date,time24]=value.split('*');
           const label = time24 ? `${date} - ${to12hLabel(time24)}` : `${date}`;
-          out.push({label,value,time24});
+          out.push({label,value});
         }
         return out;
       });
 
-      // ====== التصفية: صباح 08:00–11:30 ومساء 12:00–23:30 ======
-      function timeToMinutes(t){
-        if(!t) return NaN;
-        const [hh, mm='00'] = String(t).split(':');
-        const h = parseInt(hh||'0',10);
-        const m = parseInt(mm||'0',10);
-        return h*60 + m;
-        }
-      const MIN_MORNING = 8*60;       // 08:00
-      const MAX_MORNING = 11*60 + 30; // 11:30
-      const MIN_EVENING = 12*60;      // 12:00
-      const MAX_EVENING = 23*60 + 30; // 23:30
-
-      const timesFiltered = timesRaw.filter(t=>{
-        const mins = timeToMinutes(t.time24);
-        if (Number.isNaN(mins)) return false;
-        const inMorning = mins >= MIN_MORNING && mins <= MAX_MORNING;
-        const inEvening = mins >= MIN_EVENING && mins <= MAX_EVENING;
-        return inMorning || inEvening;
-      });
-
       await browser.close();
-      res.json({ times: timesFiltered.map(({label,value})=>({label,value})) });
+      res.json({ times });
     }catch(e){
       try{ await browser.close(); }catch(_){}
       res.json({ times:[], error:e?.message||String(e) });
@@ -1064,52 +1048,32 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // تفعيل شهر كامل كما في /api/times
-    const didSetMonthMode = await page.evaluate(() => {
-      function fireChange(el){ if(!el) return; el.dispatchEvent(new Event('change', {bubbles:true})); }
-      function clickEl(el){ if(!el) return false; el.click(); return true; }
-
+    // نفس خطوة "1 month" لضمان تفعيل جميع الخانات قبل اختيار الشهر
+    const clickedOneMonth = await page.evaluate(()=>{
       const sel = document.querySelector('#month1');
-      if (sel && sel.tagName === 'SELECT') {
-        const candidates = Array.from(sel.options);
-        const pick = candidates.find(o => {
-          const t = (o.textContent || '').trim().toLowerCase();
-          return /(1\s*month|month\s*1)/.test(t) || /شهر/.test(t);
-        });
-        if (pick) { sel.value = pick.value; fireChange(sel); return true; }
+      if(!sel) return false;
+      const opts = [...sel.options];
+      const opt = opts.find(o => (o.textContent||'').trim().toLowerCase() === '1 month')
+                || opts.find(o => ((o.value||'').includes('appoint_display.php') && /(1\s*month)/i.test(o.textContent||'')));
+      if(opt){
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event('change', { bubbles:true }));
+        return true;
       }
-      const links = Array.from(document.querySelectorAll('a,button,input[type="button"],option'));
-      const link = links.find(x=>{
-        const t = (x.textContent || x.value || '').trim().toLowerCase();
-        const href = (x.getAttribute && x.getAttribute('href')) || '';
-        if (/appoint_display\.php/.test(href) && /(month|شهر)/i.test(t)) return true;
-        if (/(عرض\s*شهر|شهر\s*واحد|1\s*شهر)/i.test(t)) return true;
-        if (/(1\s*month)/i.test(t)) return true;
-        return false;
-      });
-      if (link) return clickEl(link);
-      try {
-        if (typeof window.showmonth === 'function') { window.showmonth(); return true; }
-        if (typeof window.submitmonth === 'function') { window.submitmonth(1); return true; }
-      } catch(_) {}
       return false;
     });
-    if (didSetMonthMode) {
+    if (clickedOneMonth) {
       await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
     }
 
-    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
-    const monthValue = months.find(m => m.text === month || m.value === month)?.value;
-    if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
-    await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-      page.select('#month1', monthValue)
-    ]);
+    // ✅ اختيار الشهر بشكل مضمون
+    await navigateByMonthSelect(page, month);
 
-    // ✅ اكتب الاسم ثم اختر الاقتراح المطابق لرقم المريض
+    // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض (وليس أول عنصر)
     const phone05 = toLocal05(phone);
     await typeSlow(page, '#SearchBox120', normalizeArabic(name), 140);
 
+    // انتظر الاقتراحات واقتنص المطابق للرقم
     let picked = false;
     const deadline = Date.now() + 12000;
     while (!picked && Date.now() < deadline) {
@@ -1124,6 +1088,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
         picked = true;
         break;
       }
+      // حفّز القائمة
       await page.evaluate(()=>{
         const el = document.querySelector('#SearchBox120');
         if (el) {
@@ -1132,6 +1097,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       });
       await sleep(250);
     }
+    // لو ما حصلنا رقم مطابق، نرجع للسلوك السابق: أول عنصر
     if (!picked) {
       const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
       if (!fallback) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
