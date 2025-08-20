@@ -534,8 +534,8 @@ async function existsPatientByPhone(page, phone05){
   if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
 
   // ثم شاشة المواعيد
-  items = await searchSuggestionsByPhoneOnAppointments(page, phone05);
-  if (items.some(it => phonesEqual05(it.parsed.phone, phone05))) return true;
+  items = await readApptSuggestions(page); // إعادة استخدام القارئ
+  if (items.some(it => phonesEqual05(parseSuggestionText(it.text).phone, phone05))) return true;
 
   return false;
 }
@@ -669,7 +669,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\س+/g,' ');
+      const ascii = toAscii(val).replace(/\s+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
@@ -738,7 +738,7 @@ app.post('/api/create-patient', async (req, res) => {
 
       const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
       const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
-      const _normalize = (s='') => (s||'').replace(/\س+/g,' ').trim();
+      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
 
       if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
       if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
@@ -913,25 +913,31 @@ async function applyOneMonthView(page){
 /** ===== API: /api/times =====
  * يقبل: clinic, month, period(optional: 'morning' | 'evening')
  * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
- * ✅ تعديل: تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
+ * ✅ تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
+ * ✅ استثناء خاص: "عيادة الجلدية والتجميل**الفترة الثانية" = 15:00–22:00
+ * ✅ الباقي: صباحي 08:00–11:30، مسائي 16:00–22:00
  */
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
-    // استنتاج الفترة تلقائيًا من نص/قيمة العيادة إن وُجد (بدون تغييرات على بقية البوتات)
+    // استنتاج الفترة تلقائيًا من نص/قيمة العيادة إن وُجد
     const clinicStr = String(clinic || '');
     const autoPeriod =
       /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
     const effectivePeriod = period || autoPeriod; // تُفضَّل period لو مررتها الواجهة
 
-    // Helpers محلية لفلترة/تنسيق الوقت
+    // ⚠️ استثناء خاص للمسائية في "الجلدية والتجميل"
+    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل**الفترة الثانية';
+    const isDermEvening = clinicStr === DERM_EVENING_VALUE;
+
+    // Helpers
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; }; // 08:00 → 11:30
-    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=16*60 && m<=22*60; };   // 16:00 → 22:00
+    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };                 // 08:00 → 11:30
+    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; }; // 15:00(الجلدية) أو 16:00 → 22:00
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -951,7 +957,7 @@ app.post('/api/times', async (req, res) => {
         page.select('#clinic_id', clinicValue)
       ]);
 
-      // ✅ طبّق "1 month" بشكل موثوق قبل اختيار الشهر
+      // ✅ طبّق "1 month"
       await applyOneMonthView(page);
 
       const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
@@ -963,12 +969,12 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      // اجلب كل المواعيد بقيمتها (24h) ثم فلتر عند الحاجة ونسّق 12h في الـ label فقط
+      // اجلب كل المواعيد
       const raw = await page.evaluate(()=>{
         const out=[];
         const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
         for(const r of radios){
-          const value=r.value||''; // date*time (مثال: 30-8-2025*13:30)
+          const value=r.value||''; // date*time
           const [date,time24]=value.split('*');
           out.push({ value, date: (date||'').trim(), time24: (time24||'').trim() });
         }
@@ -980,8 +986,8 @@ app.post('/api/times', async (req, res) => {
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
 
       const times = filtered.map(x => ({
-        value: x.value,                        // تبقى 24h كما هي للحجز
-        label: `${x.date} - ${to12h(x.time24)}`// تُعرض 12h ص/م كما في امداد
+        value: x.value,
+        label: `${x.date} - ${to12h(x.time24)}`
       }));
 
       await browser.close();
@@ -1020,7 +1026,9 @@ async function processQueue(){
   }
 }
 
-/** ===== Booking flow (CONFIRM) ===== */
+/** ===== Booking flow (CONFIRM) =====
+ * ✅ ملاحظة تلقائية لعيادة تنظيف البشرة (صباحي/مسائي)
+ */
 async function bookNow({ name, phone, clinic, month, time, account }){
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
@@ -1039,7 +1047,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // ✅ طبّق "1 month" بشكل موثوق قبل اختيار الشهر
+    // ✅ طبّق "1 month"
     await applyOneMonthView(page);
 
     const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
@@ -1050,7 +1058,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#month1', monthValue)
     ]);
 
-    // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض (وليس أول عنصر)
+    // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض
     const phone05 = toLocal05(phone);
     await typeSlow(page, '#SearchBox120', normalizeArabic(name), 140);
 
@@ -1069,7 +1077,6 @@ async function bookNow({ name, phone, clinic, month, time, account }){
         picked = true;
         break;
       }
-      // حفّز القائمة
       await page.evaluate(()=>{
         const el = document.querySelector('#SearchBox120');
         if (el) {
@@ -1078,14 +1085,24 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       });
       await sleep(250);
     }
-    // لو ما حصلنا رقم مطابق، نرجع للسلوك السابق: أول عنصر
+    // لو ما حصلنا رقم مطابق، fallback: أول عنصر
     if (!picked) {
       const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
       if (!fallback) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
     }
 
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
-    await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, 'حجز أوتوماتيكي');
+
+    // ✅ ملاحظة خاصة لعيادة تنظيف البشرة (صباحي/مسائي)
+    const CLEANING_MORNING = 'عيادة تنظيف البشرة**الفترة الاولى';
+    const CLEANING_EVENING = 'عيادة تنظيف البشرة**الفترة الثانية';
+    const CLEANING_NOTE = 'تتضمن الخدمه تقشير وجه نص ساعه +تقشير حواجب نص ساعه تنضيف البشره نص ساعه  -تنضيف  المده ساعه';
+    const noteToUse =
+      (clinic === CLEANING_MORNING || clinic === CLEANING_EVENING)
+        ? CLEANING_NOTE
+        : 'حجز أوتوماتيكي';
+    await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, noteToUse);
+
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
 
