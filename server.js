@@ -669,7 +669,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\س+/g,' ');
+      const ascii = toAscii(val).replace(/\s+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
@@ -879,51 +879,42 @@ app.post('/api/create-patient', async (req, res) => {
   });
 });
 
-/** ===== Helper: تطبيق "1 month" قبل اختيار الشهر (موثوق) =====
- * يبحث في كل <select> عن خيار نصه "1 month" أو قيمته تحتوي day_no=30
- * ثم يغير select ويطلق change، وإذا كانت القيمة رابط appoint_display.php يوجّه الصفحة.
- */
-async function applyOneMonthView(page){
-  const didSet = await page.evaluate(()=>{
-    const selects = Array.from(document.querySelectorAll('select'));
-    for (const sel of selects) {
-      const opts = Array.from(sel.options || []);
-      const opt =
-        opts.find(o => String((o.textContent||'').trim()).toLowerCase() === '1 month') ||
-        opts.find(o => String(o.value||'').includes('day_no=30'));
-      if (opt) {
-        try {
-          sel.value = opt.value;
-          sel.dispatchEvent(new Event('change', { bubbles:true }));
-          if (/appoint_display\.php/i.test(String(opt.value||''))) {
-            try { window.location.href = opt.value; } catch(_) {}
-          }
-          return true;
-        } catch(_){}
-      }
-    }
-    return false;
-  });
-  if (didSet) {
-    await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
-  }
-  return didSet;
-}
-
 /** ===== API: /api/times =====
- * يقبل: clinic, month, period(optional: 'morning' | 'evening')
- * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
+ * يقبل: clinic, month, period (اختياري: 'morning' | 'evening')
+ * السلوك الافتراضي بدون period: يعيد كل الأوقات للشهر كامل مع label بصيغة 12 ساعة.
+ * القيود المطلوبة:
+ *   - morning لكل العيادات: 08:00 → 11:30
+ *   - evening لعيادات الأسنان المسائية (1..5) فقط: 16:00 → 22:00
  */
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
-    // Helpers محلية لفلترة/تنسيق الوقت (بدون تغيير السلوك الافتراضي إن لم يُمرر period)
+    // Helpers محلية
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
-    const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
+    const to12hLabel = (time24)=>{
+      if(!time24) return '';
+      const parts = String(time24).split(':');
+      let h = parseInt(parts[0] || '0', 10);
+      let m = parseInt(parts[1] || '0', 10);
+      if (isNaN(h)) return time24;
+      const period = h < 12 ? 'ص' : 'م';
+      let h12 = h % 12; if (h12 === 0) h12 = 12;
+      const mm = String(m).padStart(2,'0');
+      return `${h12}:${mm} ${period}`;
+    };
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };   // 08:00 → 11:30
-    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=12*60 && m<=23*60+30; };  // 12:00 → 23:30
+    const inDentalEvening = (t)=>{ const m=timeToMinutes(t); return m>=16*60 && m<=22*60; }; // 16:00 → 22:00
+
+    const isDentalEveningClinic = (name)=>{
+      const n = toAsciiDigits(normalizeArabic(name));
+      // وجود "اسنان/أسنان" + "مسائي/مسائية" + رقم 1..5
+      const hasDental = /اسنان|أسنان/.test(n);
+      const hasEvening = /مسائي|مسائية/.test(n);
+      const hasIdx = /\b[1-5]\b/.test(n);
+      return hasDental && hasEvening && hasIdx;
+    };
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -943,10 +934,25 @@ app.post('/api/times', async (req, res) => {
         page.select('#clinic_id', clinicValue)
       ]);
 
-      // ✅ طبّق "1 month" بشكل موثوق قبل اختيار الشهر
-      await applyOneMonthView(page);
+      // ✅ خطوة "1 month" قبل اختيار الشهر لعرض جميع الأيام/الأسابيع (كما هو في الملف السابق)
+      const clickedOneMonth = await page.evaluate(()=>{
+        const sel = document.querySelector('#month1');
+        if(!sel) return false;
+        const opts = [...sel.options];
+        const opt = opts.find(o => (o.textContent||'').trim().toLowerCase() === '1 month')
+                  || opts.find(o => ((o.value||'').includes('appoint_display.php') && /(1\s*month)/i.test(o.textContent||'')));
+        if(opt){
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change', { bubbles:true }));
+          return true;
+        }
+        return false;
+      });
+      if (clickedOneMonth) {
+        await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
+      }
 
-      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
       const monthValue = months.find(m => m.text === month || m.value === month)?.value;
       if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
 
@@ -955,25 +961,31 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      // اجلب كل المواعيد بقيمتها (24h) ثم فلتر عند الحاجة ونسّق 12h في الـ label فقط
+      // اجلب القيم الخام (24h) ثم طبّق القيود المطلوبة
       const raw = await page.evaluate(()=>{
         const out=[];
         const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
         for(const r of radios){
-          const value=r.value||''; // date*time (مثال: 30-8-2025*13:30)
+          const value=r.value||''; // date*time
           const [date,time24]=value.split('*');
-          out.push({ value, date: (date||'').trim(), time24: (time24||'').trim() });
+          out.push({ value, date:(date||'').trim(), time24:(time24||'').trim() });
         }
         return out;
       });
 
       let filtered = raw;
-      if (period === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      if (period === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+      if (period === 'morning') {
+        // لكل العيادات: 08:00 → 11:30
+        filtered = raw.filter(x => x.time24 && inMorning(x.time24));
+      } else if (period === 'evening' && isDentalEveningClinic(clinic)) {
+        // فقط عيادات الأسنان المسائية 1..5: 16:00 → 22:00
+        filtered = raw.filter(x => x.time24 && inDentalEvening(x.time24));
+      }
+      // إن لم يرسل period → لا نفلتر (إرجاع كل الأوقات للشهر)
 
       const times = filtered.map(x => ({
-        value: x.value,                        // تبقى 24h كما هي للحجز
-        label: `${x.date} - ${to12h(x.time24)}`// تُعرض 12h ص/م كما في امداد
+        label: `${x.date} - ${to12hLabel(x.time24)}`,
+        value: x.value
       }));
 
       await browser.close();
@@ -1031,10 +1043,25 @@ async function bookNow({ name, phone, clinic, month, time, account }){
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // ✅ طبّق "1 month" بشكل موثوق قبل اختيار الشهر
-    await applyOneMonthView(page);
+    // نفس خطوة "1 month" لضمان تفعيل جميع الخانات قبل اختيار الشهر
+    const clickedOneMonth = await page.evaluate(()=>{
+      const sel = document.querySelector('#month1');
+      if(!sel) return false;
+      const opts = [...sel.options];
+      const opt = opts.find(o => (o.textContent||'').trim().toLowerCase() === '1 month')
+                || opts.find(o => ((o.value||'').includes('appoint_display.php') && /(1\s*month)/i.test(o.textContent||'')));
+      if(opt){
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event('change', { bubbles:true }));
+        return true;
+      }
+      return false;
+    });
+    if (clickedOneMonth) {
+      await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
+    }
 
-    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:o.textContent})));
     const monthValue = months.find(m => m.text === month || m.value === month)?.value;
     if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
     await Promise.all([
