@@ -518,7 +518,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
 async function isDuplicatePhoneWarning(page){
   try {
     const found = await page.evaluate(()=>{
-      const txt = (document.body.innerText||'').replace(/\s+/g,' ');
+      const txt = (document.body.innerText||'').replace(/\s+/g, ' ');
       return /رقم هاتف موجود يخص المريض\s*:|رقم الجوال موجود|Existing phone number|Phone number already exists/i.test(txt);
     });
     return !!found;
@@ -923,7 +923,7 @@ app.post('/api/times', async (req, res) => {
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };   // 08:00 → 11:30
-    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=12*60 && m<=23*60+30; };  // 12:00 → 23:30
+    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=16*60 && m<=22*60; };     // 16:00 → 22:00  ✅ (تعديل المسائي فقط)
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
