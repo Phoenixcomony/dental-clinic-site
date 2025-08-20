@@ -518,7 +518,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
 async function isDuplicatePhoneWarning(page){
   try {
     const found = await page.evaluate(()=>{
-      const txt = (document.body.innerText||'').replace(/\س+/g,' ');
+      const txt = (document.body.innerText||'').replace(/\s+/g,' ');
       return /رقم هاتف موجود يخص المريض\s*:|رقم الجوال موجود|Existing phone number|Phone number already exists/i.test(txt);
     });
     return !!found;
@@ -738,7 +738,7 @@ app.post('/api/create-patient', async (req, res) => {
 
       const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
       const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
-      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
+      const _normalize = (s='') => (s||'').replace(/\س+/g,' ').trim();
 
       if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
       if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
@@ -913,17 +913,25 @@ async function applyOneMonthView(page){
 /** ===== API: /api/times =====
  * يقبل: clinic, month, period(optional: 'morning' | 'evening')
  * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
+ * ✅ تعديل: تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
  */
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
-    // Helpers محلية لفلترة/تنسيق الوقت (التعديل هنا فقط)
+    // استنتاج الفترة تلقائيًا من نص/قيمة العيادة إن وُجد (بدون تغييرات على بقية البوتات)
+    const clinicStr = String(clinic || '');
+    const autoPeriod =
+      /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
+      (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
+    const effectivePeriod = period || autoPeriod; // تُفضَّل period لو مررتها الواجهة
+
+    // Helpers محلية لفلترة/تنسيق الوقت
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };   // 08:00 → 11:30
-    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=16*60 && m<=22*60; };     // 16:00 → 22:00
+    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; }; // 08:00 → 11:30
+    const inEvening = (t)=>{ const m=timeToMinutes(t); return m>=16*60 && m<=22*60; };   // 16:00 → 22:00
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -933,7 +941,7 @@ app.post('/api/times', async (req, res) => {
 
       const clinicValue = await page.evaluate((name) => {
         const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-        const f = opts.find(o => (o.textContent||'').trim() === name);
+        const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
         return f ? f.value : null;
       }, clinic);
       if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
@@ -968,8 +976,8 @@ app.post('/api/times', async (req, res) => {
       });
 
       let filtered = raw;
-      if (period === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      if (period === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+      if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
+      if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
 
       const times = filtered.map(x => ({
         value: x.value,                        // تبقى 24h كما هي للحجز
@@ -1022,7 +1030,7 @@ async function bookNow({ name, phone, clinic, month, time, account }){
 
     const clinicValue = await page.evaluate((name) => {
       const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-      const f = opts.find(o => (o.textContent||'').trim() === name);
+      const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
       return f ? f.value : null;
     }, clinic);
     if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
