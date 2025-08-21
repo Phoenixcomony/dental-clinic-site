@@ -109,52 +109,23 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر "عرض ساعات العمل" يبقى كما هو ===== */
+    /* ===== زر "عرض ساعات العمل" (أخضر + تبديل الأقسام) ===== */
     .btn-hours{
       display:inline-flex; align-items:center; gap:8px;
       padding:10px 14px; border-radius:14px; border:none;
       font-weight:800; cursor:pointer;
-      background: linear-gradient(135deg,#e53935,#d32f2f); color:#fff;
-      box-shadow: 0 6px 16px rgba(229,57,53,.45);
+      background: linear-gradient(135deg,#2e7d32,#43a047); color:#fff;
+      box-shadow: 0 6px 16px rgba(46,125,50,.45);
       animation: breathe 1.8s ease-in-out infinite;
     }
     .btn-hours i{ font-size:1.05em; }
     @keyframes breathe{
-      0%{ transform:scale(1); box-shadow:0 6px 16px rgba(229,57,53,.45); }
-      50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(229,57,53,.6); }
-      100%{ transform:scale(1); box-shadow:0 6px 16px rgba(229,57,53,.45); }
+      0%{ transform:scale(1); box-shadow:0 6px 16px rgba(46,125,50,.45); }
+      50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(46,125,50,.6); }
+      100%{ transform:scale(1); box-shadow:0 6px 16px rgba(46,125,50,.45); }
     }
 
-    /* ===== المودال الذهبي ===== */
-    .hours-modal{
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background: rgba(0,0,0,.55); z-index:9999;
-    }
-    .hours-modal.show{ display:flex; }
-    .hours-modal .panel{
-      width:min(920px, 92vw); max-height:85vh; overflow:auto;
-      background:#fffbe9; border:1px solid #f1e4c5; border-radius:16px;
-      box-shadow:0 20px 60px rgba(0,0,0,.25);
-      padding:16px 14px 18px;
-      animation: hm-pop .18s ease-out;
-    }
-    @keyframes hm-pop{ from{ opacity:0; transform:translateY(-10px) scale(.98);} to{ opacity:1; transform:none; } }
-    .hours-modal .panel-header{
-      display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
-    }
-    .hours-modal .panel-title{
-      margin:0; color:#e38102; font-weight:800; font-size:1.12rem;
-      display:flex; align-items:center; gap:8px;
-    }
-    .hours-modal .close-btn{
-      border:none; background:#fff; color:#bb7d0a; font-size:1.2rem; width:36px; height:36px; border-radius:10px;
-      box-shadow:0 2px 8px #e2be6d2e; cursor:pointer;
-    }
-    .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
-    .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
-    .hours-table th{ background:#e38102; color:#fff; }
-
-    /* ===== أزرار أنيقة أبيض/أسود محلياً في هذه الصفحة ===== */
+    /* ===== أزرار أنيقة محلياً في هذه الصفحة (كما هي) ===== */
     .btn-glass{
       background:#cb9816;
       color:#010101;
@@ -179,6 +150,22 @@
       font-weight:700;
       text-align:right;
     }
+
+    /* قسم ساعات العمل (بديل المودال) */
+    #hoursSection{ display:none; }
+    .hours-table-wrap{ margin-top:6px; }
+    .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
+    .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
+    .hours-table th{ background:#2e7d32; color:#fff; }
+    .toggle-cta{
+      display:flex; justify-content:center; margin:6px 0 12px;
+    }
+
+    /* عناصر OTP */
+    #otpRow { display:none; align-items:center; gap:8px; }
+    #otpBox { flex:1; }
+    #otpTimerMsg { text-align:center; color:#7a6d4e; font-weight:700; margin-top:8px; min-height:22px; }
+    #resendOtp { display:none; width:auto; padding:10px 14px; }
   </style>
 </head>
 <body>
@@ -224,14 +211,19 @@
     <label for="mobile">رقم الجوال</label>
     <input id="mobile" type="text" placeholder="05xxxxxxxx" autocomplete="tel" inputmode="numeric" maxlength="10">
 
-    <label for="otp">رمز التحقق (واتساب)</label>
-    <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6">
-
+    <!-- صف التحكم بالتحقق -->
     <div class="row" style="margin-top:8px;">
-      <!-- مخفي افتراضياً ويظهر فقط عند اكتمال رقم الجوال -->
+      <!-- يظهر فقط عند اكتمال رقم الجوال -->
       <button id="sendOtp" class="btn btn-glass" type="button" style="display:none;">إرسال كود واتساب</button>
       <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
     </div>
+
+    <!-- خانة إدخال رمز التحقق + أدواتها (مخفية حتى الضغط على "إرسال كود واتساب") -->
+    <div id="otpRow" class="row" style="margin-top:8px;">
+      <input id="otp" type="text" placeholder="رمز التحقق - 6 أرقام" inputmode="numeric" maxlength="6" aria-label="رمز التحقق" style="flex:1;" />
+      <button id="resendOtp" class="btn btn-glass" type="button">إعادة الإرسال</button>
+    </div>
+    <div id="otpTimerMsg" class="muted"></div>
 
     <div id="loginMsg" class="muted"></div>
 
@@ -245,9 +237,9 @@
   <section id="bookingSection" class="wrap" style="display:none;">
     <div class="title"><i class="fa-solid fa-calendar-check"></i> الحجز</div>
 
-    <!-- زر الساعات: تحت "الحجز" وفوق اختيار العيادة -->
-    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
-      <button id="openHoursModal" type="button" class="btn-hours">
+    <!-- زر الساعات (تبديل الأقسام) -->
+    <div class="toggle-cta">
+      <button id="openHours" type="button" class="btn-hours">
         <i class="fa-solid fa-clock"></i> عرض ساعات العمل
       </button>
     </div>
@@ -298,116 +290,118 @@
     <div id="bkMsg" class="muted"></div>
   </section>
 
-  <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
-
-  <!-- ===== نافذة ساعات العمل (Modal) ===== -->
-  <div id="hoursModal" class="hours-modal" aria-hidden="true">
-    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="hmTitle">
-      <div class="panel-header">
-        <h3 id="hmTitle" class="panel-title"><i class="fa-solid fa-clock"></i> ساعات العمل</h3>
-        <button id="closeHoursModal" class="close-btn" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="hours-table-wrap">
-        <table class="hours-table">
-          <thead>
-            <tr>
-              <th>القسم / الطبيب</th>
-              <th>الأيام</th>
-              <th>الفترة الصباحية</th>
-              <th>الفترة المسائية</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>عيادة الأسنان 1 (د. عبير)</td>
-              <td>السبت - الخميس</td>
-              <td>9:00 ص – 12:00 م</td>
-              <td>4:00 م – 9:00 م</td>
-            </tr>
-            <tr>
-              <td>عيادة الأسنان 2 (د. ريان)</td>
-              <td>السبت - الخميس</td>
-              <td>8:00 ص – 11:00 ص</td>
-              <td>4:00 م – 9:00 م</td>
-            </tr>
-            <tr>
-              <td>عيادة الأسنان 3 (د. معاذ)</td>
-              <td>السبت - الخميس</td>
-              <td>12:00 م – 8:00 م</td>
-              <td>-</td>
-            </tr>
-            <tr>
-              <td>عيادة الأسنان 4 (د. رونالدو)</td>
-              <td>السبت - الخميس</td>
-              <td>2:00 م – 10:00 م</td>
-              <td>-</td>
-            </tr>
-            <tr>
-              <td>عيادة الجلدية والتجميل (د. ولاء)</td>
-              <td>الأحد - الخميس</td>
-              <td>-</td>
-              <td>3:30 م – 10:30 م</td>
-            </tr>
-            <tr>
-              <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
-              <td>السبت - الخميس</td>
-              <td>-</td>
-              <td>2:00 م – 10:00 م</td>
-            </tr>
-            <tr>
-              <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
-              <td>السبت - الخميس</td>
-              <td>10:00 ص – 12:00 م</td>
-              <td>4:00 م – 10:00 م</td>
-            </tr>
-            <tr>
-              <td>عيادة النساء والولادة (د. حسناء)</td>
-              <td>السبت - الخميس</td>
-              <td>10:00 ص – 12:00 م</td>
-              <td>4:00 م – 10:00 م</td>
-            </tr>
-            <tr>
-              <td>   عيادة الليزر (نساء) 1 </td>
-              <td>السبت - الخميس</td>
-              <td>8:00 ص – 11:00 م</td>
-              <td>-</td>
-            </tr>
-            <tr>
-              <td>  عيادة الليزر (نساء) 2 </td>
-              <td>السبت - الخميس</td>
-              <td>8:00 ص – 11:00 م</td>
-              <td>-</td>
-            </tr>
-            <tr>
-              <td>  عيادة الليزر (رجال)  </td>
-              <td>السبت - الخميس</td>
-              <td>9:00 ص – 2:00 م</td>
-              <td></td>
-            </tr>
-            <tr>
-              <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
-                يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+  <!-- ساعات العمل (قسم بديل يظهر/يختفي بالتبديل) -->
+  <section id="hoursSection" class="wrap" style="display:none;">
+    <div class="title"><i class="fa-solid fa-clock"></i> ساعات العمل</div>
+    <div class="toggle-cta">
+      <button id="openBooking" type="button" class="btn-hours" style="background:linear-gradient(135deg,#1b5e20,#2e7d32);">
+        <i class="fa-solid fa-calendar-check"></i> عرض الحجز
+      </button>
     </div>
-  </div>
-  <!-- ===== /نافذة ساعات العمل ===== -->
+    <div class="hours-table-wrap">
+      <table class="hours-table">
+        <thead>
+          <tr>
+            <th>القسم / الطبيب</th>
+            <th>الأيام</th>
+            <th>الفترة الصباحية</th>
+            <th>الفترة المسائية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>عيادة الأسنان 1 (د. عبير)</td>
+            <td>السبت - الخميس</td>
+            <td>9:00 ص – 12:00 م</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 2 (د. ريان)</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 ص</td>
+            <td>4:00 م – 9:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 3 (د. معاذ)</td>
+            <td>السبت - الخميس</td>
+            <td>12:00 م – 8:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الأسنان 4 (د. رونالدو)</td>
+            <td>السبت - الخميس</td>
+            <td>2:00 م – 10:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+            <td>الأحد - الخميس</td>
+            <td>-</td>
+            <td>3:30 م – 10:30 م</td>
+          </tr>
+          <tr>
+            <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+            <td>السبت - الخميس</td>
+            <td>-</td>
+            <td>2:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة النساء والولادة (د. حسناء)</td>
+            <td>السبت - الخميس</td>
+            <td>10:00 ص – 12:00 م</td>
+            <td>4:00 م – 10:00 م</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر (نساء) 1</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر (نساء) 2</td>
+            <td>السبت - الخميس</td>
+            <td>8:00 ص – 11:00 م</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td>عيادة الليزر (رجال)</td>
+            <td>السبت - الخميس</td>
+            <td>9:00 ص – 2:00 م</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
+              يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
 
 <script>
   // Helpers
   const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
-  // Elemente
-  const sendOtpBtn = document.getElementById('sendOtp');
-  const loginBtn = document.getElementById('loginBtn');
-  const loginMsg = document.getElementById('loginMsg');
-  const fullname = document.getElementById('fullname');
-  const mobile = document.getElementById('mobile');
-  const otpInput = document.getElementById('otp');
+  // Elements
+  const sendOtpBtn   = document.getElementById('sendOtp');
+  const resendOtpBtn = document.getElementById('resendOtp');
+  const loginBtn     = document.getElementById('loginBtn');
+  const loginMsg     = document.getElementById('loginMsg');
+  const fullname     = document.getElementById('fullname');
+  const mobile       = document.getElementById('mobile');
+  const otpInput     = document.getElementById('otp');
+  const otpRow       = document.getElementById('otpRow');
+  const otpTimerMsg  = document.getElementById('otpTimerMsg');
   const screenLoader = document.getElementById('screenLoader');
 
   // شاشة الانتظار
@@ -422,9 +416,9 @@
   function updateLoginBtn(){
     const phoneOK = isSaudi05(mobile.value);
     // إظهار/إخفاء زر واتساب حسب اكتمال رقم الجوال
-    sendOtpBtn.style.display = phoneOK ? '' : 'none';
+    sendOtpBtn.style.display = phoneOK && otpRow.style.display==='none' ? '' : (otpRow.style.display==='none' ? 'none' : 'none');
 
-    const ok = isTriple(fullname.value) && phoneOK && /^\d{6}$/.test(otpInput.value||'');
+    const ok = isTriple(fullname.value) && phoneOK && /^\d{6}$/.test((otpInput.value||''));
     loginBtn.disabled = !ok;
     if (!ok) loginMsg.textContent = 'أدخل الاسم الثلاثي، رقم 05xxxxxxxx، وكود 6 أرقام.';
     else loginMsg.textContent = '';
@@ -437,26 +431,25 @@
   updateLoginBtn();
 
   function startOtpTimer(){
+    // إخفاء إعادة الإرسال خلال العدّاد
+    resendOtpBtn.style.display = 'none';
     otpCooldown = 60;
-    sendOtpBtn.disabled = true;
+    otpTimerMsg.textContent = `أعد الإرسال خلال ${otpCooldown}ث`;
     const tick = ()=>{
+      otpCooldown--;
       if(otpCooldown <= 0){
-        sendOtpBtn.disabled = false;
-        sendOtpBtn.textContent = 'إرسال كود واتساب';
         clearInterval(otpTimer); otpTimer=null;
+        otpTimerMsg.textContent = '';
+        resendOtpBtn.style.display = ''; // إظهار زر إعادة الإرسال
         return;
       }
-      sendOtpBtn.textContent = `أعد الإرسال خلال ${otpCooldown--}ث`;
+      otpTimerMsg.textContent = `أعد الإرسال خلال ${otpCooldown}ث`;
     };
-    tick();
+    if (otpTimer) clearInterval(otpTimer);
     otpTimer = setInterval(tick, 1000);
   }
 
-  // إرسال OTP مع شاشة انتظار
-  sendOtpBtn.addEventListener('click', async ()=>{
-    const phone = mobile.value.trim();
-    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
-    if(otpCooldown>0) return;
+  async function requestOtp(phone){
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
@@ -472,6 +465,28 @@
     }finally{
       showLoader(false);
     }
+  }
+
+  // عند النقر على "إرسال كود واتساب"
+  sendOtpBtn.addEventListener('click', async ()=>{
+    const phone = mobile.value.trim();
+    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
+
+    // إظهار خانة OTP وإخفاء زر الإرسال
+    otpRow.style.display = 'flex';
+    sendOtpBtn.style.display = 'none';
+    otpInput.value = '';
+    otpInput.focus();
+    updateLoginBtn();
+
+    await requestOtp(phone);
+  });
+
+  // إعادة الإرسال بعد انتهاء العدّاد
+  resendOtpBtn.addEventListener('click', async ()=>{
+    const phone = mobile.value.trim();
+    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
+    await requestOtp(phone);
   });
 
   // فتح ملف جديد
@@ -483,12 +498,12 @@
 
   // تسجيل الدخول مع شاشة انتظار
   loginBtn.addEventListener('click', async ()=>{
-    loginBtn.disabled = true; sendOtpBtn.disabled = true;
+    loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
     const payload = {
       name: fullname.value.trim(),
       phone: mobile.value.trim(),
-      otp: otpInput.value.trim()
+      otp: (otpInput.value||'').trim()
     };
     showLoader(true);
     try{
@@ -500,7 +515,7 @@
 
       if(!data.success){
         loginMsg.textContent = data.message || 'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).';
-        loginBtn.disabled = false; sendOtpBtn.disabled = false;
+        loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
         return;
       }
 
@@ -521,7 +536,7 @@
       document.getElementById('bookingSection').style.display = '';
     }catch(e){
       loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
-      loginBtn.disabled = false; sendOtpBtn.disabled = false;
+      loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
     }finally{
       showLoader(false);
     }
@@ -601,14 +616,23 @@
     window.location.href = 'confirm.html';
   });
 
-  // ====== تشغيل نافذة ساعات العمل ======
-  const hoursModal = document.getElementById('hoursModal');
-  const openHoursModal = document.getElementById('openHoursModal');
-  const closeHoursModal = document.getElementById('closeHoursModal');
+  // ====== تبديل الظهور بين الحجز وساعات العمل ======
+  const openHoursBtn   = document.getElementById('openHours');
+  const openBookingBtn = document.getElementById('openBooking');
+  const bookingSection = document.getElementById('bookingSection');
+  const hoursSection   = document.getElementById('hoursSection');
 
-  openHoursModal.addEventListener('click', ()=> hoursModal.classList.add('show'));
-  closeHoursModal.addEventListener('click', ()=> hoursModal.classList.remove('show'));
-  hoursModal.addEventListener('click', (e)=>{ if(e.target===hoursModal) hoursModal.classList.remove('show'); });
+  openHoursBtn.addEventListener('click', ()=>{
+    bookingSection.style.display = 'none';
+    hoursSection.style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  openBookingBtn.addEventListener('click', ()=>{
+    hoursSection.style.display = 'none';
+    bookingSection.style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 </script>
 </body>
 </html>
