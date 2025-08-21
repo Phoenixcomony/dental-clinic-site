@@ -154,16 +154,18 @@
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#e38102; color:#fff; }
 
-    /* ===== أزرار زجاجية محلياً فقط في هذه الصفحة ===== */
+    /* ===== أزرار أنيقة أبيض/أسود محلياً في هذه الصفحة ===== */
     .btn-glass{
-      background: rgba(255,255,255,0.18);
-      border: 1px solid rgba(230, 198, 120, 0.52);
-      color:#5b4306;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 6px 20px rgba(0,0,0,.08);
+      background:#ffffff;
+      color:#111111;
+      border:1.8px solid #111111;
+      border-radius:999px;
+      backdrop-filter:none;
+      box-shadow:0 2px 10px rgba(0,0,0,.06);
+      transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
     }
-    .btn-glass:hover{ background: rgba(255,255,255,0.3); transform: translateY(-1px); box-shadow:0 10px 26px rgba(0,0,0,.12);}
-    .btn-glass:active{ transform: translateY(0); }
+    .btn-glass:hover{ background:#111111; color:#ffffff; border-color:#111111; transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.12); }
+    .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 
     /* ملاحظة الجلدية والتجميل */
     .clinic-note{
@@ -226,7 +228,8 @@
     <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6">
 
     <div class="row" style="margin-top:8px;">
-      <button id="sendOtp" class="btn btn-glass" type="button">إرسال كود واتساب</button>
+      <!-- مخفي افتراضياً ويظهر فقط عند اكتمال رقم الجوال -->
+      <button id="sendOtp" class="btn btn-glass" type="button" style="display:none;">إرسال كود واتساب</button>
       <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
     </div>
 
@@ -417,7 +420,11 @@
   let otpCooldown = 0, otpTimer = null;
 
   function updateLoginBtn(){
-    const ok = isTriple(fullname.value) && isSaudi05(mobile.value) && /^\d{6}$/.test(otpInput.value||'');
+    const phoneOK = isSaudi05(mobile.value);
+    // إظهار/إخفاء زر واتساب حسب اكتمال رقم الجوال
+    sendOtpBtn.style.display = phoneOK ? '' : 'none';
+
+    const ok = isTriple(fullname.value) && phoneOK && /^\d{6}$/.test(otpInput.value||'');
     loginBtn.disabled = !ok;
     if (!ok) loginMsg.textContent = 'أدخل الاسم الثلاثي، رقم 05xxxxxxxx، وكود 6 أرقام.';
     else loginMsg.textContent = '';
