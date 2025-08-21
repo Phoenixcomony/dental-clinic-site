@@ -20,7 +20,7 @@
     label{ display:block; font-weight:700; color:#b18836; margin:.5rem 0 .3rem; }
     input, select{ width:100%; padding:12px 11px; border-radius:14px; border:1.4px solid #e2be6d99; background:#fffdfa; font-size:1rem; }
     input:focus, select:focus{ border:1.7px solid #e2be6d; background:#fff9e0; outline:none; }
-    .btn{ width:100%; padding:13px 0; border:none; border-radius:16px; font-weight:800; background:var(--gold-gradient); color:#6b4b00; cursor:pointer; box-shadow:0 6px 16px #e2be6d33; }
+    .btn{ width:100%; padding:13px 0; border:none; border-radius:16px; font-weight:800; background:var(--gold-gradient); color:#6b4b00; cursor:pointer; box-shadow:0 6px 16px #e2be6d33; transition:.2s ease; }
     .btn:disabled{ opacity:.6; cursor:not-allowed; }
     .muted{ color:#7a6d4e; font-size:.95rem; text-align:center; min-height:22px; margin-top:8px; }
     .row{ display:flex; gap:8px; } .row > *{ flex:1; }
@@ -109,7 +109,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر "عرض ساعات العمل" أحمر ويتنفس (التعديل الوحيد) ===== */
+    /* ===== زر "عرض ساعات العمل" يبقى كما هو ===== */
     .btn-hours{
       display:inline-flex; align-items:center; gap:8px;
       padding:10px 14px; border-radius:14px; border:none;
@@ -153,6 +153,30 @@
     .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#e38102; color:#fff; }
+
+    /* ===== أزرار زجاجية محلياً فقط في هذه الصفحة ===== */
+    .btn-glass{
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(230, 198, 120, 0.52);
+      color:#5b4306;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 6px 20px rgba(0,0,0,.08);
+    }
+    .btn-glass:hover{ background: rgba(255,255,255,0.3); transform: translateY(-1px); box-shadow:0 10px 26px rgba(0,0,0,.12);}
+    .btn-glass:active{ transform: translateY(0); }
+
+    /* ملاحظة الجلدية والتجميل */
+    .clinic-note{
+      display:none;
+      margin:8px 0 0;
+      color:#7a5d16;
+      background:#fff9e8;
+      border:1px dashed #e8ca7c;
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:700;
+      text-align:right;
+    }
   </style>
 </head>
 <body>
@@ -190,7 +214,7 @@
 
   <!-- تسجيل الدخول -->
   <section id="loginSection" class="wrap">
-    <div class="title"><i class="fa fa-user-check"></i> تسجيل الدخول    </div>
+    <div class="title"><i class="fa fa-user-check"></i> تسجيل الدخول</div>
 
     <label for="fullname">الاسم الثلاثي</label>
     <input id="fullname" type="text" placeholder="مثال: محمد أحمد مصطفى" autocomplete="name">
@@ -202,14 +226,15 @@
     <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6">
 
     <div class="row" style="margin-top:8px;">
-      <button id="sendOtp" class="btn" type="button">إرسال كود واتساب</button>
-      <button id="loginBtn" class="btn" type="button" disabled>تسجيل الدخول</button>
+      <button id="sendOtp" class="btn btn-glass" type="button">إرسال كود واتساب</button>
+      <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
     </div>
 
     <div id="loginMsg" class="muted"></div>
 
     <p class="muted" style="margin-top:10px;">
-      لا تملك ملفًا؟ <button class="btn" id="openNewFileBtn" type="button" style="padding:9px 12px;width:auto;">افتح ملف جديد</button>
+      لا تملك ملفًا؟
+      <button class="btn btn-glass" id="openNewFileBtn" type="button" style="padding:9px 12px;width:auto;">افتح ملف جديد</button>
     </p>
   </section>
 
@@ -244,8 +269,11 @@
       <option value="النساء و الولادة**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
       <option value="النساء و الولادة**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
     </select>
+    <div id="dermNote" class="clinic-note">
+      تتضمن الخدمة تقشير وجه نصف ساعة + تقشير حواجب نصف ساعة + تنظيف البشرة نصف ساعة — المدة ساعة
+    </div>
     
-    <label for="month">اختر الشهر</label>
+    <label for="month" style="margin-top:10px;">اختر الشهر</label>
     <select id="month">
       <option value="">اختر الشهر</option>
       <option value="8">أغسطس</option>
@@ -255,14 +283,14 @@
       <option value="12">ديسمبر</option>
     </select>
 
-    <button id="fetchBtn" class="btn" style="margin-top:10px;">بحث عن المواعيد</button>
+    <button id="fetchBtn" class="btn btn-glass" style="margin-top:10px;">عرض المواعيد</button>
 
     <label for="time" style="margin-top:14px;">اختر الوقت</label>
     <select id="time" disabled>
       <option value="">يرجى البحث أولاً</option>
     </select>
 
-    <button id="goConfirm" class="btn" style="margin-top:12px;" disabled>متابعة لتأكيد الحجز</button>
+    <button id="goConfirm" class="btn btn-glass" style="margin-top:12px;" disabled>متابعة لتأكيد الحجز</button>
 
     <div id="bkMsg" class="muted"></div>
   </section>
@@ -492,15 +520,25 @@
     }
   });
 
-  // الحجز (بدون تغيير)
+  // ===== الحجز =====
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
   const goConfirm = document.getElementById('goConfirm');
   const bkMsg = document.getElementById('bkMsg');
+  const clinicSel = document.getElementById('clinic');
+  const monthSel  = document.getElementById('month');
+  const dermNote  = document.getElementById('dermNote');
+
+  // إظهار ملاحظة الجلدية والتجميل تلقائيًا
+  clinicSel.addEventListener('change', ()=>{
+    const v = clinicSel.value || '';
+    if (v.startsWith('عيادة الجلدية والتجميل')) dermNote.style.display = 'block';
+    else dermNote.style.display = 'none';
+  });
 
   fetchBtn.addEventListener('click', async () => {
-    const clinic = document.getElementById('clinic').value;
-    const month  = document.getElementById('month').value;
+    const clinic = clinicSel.value;
+    const month  = monthSel.value;
 
     bkMsg.textContent = '';
     timeSel.disabled = true;
@@ -511,6 +549,12 @@
       timeSel.innerHTML = `<option value="">يرجى اختيار العيادة والشهر</option>`;
       return;
     }
+
+    // قفل الحقول + منع النقرات + إظهار اللودر
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    showLoader(true);
 
     try {
       const r = await fetch('/api/times', {
@@ -530,16 +574,22 @@
     } catch {
       timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
       bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
+    } finally {
+      // فتح الحقول من جديد بعد ظهور النتيجة
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      showLoader(false);
     }
   });
 
   goConfirm.addEventListener('click', () => {
     localStorage.setItem('pending_name',  localStorage.getItem('auth_name')  || '');
     localStorage.setItem('pending_phone', localStorage.getItem('auth_phone') || '');
-    localStorage.setItem('pending_clinic', document.getElementById('clinic').value);
-    const clinicName = document.getElementById('clinic').selectedOptions[0]?.text || '';
+    localStorage.setItem('pending_clinic', clinicSel.value);
+    const clinicName = clinicSel.selectedOptions[0]?.text || '';
     localStorage.setItem('pending_clinic_label', clinicName);
-    localStorage.setItem('pending_month', document.getElementById('month').value);
+    localStorage.setItem('pending_month', monthSel.value);
     localStorage.setItem('pending_time', timeSel.value);
     window.location.href = 'confirm.html';
   });
