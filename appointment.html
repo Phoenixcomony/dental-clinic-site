@@ -13,6 +13,10 @@
       --gold-shadow:0 4px 32px 0 #e2be6d26, 0 1.5px 6px #ffdfa215;
       --gold-light:#fff8e6;
       --gold-gradient:linear-gradient(90deg,#e8ca7c 10%, #fff8e6 100%);
+      --green-main:#2e7d32;
+      --green-dark:#1b5e20;
+      --green-shadow:0 6px 16px rgba(46,125,50,.35);
+      --green-grad:linear-gradient(135deg,#2e7d32,#1b5e20);
     }
     body{ font-family:'Cairo', Tahoma, Arial, sans-serif; margin:0; min-height:100vh; display:flex; flex-direction:column; background:#fffdfa; }
     .wrap{ max-width:540px; margin:26px auto; background:#fff; border:1px solid #e8ca7c80; border-radius:18px; box-shadow:var(--gold-shadow); padding:18px; }
@@ -50,7 +54,7 @@
     .logo-container{ display:flex; align-items:center; gap:10px; }
     .logo-img{ height:46px; margin-left:9px; }
 
-    /* أجبر القوائم أفقية حتى على الجوال */
+    /* قوائم أفقية */
     header nav ul{
       list-style:none; display:flex !important; flex-direction:row !important;
       align-items:center; gap:18px; margin:0; padding:0; background:transparent;
@@ -66,7 +70,7 @@
       background-color:#fffbe7; color:#a8861c; box-shadow:0 2px 10px #e2be6d23;
     }
 
-    /* أيقونات التواصل بالعرض */
+    /* أيقونات التواصل */
     .social-icons{
       display:flex !important; align-items:center; gap:8px; margin-inline-start:8px;
       flex-wrap:nowrap;
@@ -92,7 +96,7 @@
       .wrap{ margin:16px auto; border-radius:16px; }
     }
 
-    /* ====== شاشة التحميل (انتظار) ====== */
+    /* ====== شاشة التحميل ====== */
     .screen-loader{
       position: fixed; inset:0; display:none; align-items:center; justify-content:center;
       background: rgba(255,255,255,0.55);
@@ -109,23 +113,23 @@
     }
     @keyframes spin { to { transform: rotate(360deg);} }
 
-    /* ===== زر "عرض ساعات العمل" (أخضر + تبديل الأقسام) ===== */
+    /* ===== زر التبديل: عرض ساعات العمل / عرض الحجز (أخضر) ===== */
     .btn-hours{
       display:inline-flex; align-items:center; gap:8px;
       padding:10px 14px; border-radius:14px; border:none;
       font-weight:800; cursor:pointer;
-      background: linear-gradient(135deg,#2e7d32,#43a047); color:#fff;
-      box-shadow: 0 6px 16px rgba(46,125,50,.45);
+      background: var(--green-grad); color:#fff;
+      box-shadow: var(--green-shadow);
       animation: breathe 1.8s ease-in-out infinite;
     }
     .btn-hours i{ font-size:1.05em; }
     @keyframes breathe{
-      0%{ transform:scale(1); box-shadow:0 6px 16px rgba(46,125,50,.45); }
-      50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(46,125,50,.6); }
-      100%{ transform:scale(1); box-shadow:0 6px 16px rgba(46,125,50,.45); }
+      0%{ transform:scale(1); box-shadow:var(--green-shadow); }
+      50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(27,94,32,.55); }
+      100%{ transform:scale(1); box-shadow:var(--green-shadow); }
     }
 
-    /* ===== أزرار أنيقة محلياً في هذه الصفحة (كما هي) ===== */
+    /* أزرار أنيقة محلية */
     .btn-glass{
       background:#cb9816;
       color:#010101;
@@ -151,21 +155,10 @@
       text-align:right;
     }
 
-    /* قسم ساعات العمل (بديل المودال) */
-    #hoursSection{ display:none; }
-    .hours-table-wrap{ margin-top:6px; }
+    /* جدول ساعات العمل */
     .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
     .hours-table th, .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
     .hours-table th{ background:#2e7d32; color:#fff; }
-    .toggle-cta{
-      display:flex; justify-content:center; margin:6px 0 12px;
-    }
-
-    /* عناصر OTP */
-    #otpRow { display:none; align-items:center; gap:8px; }
-    #otpBox { flex:1; }
-    #otpTimerMsg { text-align:center; color:#7a6d4e; font-weight:700; margin-top:8px; min-height:22px; }
-    #resendOtp { display:none; width:auto; padding:10px 14px; }
   </style>
 </head>
 <body>
@@ -211,19 +204,22 @@
     <label for="mobile">رقم الجوال</label>
     <input id="mobile" type="text" placeholder="05xxxxxxxx" autocomplete="tel" inputmode="numeric" maxlength="10">
 
-    <!-- صف التحكم بالتحقق -->
+    <!-- خانة رمز التحقق (مخفية حتى يضغط إرسال الكود) -->
+    <div id="otpGroup" style="display:none;">
+      <label for="otp">رمز التحقق (واتساب)</label>
+      <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6">
+      <div class="row" style="margin-top:8px;">
+        <button id="resendOtp" class="btn btn-glass" type="button" style="display:none;">إعادة الإرسال</button>
+        <button id="cancelOtp" class="btn btn-glass" type="button">إلغاء</button>
+      </div>
+      <div id="otpTimer" class="muted"></div>
+    </div>
+
     <div class="row" style="margin-top:8px;">
       <!-- يظهر فقط عند اكتمال رقم الجوال -->
       <button id="sendOtp" class="btn btn-glass" type="button" style="display:none;">إرسال كود واتساب</button>
       <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
     </div>
-
-    <!-- خانة إدخال رمز التحقق + أدواتها (مخفية حتى الضغط على "إرسال كود واتساب") -->
-    <div id="otpRow" class="row" style="margin-top:8px;">
-      <input id="otp" type="text" placeholder="رمز التحقق - 6 أرقام" inputmode="numeric" maxlength="6" aria-label="رمز التحقق" style="flex:1;" />
-      <button id="resendOtp" class="btn btn-glass" type="button">إعادة الإرسال</button>
-    </div>
-    <div id="otpTimerMsg" class="muted"></div>
 
     <div id="loginMsg" class="muted"></div>
 
@@ -237,9 +233,9 @@
   <section id="bookingSection" class="wrap" style="display:none;">
     <div class="title"><i class="fa-solid fa-calendar-check"></i> الحجز</div>
 
-    <!-- زر الساعات (تبديل الأقسام) -->
-    <div class="toggle-cta">
-      <button id="openHours" type="button" class="btn-hours">
+    <!-- زر التبديل: إظهار ساعات العمل (أخضر) -->
+    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
+      <button id="toggleHours" type="button" class="btn-hours">
         <i class="fa-solid fa-clock"></i> عرض ساعات العمل
       </button>
     </div>
@@ -290,14 +286,16 @@
     <div id="bkMsg" class="muted"></div>
   </section>
 
-  <!-- ساعات العمل (قسم بديل يظهر/يختفي بالتبديل) -->
+  <!-- قسم ساعات العمل (يظهر بالتبديل ويخفي الحجز) -->
   <section id="hoursSection" class="wrap" style="display:none;">
     <div class="title"><i class="fa-solid fa-clock"></i> ساعات العمل</div>
-    <div class="toggle-cta">
-      <button id="openBooking" type="button" class="btn-hours" style="background:linear-gradient(135deg,#1b5e20,#2e7d32);">
+
+    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
+      <button id="toggleBooking" type="button" class="btn-hours">
         <i class="fa-solid fa-calendar-check"></i> عرض الحجز
       </button>
     </div>
+
     <div class="hours-table-wrap">
       <table class="hours-table">
         <thead>
@@ -388,20 +386,21 @@
   <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
 
 <script>
-  // Helpers
+  // ===== Helpers =====
   const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
-  // Elements
-  const sendOtpBtn   = document.getElementById('sendOtp');
+  // ===== عناصر تسجيل الدخول =====
+  const sendOtpBtn = document.getElementById('sendOtp');
   const resendOtpBtn = document.getElementById('resendOtp');
-  const loginBtn     = document.getElementById('loginBtn');
-  const loginMsg     = document.getElementById('loginMsg');
-  const fullname     = document.getElementById('fullname');
-  const mobile       = document.getElementById('mobile');
-  const otpInput     = document.getElementById('otp');
-  const otpRow       = document.getElementById('otpRow');
-  const otpTimerMsg  = document.getElementById('otpTimerMsg');
+  const cancelOtpBtn = document.getElementById('cancelOtp');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginMsg = document.getElementById('loginMsg');
+  const fullname = document.getElementById('fullname');
+  const mobile = document.getElementById('mobile');
+  const otpInput = document.getElementById('otp');
+  const otpGroup = document.getElementById('otpGroup');
+  const otpTimerEl = document.getElementById('otpTimer');
   const screenLoader = document.getElementById('screenLoader');
 
   // شاشة الانتظار
@@ -412,13 +411,14 @@
 
   // OTP 60s cooldown
   let otpCooldown = 0, otpTimer = null;
+  function formatSecs(s){ return s + 'ث'; }
 
   function updateLoginBtn(){
     const phoneOK = isSaudi05(mobile.value);
-    // إظهار/إخفاء زر واتساب حسب اكتمال رقم الجوال
-    sendOtpBtn.style.display = phoneOK && otpRow.style.display==='none' ? '' : (otpRow.style.display==='none' ? 'none' : 'none');
+    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال (حتى بدون الاسم)
+    sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
 
-    const ok = isTriple(fullname.value) && phoneOK && /^\d{6}$/.test((otpInput.value||''));
+    const ok = isTriple(fullname.value) && phoneOK && /^\d{6}$/.test((otpInput.value||'').trim());
     loginBtn.disabled = !ok;
     if (!ok) loginMsg.textContent = 'أدخل الاسم الثلاثي، رقم 05xxxxxxxx، وكود 6 أرقام.';
     else loginMsg.textContent = '';
@@ -431,25 +431,24 @@
   updateLoginBtn();
 
   function startOtpTimer(){
-    // إخفاء إعادة الإرسال خلال العدّاد
-    resendOtpBtn.style.display = 'none';
     otpCooldown = 60;
-    otpTimerMsg.textContent = `أعد الإرسال خلال ${otpCooldown}ث`;
-    const tick = ()=>{
+    resendOtpBtn.style.display = 'none';
+    otpTimerEl.textContent = 'سيصل الكود خلال لحظات — يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
+    otpTimer && clearInterval(otpTimer);
+    otpTimer = setInterval(()=>{
       otpCooldown--;
-      if(otpCooldown <= 0){
+      if(otpCooldown<=0){
         clearInterval(otpTimer); otpTimer=null;
-        otpTimerMsg.textContent = '';
-        resendOtpBtn.style.display = ''; // إظهار زر إعادة الإرسال
-        return;
+        otpTimerEl.textContent = 'انتهى الوقت. يمكنك إعادة الإرسال.';
+        resendOtpBtn.style.display = '';
+        resendOtpBtn.disabled = false;
+      }else{
+        otpTimerEl.textContent = 'يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
       }
-      otpTimerMsg.textContent = `أعد الإرسال خلال ${otpCooldown}ث`;
-    };
-    if (otpTimer) clearInterval(otpTimer);
-    otpTimer = setInterval(tick, 1000);
+    },1000);
   }
 
-  async function requestOtp(phone){
+  async function sendOtp(phone){
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
@@ -459,34 +458,47 @@
       });
       const data = await r.json();
       loginMsg.textContent = data.success ? 'تم إرسال الكود على الواتساب' : (data.message || 'تعذر الإرسال');
-      if(data.success) startOtpTimer();
+      return !!data.success;
     }catch{
       loginMsg.textContent = 'تعذر الاتصال بالخادم';
+      return false;
     }finally{
       showLoader(false);
     }
   }
 
-  // عند النقر على "إرسال كود واتساب"
+  // عند الضغط على "إرسال كود واتساب"
   sendOtpBtn.addEventListener('click', async ()=>{
     const phone = mobile.value.trim();
     if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
-
-    // إظهار خانة OTP وإخفاء زر الإرسال
-    otpRow.style.display = 'flex';
+    // إظهار خانة الكود وإخفاء زر الإرسال
     sendOtpBtn.style.display = 'none';
+    otpGroup.style.display = '';
     otpInput.value = '';
-    otpInput.focus();
     updateLoginBtn();
 
-    await requestOtp(phone);
+    const ok = await sendOtp(phone);
+    if(ok) startOtpTimer();
   });
 
-  // إعادة الإرسال بعد انتهاء العدّاد
+  // إعادة الإرسال
   resendOtpBtn.addEventListener('click', async ()=>{
     const phone = mobile.value.trim();
-    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
-    await requestOtp(phone);
+    if(!isSaudi05(phone)) return;
+    resendOtpBtn.disabled = true;
+    const ok = await sendOtp(phone);
+    if(ok) startOtpTimer();
+    else resendOtpBtn.disabled = false;
+  });
+
+  // إلغاء التحقق: إخفاء خانة الكود والعودة لإظهار زر الإرسال عند اكتمال الرقم
+  cancelOtpBtn.addEventListener('click', ()=>{
+    otpGroup.style.display = 'none';
+    otpInput.value = '';
+    otpTimerEl.textContent = '';
+    resendOtpBtn.style.display = 'none';
+    otpTimer && clearInterval(otpTimer);
+    updateLoginBtn();
   });
 
   // فتح ملف جديد
@@ -551,7 +563,7 @@
   const monthSel  = document.getElementById('month');
   const dermNote  = document.getElementById('dermNote');
 
-  // إظهار ملاحظة الجلدية والتجميل تلقائيًا
+  // ملاحظة الجلدية والتجميل
   clinicSel.addEventListener('change', ()=>{
     const v = clinicSel.value || '';
     if (v.startsWith('عيادة الجلدية والتجميل')) dermNote.style.display = 'block';
@@ -616,23 +628,25 @@
     window.location.href = 'confirm.html';
   });
 
-  // ====== تبديل الظهور بين الحجز وساعات العمل ======
-  const openHoursBtn   = document.getElementById('openHours');
-  const openBookingBtn = document.getElementById('openBooking');
+  // ===== تبديل العرض بين الحجز وساعات العمل =====
   const bookingSection = document.getElementById('bookingSection');
-  const hoursSection   = document.getElementById('hoursSection');
+  const hoursSection = document.getElementById('hoursSection');
+  const toggleHoursBtn = document.getElementById('toggleHours');
+  const toggleBookingBtn = document.getElementById('toggleBooking');
 
-  openHoursBtn.addEventListener('click', ()=>{
+  function showHours(){
     bookingSection.style.display = 'none';
     hoursSection.style.display = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-
-  openBookingBtn.addEventListener('click', ()=>{
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  function showBooking(){
     hoursSection.style.display = 'none';
     bookingSection.style.display = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  toggleHoursBtn.addEventListener('click', showHours);
+  toggleBookingBtn.addEventListener('click', showBooking);
 </script>
 </body>
 </html>
