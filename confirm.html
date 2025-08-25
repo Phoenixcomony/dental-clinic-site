@@ -35,11 +35,12 @@
       box-shadow: inset 0 1px 10px #e2be6d14;
     }
     .confirm-label{ color:#a68e57; font-weight:800; text-align:right; margin:6px 0 4px; font-size:.98rem; }
-    .confirm-input, .confirm-time{
+    .confirm-input, .confirm-time, .confirm-textarea{
       width:100%; background:#f5f3ee; border:1.6px solid #eadcbc; border-radius:12px;
       padding:10px 10px; margin-bottom:10px; font-size:1rem; color:#6f5a32; font-weight:700;
     }
     .confirm-time{ text-align:center; color:#7e733f; }
+    .confirm-textarea{ resize:vertical; min-height:84px; }
     .btn-main{
       width:100%; padding:12px 0; font-size:1.02rem; border-radius:14px; border:none;
       background:var(--grad); color:#fff; font-weight:800; cursor:pointer;
@@ -64,7 +65,7 @@
     @media (max-width:520px){
       .confirm-main{ border-radius:16px; padding:16px 12px; margin:20px auto 12px; }
       .title-confirm{ font-size:1.2rem; padding:7px 0; }
-      .confirm-input, .confirm-time{ padding:9px 10px; font-size:.98rem; }
+      .confirm-input, .confirm-time, .confirm-textarea{ padding:9px 10px; font-size:.98rem; }
       .btn-main{ padding:11px 0; font-size:1rem; }
     }
   </style>
@@ -97,6 +98,10 @@
       <div id="timeDisplay" class="confirm-time"></div>
       <input type="hidden" id="time_raw" readonly>
 
+      <!-- جديد: عرض نوع الخدمة / الملاحظة التي كتبها المراجع (للتأكيد) -->
+      <div class="confirm-label">نوع الخدمة / ملاحظة (اختياري):</div>
+      <textarea id="note" class="confirm-textarea" readonly placeholder="لا توجد ملاحظة"></textarea>
+
       <button type="button" id="confirmBtn" class="btn-main">تأكيد الحجز</button>
       <div id="message" class="note"></div>
     </form>
@@ -128,6 +133,7 @@
       const cl = localStorage.getItem('pending_clinic_label') || '';
       const cm = localStorage.getItem('pending_month')  || '';
       const tm = localStorage.getItem('pending_time')   || '';
+      const nt = localStorage.getItem('pending_note')   || '';   // جديد
 
       document.getElementById('name').value   = n;
       document.getElementById('phone').value  = p;
@@ -135,6 +141,9 @@
       document.getElementById('month').value  = cm;
       document.getElementById('time_raw').value = tm;
       document.getElementById('timeDisplay').textContent = formatTimeValue(tm);
+
+      // عرض الملاحظة للتأكيد
+      document.getElementById('note').value = nt || '';
 
       // إن كانت بيانات أساسية ناقصة، أعرض تنبيه
       const msgEl = document.getElementById('message');
@@ -155,6 +164,7 @@
       const clinic = localStorage.getItem('pending_clinic') || ''; // قيمة البوت الأصلية
       const month  = (document.getElementById('month').value || '').trim();
       const time   = (document.getElementById('time_raw').value || '').trim();
+      const note   = (document.getElementById('note').value || '').trim(); // جديد
 
       if (!name || !phone || !clinic || !month || !time) {
         msgEl.style.color = '#d51a1a';
@@ -167,7 +177,8 @@
       msgEl.textContent = 'جاري تأكيد الحجز...';
       showLoader(true);
 
-      const payload = { name, phone, clinic, month, time, key: Date.now().toString() };
+      // نضمّن الملاحظة في الـ payload
+      const payload = { name, phone, clinic, month, time, note, key: Date.now().toString() };
 
       try {
         const res  = await fetch('/api/book', {
