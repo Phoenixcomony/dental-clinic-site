@@ -723,6 +723,162 @@ app.post('/api/update-identity', async (req, res) => {
   }
 });
 
+/** ===== API: /api/create-patient =====
+ * فحص مسبق للهاتف → إن موجود نوقف ونرجّع phone_exists
+ * فتح صفحة ملف جديد بخطة A/B + قبول Dialogs
+ * كتابة الهاتف ببطء ثم فحص تحذير التكرار قبل/بعد الحفظ
+ */
+app.post('/api/create-patient', async (req, res) => {
+  const MASTER_TIMEOUT_MS = 90000;
+  const masterTimeout = new Promise((_, rej)=> setTimeout(()=>rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
+
+  const handler = (async ()=>{
+    try{
+      let { fullName, phone, nationalId, gender, nationalityValue, day, month, year, otp } = req.body || {};
+
+      const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
+      const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
+      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
+
+      if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
+      if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
+      if(!nationalId)             return res.json({ success:false, message:'رقم الهوية مطلوب' });
+      if(!gender)                 gender='1';
+      if(!day || !month || !year) return res.json({ success:false, message:'تاريخ الميلاد (يوم/شهر/سنة) مطلوب' });
+      if(!verifyOtpInline(phone, otp)) return res.json({ success:false, message:'OTP غير صحيح', reason:'otp' });
+
+      const phone05 = toLocal05(phone);
+
+      const browser = await launchBrowserSafe();
+      const page = await browser.newPage(); await prepPage(page);
+      page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
+
+      let account=null;
+      try{
+        account = await acquireAccountWithTimeout(20000);
+        await loginToImdad(page, account);
+
+        // فحص مسبق للهاتف
+        if (await existsPatientByPhone(page, phone05)) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({
+            success:false,
+            reason:'phone_exists',
+            message:'لديك ملف مسجل لدينا، الرجاء تسجيل الدخول'
+          });
+        }
+
+        // فتح صفحة "فتح ملف جديد"
+        const opened = await openNewFilePage(page);
+        if (!opened) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({ success:false, message:'تعذّر فتح صفحة الملف الجديد' });
+        }
+
+        await page.waitForSelector('#fname', { timeout: 30000 });
+        await page.waitForSelector('#phone', { timeout: 30000 });
+
+        // الاسم + الهوية
+        await page.$eval('#fname', (el,v)=>{ el.value=v; }, _normalize(fullName));
+        await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
+
+        // تاريخ الميلاد
+        await page.select('#day12',   String(day));
+        await page.select('#month12', String(month));
+        await page.select('#year12',  String(year));
+
+        // الجنس
+        await page.select('#gender', String(gender));
+
+        // الجنسية (اختياري)
+        if (nationalityValue) {
+          await page.evaluate((val)=>{
+            const sel = document.querySelector('#n');
+            if(!sel) return;
+            if ([...sel.options].some(o=>o.value===String(val))) {
+              sel.value = String(val);
+              sel.dispatchEvent(new Event('change', {bubbles:true}));
+            }
+          }, String(nationalityValue));
+        }
+
+        // ====== كتابة الجوال ببطء ثم انتظار ثانيتين للتحذير ======
+        async function typePhoneSlowAndEnsure(p){
+          await page.$eval('#phone', (el)=>{ el.value=''; });
+          for(let i=0;i<p.length;i++){
+            const ch = p[i];
+            const delay = i>=7 ? 160 : 120;
+            await page.type('#phone', ch, { delay });
+          }
+          await sleep(350);
+          const readBack = await page.$eval('#phone', el => (el.value||'').trim());
+          const digits = toAsciiDigits(readBack).replace(/\D/g,'');
+          if(!/^05\d{8}$/.test(digits)){
+            await page.$eval('#phone', (el)=>{ el.value=''; });
+            for(const ch of p){ await page.type('#phone', ch, { delay: 170 }); }
+            await sleep(450);
+          }
+        }
+
+        await typePhoneSlowAndEnsure(phone05);
+
+        // تحذير التكرار قبل الحفظ
+        await sleep(2000);
+        if (await isDuplicatePhoneWarning(page)) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({
+            success:false,
+            reason:'phone_exists',
+            message:'لديك ملف مسجل لدينا، الرجاء تسجيل الدخول'
+          });
+        }
+
+        // حفظ
+        await page.waitForSelector('#submit', { timeout: 20000 });
+        await page.evaluate(() => {
+          const btn = document.querySelector('#submit');
+          if (btn) { btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); }
+        });
+
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(()=>{});
+        await sleep(1500);
+
+        // فحص متأخر للتحذير
+        if (await isDuplicatePhoneWarning(page)) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({
+            success:false,
+            reason:'phone_exists',
+            message:'لديك ملف مسجل لدينا، الرجاء تسجيل الدخول'
+          });
+        }
+
+        await browser.close(); if(account) releaseAccount(account);
+        return res.json({ success:true, message:'تم إنشاء الملف بنجاح' });
+
+      }catch(e){
+        console.error('/api/create-patient error', e?.message||e);
+        try{ await browser.close(); }catch(_){}
+        if(account) releaseAccount(account);
+        if(String(e?.message||e)==='imdad_busy'){
+          return res.json({ success:false, reason:'imdad_busy', message:'النظام مشغول حاليًا، حاول بعد قليل' });
+        }
+        if(String(e?.message||e)==='timeout_master'){
+          return res.json({ success:false, reason:'timeout', message:'المهلة انتهت أثناء إنشاء الملف' });
+        }
+        return res.json({ success:false, message:'فشل إنشاء الملف: ' + (e?.message||e) });
+      }
+    }catch(e){
+      return res.json({ success:false, message:'خطأ غير متوقع' });
+    }
+  })();
+
+  Promise.race([handler, masterTimeout]).catch(async (_e)=>{
+    try { return res.json({ success:false, reason:'timeout', message:'المهلة انتهت' }); }
+    catch(_) { /* ignore */ }
+  });
+});
+
 /** ===== Helper: تطبيق "1 month" قبل اختيار الشهر (موثوق) =====
  * يبحث في كل <select> عن خيار نصه "1 month" أو قيمته تحتوي day_no=30
  * ثم يغير select ويطلق change، وإذا كانت القيمة رابط appoint_display.php يوجّه الصفحة.
@@ -758,7 +914,8 @@ async function applyOneMonthView(page){
  * يقبل: clinic, month, period(optional: 'morning' | 'evening')
  * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
  * ✅ تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
- * ✅ استثناءات خاصة حسب طلب العميل (أسفل)
+ * ✅ استثناء خاص: "عيادة الجلدية والتجميل**الفترة الثانية" = 15:00–22:00
+ * ✅ الباقي: صباحي 08:00–11:30، مسائي 16:00–22:00
  */
 app.post('/api/times', async (req, res) => {
   try {
@@ -772,37 +929,15 @@ app.post('/api/times', async (req, res) => {
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
     const effectivePeriod = period || autoPeriod; // تُفضَّل period لو مررتها الواجهة
 
-    // ⚠️ استثناء قديم للجلدية والتجميل (نُبقيه كما هو ما لم يوجد استثناء جديد)
+    // ⚠️ استثناء خاص للمسائية في "الجلدية والتجميل"
     const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل**الفترة الثانية';
+    const isDermEvening = clinicStr === DERM_EVENING_VALUE;
 
     // Helpers
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-
-    // النطاقات الافتراضية
-    const DEFAULTS = {
-      morning: { start: '08:00', end: '11:30' },    // 08:00 → 11:30
-      evening: { start: '16:00', end: '22:00' }     // 16:00 → 22:00
-    };
-
-    // الاستثناءات حسب طلبك:
-    const EX = {
-      'عيادة الاسنان 1**الفترة الاولى': { morning: { start:'09:00', end:'11:30' } },
-      'عيادة الاسنان 1**الفترة الثانية': { evening: { start:'16:00', end:'20:30' } },
-      'عيادة الاسنان 2**الفترة الاولى': { morning: { start:'08:00', end:'10:30' } },
-      'عيادة الاسنان 2**الفترة الثانية': { evening: { start:'16:00', end:'20:30' } },
-      'عيادة اسنان 5**الفترة الثانية':    { evening: { start:'12:00', end:'19:30' } },
-      'عيادة الاسنان 4**الفترة الثانية': { evening: { start:'14:00', end:'21:30' } },
-      'عيادة تنظيف البشرة**الفترة الثانية': { evening: { start:'14:00', end:'22:30' } },
-    };
-
-    const inRange = (t, start, end)=>{
-      const m = timeToMinutes(t);
-      return m >= timeToMinutes(start) && m <= timeToMinutes(end);
-    };
-
-    // خاص للجلدية والتجميل (إن لم يوجد استثناء صريح)
-    const isDermEvening = clinicStr === DERM_EVENING_VALUE;
+    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };                 // 08:00 → 11:30
+    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; }; // 15:00(الجلدية) أو 16:00 → 22:00
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -846,28 +981,9 @@ app.post('/api/times', async (req, res) => {
         return out;
       });
 
-      // حدد النطاق المستعمل (استثناء إن وُجد، وإلا الافتراضي)
-      const ex = EX[clinicStr] || {};
-      let range = null;
-
-      if (effectivePeriod === 'morning') {
-        range = ex.morning || DEFAULTS.morning;
-      } else if (effectivePeriod === 'evening') {
-        // لو عندنا استثناء صريح → استعمله
-        if (ex.evening) {
-          range = ex.evening;
-        } else if (isDermEvening) {
-          // استثناء الجلدية والتجميل القديم (15:00–22:00) إن لم يُذكر خلافه
-          range = { start: '15:00', end: DEFAULTS.evening.end };
-        } else {
-          range = DEFAULTS.evening;
-        }
-      }
-
       let filtered = raw;
-      if (range) {
-        filtered = raw.filter(x => x.time24 && inRange(x.time24, range.start, range.end));
-      }
+      if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
+      if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
 
       const times = filtered.map(x => ({
         value: x.value,
@@ -911,10 +1027,9 @@ async function processQueue(){
 }
 
 /** ===== Booking flow (CONFIRM) =====
- * ✅ إذا أرسل العميل ملاحظة (note) نكتبها كما هي في إمداد
- * ✅ إذا لم يُرسل ملاحظة → نترك خانة الملاحظات فارغة (لا نضيف "حجز أوتوماتيكي")
+ * ✅ ملاحظة تلقائية لعيادة تنظيف البشرة (صباحي/مسائي)
  */
-async function bookNow({ name, phone, clinic, month, time, note, account }){
+async function bookNow({ name, phone, clinic, month, time, account }){
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
@@ -978,10 +1093,15 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
 
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
 
-    // ✅ الملاحظات: فقط إذا أرسلت من الواجهة
-    if (typeof note === 'string' && note.trim()) {
-      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
-    }
+    // ✅ ملاحظة خاصة لعيادة تنظيف البشرة (صباحي/مسائي)
+    const CLEANING_MORNING = 'عيادة تنظيف البشرة**الفترة الاولى';
+    const CLEANING_EVENING = 'عيادة تنظيف البشرة**الفترة الثانية';
+    const CLEANING_NOTE = 'تتضمن الخدمه تقشير وجه نص ساعه +تقشير حواجب نص ساعه تنضيف البشره نص ساعه  -تنضيف  المده ساعه';
+    const noteToUse =
+      (clinic === CLEANING_MORNING || clinic === CLEANING_EVENING)
+        ? CLEANING_NOTE
+        : 'حجز أوتوماتيكي';
+    await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, noteToUse);
 
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
