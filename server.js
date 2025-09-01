@@ -125,7 +125,7 @@ function releaseAccount(a) {
 }
 
 /** ===== Helpers (hardened) ===== */
-function normalizeArabic(s=''){ return (s||'').replace(/\s+/g,' ').trim(); }
+function normalizeArabic(s=''){ return (s||'').replace(/\س+/g,' ').trim(); }
 function toAsciiDigits(s='') {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(s).replace(/[٠-٩]/g, d => map[d] || d);
@@ -738,7 +738,7 @@ app.post('/api/create-patient', async (req, res) => {
 
       const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
       const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
-      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
+      const _normalize = (s='') => (s||'').replace(/\س+/g,' ').trim();
 
       if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
       if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
@@ -1015,7 +1015,7 @@ async function processQueue(){
   let account=null;
   try{
     account = await acquireAccount();
-    const msg = await bookNow({ ...req.body, account });
+    const msg = await bookNow({ ...req.body, account }); // ← يمرر note إن وجد
     res.json({ msg });
   }catch(e){
     res.json({ msg:'❌ فشل الحجز! '+(e?.message||String(e)) });
@@ -1026,10 +1026,11 @@ async function processQueue(){
   }
 }
 
-/** ===== Booking flow (CONFIRM) =====
- * ✅ ملاحظة تلقائية لعيادة تنظيف البشرة (صباحي/مسائي)
+/** ===== Booking flow (USES USER NOTE IF PROVIDED) =====
+ * ✅ إذا أرسل العميل ملاحظة (note) نكتبها كما هي في إمداد
+ * ✅ إذا لم يُرسل ملاحظة → نترك خانة الملاحظات فارغة (بدون نص تلقائي)
  */
-async function bookNow({ name, phone, clinic, month, time, account }){
+async function bookNow({ name, phone, clinic, month, time, note, account }){
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
@@ -1093,15 +1094,13 @@ async function bookNow({ name, phone, clinic, month, time, account }){
 
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
 
-    // ✅ ملاحظة خاصة لعيادة تنظيف البشرة (صباحي/مسائي)
-    const CLEANING_MORNING = 'عيادة تنظيف البشرة**الفترة الاولى';
-    const CLEANING_EVENING = 'عيادة تنظيف البشرة**الفترة الثانية';
-    const CLEANING_NOTE = 'تتضمن الخدمه تقشير وجه نص ساعه +تقشير حواجب نص ساعه تنضيف البشره نص ساعه  -تنضيف  المده ساعه';
-    const noteToUse =
-      (clinic === CLEANING_MORNING || clinic === CLEANING_EVENING)
-        ? CLEANING_NOTE
-        : 'حجز أوتوماتيكي';
-    await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, noteToUse);
+    // ✅ الملاحظات من المستخدم فقط (بدون نص تلقائي)
+    if (typeof note === 'string' && note.trim()) {
+      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
+    } else {
+      // اضمن بقاء الحقل فارغًا
+      await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
+    }
 
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
