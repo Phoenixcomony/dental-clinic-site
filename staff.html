@@ -6,28 +6,41 @@
   <title>لوحة الأداء - Phoenix Staff</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
+    /* منع التمدد الأفقي */
+    html, body { max-width: 100%; overflow-x: hidden; }
+
     body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background:#f7f6f2; padding:16px; }
-    .wrap { max-width: 1100px; margin: 0 auto; }
+    .wrap { max-width: 1100px; margin: 0 auto; min-width: 0; }
+
     .head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
     .head h1 { font-size: 1.35rem; margin: 0; color:#624c18; }
-    .key { display:flex; gap:8px; align-items:center; }
-    .key input { padding:8px; border-radius:10px; border:1px solid #e0d4b0; width: 260px; }
-    .btn { background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); border:0; padding:8px 14px; border-radius:10px; color:#fff; font-weight:bold; cursor:pointer; }
-    .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:14px 0; }
+
+    .key { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .key input { padding:8px; border-radius:10px; border:1px solid #e0d4b0; flex: 1 1 260px; max-width: 100%; }
+    .btn { background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); border:0; padding:8px 14px; border-radius:10px; color:#fff; font-weight:bold; cursor:pointer; white-space: nowrap; }
+
+    .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:14px 0; min-width: 0; }
     .card { background:#fff; border-radius:14px; padding:14px; box-shadow:0 4px 20px #e2be6d2f; }
     .card h3 { margin:0 0 6px 0; font-size:0.95rem; color:#7a6741; }
     .num { font-size:1.8rem; color:#000; font-weight:bold; }
-    table { width:100%; border-collapse: collapse; background:#fff; box-shadow:0 4px 20px #e2be6d2f; border-radius:14px; overflow:hidden; }
-    th, td { padding:10px; border-bottom:1px solid #f1e7c8; text-align:right; }
+
+    .grid { display:grid; grid-template-columns: 1fr; gap:14px; margin-top:16px; min-width: 0; }
+    @media (min-width: 900px){ .grid { grid-template-columns: 1fr 1fr; } }
+    .panel { background:#fff; border-radius:14px; padding:14px; box-shadow:0 4px 20px #e2be6d2f; min-width: 0; overflow: hidden; }
+    .panel h3 { margin:0 0 10px 0; font-size:0.95rem; color:#7a6741; }
+
+    /* الكانفس لا يتجاوز الحاوية */
+    canvas { display:block; width:100% !important; max-width:100% !important; height:360px; }
+
+    /* الجداول */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width:100%; border-collapse: collapse; background:#fff; box-shadow:0 4px 20px #e2be6d2f; border-radius:14px; overflow:hidden; table-layout: fixed; }
+    th, td { padding:10px; border-bottom:1px solid #f1e7c8; text-align:right; white-space: normal; word-break: break-word; }
     th { background:#fff8df; color:#7a6741; }
     tr:last-child td { border-bottom:0; }
+
     .muted { color:#8d7a54; font-size:0.9rem; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:14px; margin-top:16px; }
-    @media (min-width: 900px){ .grid { grid-template-columns: 1fr 1fr; } }
-    .panel { background:#fff; border-radius:14px; padding:14px; box-shadow:0 4px 20px #e2be6d2f; }
-    .panel h3 { margin:0 0 10px 0; font-size:0.95rem; color:#7a6741; }
     .foot { margin-top:14px; color:#8d7a54; font-size:0.85rem; }
-    canvas { width:100%; height:360px; }
   </style>
 
   <!-- Chart.js CDN -->
@@ -68,20 +81,24 @@
     </div>
 
     <h3 class="muted" style="margin: 16px 2px;">حسب العيادة</h3>
-    <table>
-      <thead>
-        <tr><th>العيادة</th><th>عدد الوصول</th></tr>
-      </thead>
-      <tbody id="clinicBody"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>العيادة</th><th>عدد الوصول</th></tr>
+        </thead>
+        <tbody id="clinicBody"></tbody>
+      </table>
+    </div>
 
     <h3 class="muted" style="margin: 16px 2px;">حسب التاريخ (اليوميات)</h3>
-    <table>
-      <thead>
-        <tr><th>التاريخ</th><th>عدد الوصول</th></tr>
-      </thead>
-      <tbody id="dateBody"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>التاريخ</th><th>عدد الوصول</th></tr>
+        </thead>
+        <tbody id="dateBody"></tbody>
+      </table>
+    </div>
 
     <div class="foot">
       ملاحظة: endpoint المستخدم <code>/api/stats/summary</code> يتطلب تمرير المفتاح في الهيدر <code>x-staff-key</code> أو كـ <code>?key=</code>.
@@ -142,8 +159,7 @@
 
     function buildDailySeries(byDate){
       const entries = Object.entries(byDate || {}).map(([d, v])=>({d, v:Number(v||0)}));
-      // ترتيب تصاعدي حسب التاريخ
-      entries.sort((a,b)=> a.d.localeCompare(b.d));
+      entries.sort((a,b)=> a.d.localeCompare(b.d)); // تصاعدي
       return {
         labels: entries.map(e=>e.d),
         data: entries.map(e=>e.v)
@@ -160,7 +176,6 @@
     }
 
     function renderCharts(db){
-      // تدمير السابق عند التحديث
       if (dailyChart) dailyChart.destroy();
       if (clinicChart) clinicChart.destroy();
 
@@ -207,7 +222,7 @@
         },
         options: {
           maintainAspectRatio: false,
-          indexAxis: clinics.labels.length > 6 ? 'y' : 'x', // لو كثير عيادات اعرض أفقي
+          indexAxis: clinics.labels.length > 6 ? 'y' : 'x',
           scales: {
             x: { ticks: { autoSkip: false }, beginAtZero: true },
             y: { beginAtZero: true, precision: 0 }
@@ -225,9 +240,7 @@
       const key = document.getElementById('staffKey').value.trim();
       if (!key){ return alert('فضلاً أدخل STAFF_KEY'); }
       try{
-        const res = await fetch('/api/stats/summary', {
-          headers: { 'x-staff-key': key }
-        });
+        const res = await fetch('/api/stats/summary', { headers: { 'x-staff-key': key } });
         if (!res.ok){
           const info = await res.json().catch(()=>({}));
           throw new Error(info.error || ('HTTP '+res.status));
