@@ -6,56 +6,23 @@
   <title>لوحة الأداء - Phoenix Staff</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    /* منع أي تمدد أفقي للصفحة */
-    html, body { max-width: 100%; overflow-x: hidden; }
-
     body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background:#f7f6f2; padding:16px; }
-    .wrap { max-width: 1100px; margin: 0 auto; min-width: 0; }
-
+    .wrap { max-width: 980px; margin: 0 auto; }
     .head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
     .head h1 { font-size: 1.35rem; margin: 0; color:#624c18; }
-
-    .key { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    .key input { padding:8px; border-radius:10px; border:1px solid #e0d4b0; flex: 1 1 260px; max-width: 100%; }
-    .btn { background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); border:0; padding:8px 14px; border-radius:10px; color:#fff; font-weight:bold; cursor:pointer; white-space: nowrap; }
-
-    .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:14px 0; min-width: 0; }
+    .key { display:flex; gap:8px; align-items:center; }
+    .key input { padding:8px; border-radius:10px; border:1px solid #e0d4b0; width: 240px; }
+    .btn { background: linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%); border:0; padding:8px 14px; border-radius:10px; color:#fff; font-weight:bold; cursor:pointer; }
+    .cards { display:grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:14px 0; }
     .card { background:#fff; border-radius:14px; padding:14px; box-shadow:0 4px 20px #e2be6d2f; }
     .card h3 { margin:0 0 6px 0; font-size:0.95rem; color:#7a6741; }
     .num { font-size:1.8rem; color:#000; font-weight:bold; }
-
-    /* شبكة الرسوم: مثل Google Console — عمودين على الديسكتوب، عمود واحد على الجوال */
-    .grid { display:grid; grid-template-columns: 1fr; gap:14px; margin-top:16px; min-width: 0; }
-    @media (min-width: 900px){ .grid { grid-template-columns: 1fr 1fr; } }
-
-    /* بانل الرسم مرن: العنوان فوق والرسم يشغل الباقي */
-    .panel {
-      background:#fff; border-radius:14px; padding:14px;
-      box-shadow:0 4px 20px #e2be6d2f; min-width:0; overflow:hidden;
-      display:flex; flex-direction:column;
-    }
-    .panel h3 { margin:0 0 10px 0; font-size:0.95rem; color:#7a6741; }
-
-    /* حاوية الرسم بارتفاع ثابت لمنع التمدد العمودي */
-    .chart-wrap { flex:1; height: 320px; max-height: 320px; }
-    @media (max-width: 480px){ .chart-wrap { height: 240px; max-height:240px; } }
-
-    /* الكانفس يملأ الحاوية بالكامل */
-    .chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
-
-    /* الجداول داخل حاويات تمرير أفقي عند الحاجة */
-    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width:100%; border-collapse: collapse; background:#fff; box-shadow:0 4px 20px #e2be6d2f; border-radius:14px; overflow:hidden; table-layout: fixed; }
-    th, td { padding:10px; border-bottom:1px solid #f1e7c8; text-align:right; white-space: normal; word-break: break-word; }
+    table { width:100%; border-collapse: collapse; background:#fff; box-shadow:0 4px 20px #e2be6d2f; border-radius:14px; overflow:hidden; }
+    th, td { padding:10px; border-bottom:1px solid #f1e7c8; text-align:right; }
     th { background:#fff8df; color:#7a6741; }
     tr:last-child td { border-bottom:0; }
-
     .muted { color:#8d7a54; font-size:0.9rem; }
-    .foot { margin-top:14px; color:#8d7a54; font-size:0.85rem; }
   </style>
-
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -80,55 +47,40 @@
       </div>
     </div>
 
-    <div class="grid">
-      <div class="panel">
-        <h3>الزمنية اليومية</h3>
-        <div class="chart-wrap">
-          <canvas id="dailyChart" aria-label="مخطط اليوميات"></canvas>
-        </div>
-      </div>
-      <div class="panel">
-        <h3>التوزيع حسب العيادة</h3>
-        <div class="chart-wrap">
-          <canvas id="clinicChart" aria-label="مخطط العيادات"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <h3 class="muted" style="margin: 16px 2px;">حسب العيادة</h3>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>العيادة</th><th>عدد الوصول</th></tr>
-        </thead>
-        <tbody id="clinicBody"></tbody>
-      </table>
-    </div>
+    <h3 class="muted" style="margin: 10px 2px;">حسب العيادة</h3>
+    <table>
+      <thead>
+        <tr><th>العيادة</th><th>عدد الوصول</th></tr>
+      </thead>
+      <tbody id="clinicBody"></tbody>
+    </table>
 
     <h3 class="muted" style="margin: 16px 2px;">حسب التاريخ (اليوميات)</h3>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>التاريخ</th><th>عدد الوصول</th></tr>
-        </thead>
-        <tbody id="dateBody"></tbody>
-      </table>
-    </div>
-
-    <div class="foot">
-      ملاحظة: endpoint المستخدم <code>/api/stats/summary</code> يتطلب تمرير المفتاح في الهيدر <code>x-staff-key</code> أو كـ <code>?key=</code>.
-    </div>
+    <table>
+      <thead>
+        <tr><th>التاريخ</th><th>عدد الوصول</th></tr>
+      </thead>
+      <tbody id="dateBody"></tbody>
+    </table>
   </div>
 
   <script>
-    // ==== تنسيقات مساعدة ====
     function formatNum(n){ return new Intl.NumberFormat('ar-EG').format(n || 0); }
-    function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
-
-    // ==== جداول HTML ====
-    function renderTables(db){
+    function todayKey(){
+      const d = new Date();
+      return d.toISOString().slice(0,10);
+    }
+    function renderSummary(db){
+      const totalEl = document.getElementById('total');
+      const todayEl = document.getElementById('today');
+      const todayLbl = document.getElementById('todayDate');
       const clinicBody = document.getElementById('clinicBody');
       const dateBody = document.getElementById('dateBody');
+
+      totalEl.textContent = formatNum(db.total);
+      const tKey = todayKey();
+      todayEl.textContent = formatNum((db.byDate && db.byDate[tKey]) || 0);
+      todayLbl.textContent = tKey;
 
       // حسب العيادة
       clinicBody.innerHTML = '';
@@ -145,7 +97,7 @@
 
       // حسب التاريخ
       dateBody.innerHTML = '';
-      const dates = Object.entries(db.byDate || {}).sort((a,b)=> a[0] < b[0] ? 1 : -1);
+      const dates = Object.entries(db.byDate || {}).sort((a,b)=>a[0] < b[0] ? 1 : -1);
       if (!dates.length){
         dateBody.innerHTML = '<tr><td colspan="2" class="muted">لا توجد بيانات بعد</td></tr>';
       } else {
@@ -157,123 +109,29 @@
       }
     }
 
-    // ==== بطاقات الملخص ====
-    function renderCards(db){
-      const totalEl = document.getElementById('total');
-      const todayEl = document.getElementById('today');
-      const todayLbl = document.getElementById('todayDate');
-
-      totalEl.textContent = formatNum(db.total || 0);
-      const tKey = todayKey();
-      todayEl.textContent = formatNum((db.byDate && db.byDate[tKey]) || 0);
-      todayLbl.textContent = tKey;
-    }
-
-    // ==== الرسوم البيانية (Chart.js) ====
-    let dailyChart, clinicChart;
-
-    function buildDailySeries(byDate){
-      const entries = Object.entries(byDate || {}).map(([d, v])=>({d, v:Number(v||0)}));
-      entries.sort((a,b)=> a.d.localeCompare(b.d)); // تصاعدي
-      return { labels: entries.map(e=>e.d), data: entries.map(e=>e.v) };
-    }
-
-    function buildClinicSeries(byClinic){
-      const entries = Object.entries(byClinic || {}).map(([k, v])=>({k, v:Number(v||0)}));
-      entries.sort((a,b)=> b.v - a.v);
-      return { labels: entries.map(e=>e.k || '—'), data: entries.map(e=>e.v) };
-    }
-
-    function renderCharts(db){
-      if (dailyChart) dailyChart.destroy();
-      if (clinicChart) clinicChart.destroy();
-
-      // Daily (Line) — بعرض الحاوية
-      const daily = buildDailySeries(db.byDate);
-      const dailyCtx = document.getElementById('dailyChart').getContext('2d');
-      dailyChart = new Chart(dailyCtx, {
-        type: 'line',
-        data: {
-          labels: daily.labels,
-          datasets: [{
-            label: 'وصولات يومية',
-            data: daily.data,
-            tension: 0.25,
-            borderWidth: 2,
-            pointRadius: 3
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,  // يعتمد على chart-wrap
-          scales: {
-            x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
-            y: { beginAtZero: true, precision: 0 }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: { rtl: true, textDirection: 'rtl' }
-          }
-        }
-      });
-
-      // Clinics (Horizontal Bar) — مثل Google Console
-      const clinics = buildClinicSeries(db.byClinic);
-      const clinicCtx = document.getElementById('clinicChart').getContext('2d');
-      clinicChart = new Chart(clinicCtx, {
-        type: 'bar',
-        data: {
-          labels: clinics.labels,
-          datasets: [{
-            label: 'عدد الوصول',
-            data: clinics.data,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,  // يعتمد على chart-wrap
-          indexAxis: 'y',              // أعمدة أفقية
-          scales: {
-            x: { beginAtZero: true, precision: 0, ticks: { autoSkip: false } },
-            y: { ticks: { autoSkip: false } }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: { rtl: true, textDirection: 'rtl' }
-          }
-        }
-      });
-    }
-
-    // ==== جلب البيانات وتحديث كل شيء ====
     async function loadStats(){
       const key = document.getElementById('staffKey').value.trim();
       if (!key){ return alert('فضلاً أدخل STAFF_KEY'); }
       try{
-        const res = await fetch('/api/stats/summary', { headers: { 'x-staff-key': key } });
+        const res = await fetch('/api/stats/summary', {
+          headers: { 'x-staff-key': key }
+        });
         if (!res.ok){
           const info = await res.json().catch(()=>({}));
           throw new Error(info.error || ('HTTP '+res.status));
         }
         const data = await res.json();
         if (!data.ok) throw new Error('طلب غير صالح');
-
-        renderCards(data);
-        renderTables(data);
-        renderCharts(data);
+        renderSummary(data);
       } catch(e){
         alert('تعذّر جلب الإحصاءات: ' + e.message);
       }
     }
 
     document.getElementById('loadBtn').addEventListener('click', loadStats);
-
-    // (اختياري) تحديث تلقائي كل 60 ثانية بعد أول تحميل ناجح:
-    // let autoTimer=null;
-    // document.getElementById('loadBtn').addEventListener('click', async ()=>{
-    //   await loadStats();
-    //   if (autoTimer) clearInterval(autoTimer);
-    //   autoTimer = setInterval(loadStats, 60000);
-    // });
+    // اختياري: حمّل تلقائيًا إذا خزّنا المفتاح سابقًا
+    // document.getElementById('staffKey').value = localStorage.getItem('staff_key') || '';
+    // document.getElementById('loadBtn').click();
   </script>
 </body>
 </html>
