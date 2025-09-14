@@ -191,8 +191,7 @@
     <label for="month" style="margin-top:10px;">اختر الشهر</label>
     <select id="month">
       <option value="">اختر الشهر</option>
-
-      
+    
       <option value="9">سبتمبر</option>
       <option value="10">أكتوبر</option>
       <option value="11">نوفمبر</option>
@@ -386,7 +385,6 @@
         startOtpTimer(60);
         return true;
       } else {
-        // إذا رجع السيرفر 429 مع retryAfter
         if (data.retryAfter){
           loginMsg.textContent = 'يرجى الانتظار ' + data.retryAfter + 'ث قبل إعادة الإرسال.';
           startOtpTimer(Number(data.retryAfter)||60);
@@ -491,13 +489,28 @@
   const noteWrap  = document.getElementById('noteWrap');
   const noteInput = document.getElementById('note');
 
+  // دالة لتفريغ النتائج وإجبار إعادة العرض
+  function resetTimes(trigger=''){
+    timeSel.innerHTML = `<option value="">يرجى الضغط على "عرض المواعيد" بعد التغيير</option>`;
+    timeSel.disabled = true;
+    goConfirm.disabled = true;
+    bkMsg.textContent = trigger === 'clinic'
+      ? 'تم تغيير العيادة — اعرض المواعيد من جديد.'
+      : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
+  }
+
   // إظهار الملاحظة الخاصة لعيادة تنظيف البشرة فقط + إظهار خانة "نوع الخدمة/ملاحظة" عند اختيار أي عيادة
   clinicSel.addEventListener('change', ()=>{
     const v = clinicSel.value || '';
     const isCleaning = v.startsWith('عيادة تنظيف البشرة'); // فقط تنظيف البشرة
     dermNote.style.display = isCleaning ? 'block' : 'none';
     noteWrap.style.display = v ? 'block' : 'none';
+    // تفريغ الأوقات عند تغيير العيادة
+    resetTimes('clinic');
   });
+
+  // تفريغ الأوقات عند تغيير الشهر
+  monthSel.addEventListener('change', ()=> resetTimes('month'));
 
   fetchBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
@@ -555,7 +568,7 @@
     localStorage.setItem('pending_month', monthSel.value);
     localStorage.setItem('pending_time', timeSel.value);
 
-    // حفظ الملاحظة/نوع الخدمة لإرسالها مع التأكيد (الباك إند يضيفها في ملاحظات امداد)
+    // حفظ الملاحظة/نوع الخدمة لإرسالها مع التأكيد
     localStorage.setItem('pending_note', (noteInput.value || '').trim());
 
     window.location.href = 'confirm.html';
