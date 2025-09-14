@@ -690,3 +690,21 @@ footer {
 }
 
 
+/* الشبكة: عمودين على الديسكتوب، عمود واحد على الجوال */
+.grid { display:grid; grid-template-columns: 1fr; gap:14px; margin-top:16px; }
+@media (min-width: 900px){ .grid { grid-template-columns: 1fr 1fr; } }
+
+/* بانل مرن (عنوان فوق، الرسم يشغل الباقي) */
+.panel {
+  background:#fff; border-radius:14px; padding:14px;
+  box-shadow:0 4px 20px #e2be6d2f; min-width:0; overflow:hidden;
+  display:flex; flex-direction:column;
+}
+.panel h3 { margin:0 0 10px 0; font-size:0.95rem; color:#7a6741; }
+
+/* حاوية الرسم: ارتفاع ثابت (مثل GSC) */
+.chart-wrap { flex:1; height: 320px; max-height: 320px; }
+@media (max-width: 480px){ .chart-wrap { height: 240px; max-height:240px; } }
+
+/* الكانفس يملأ الحاوية أفقياً وعمودياً */
+.chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
