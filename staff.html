@@ -80,6 +80,9 @@
       </div>
     </div>
 
+    <!-- آخر تحديث -->
+    <div class="muted" id="lastUpdate" style="margin-top:6px;">—</div>
+
     <div class="grid">
       <div class="panel">
         <h3>الزمنية اليومية</h3>
@@ -190,6 +193,9 @@
 
       // Daily (Line) — بعرض الحاوية
       const daily = buildDailySeries(db.byDate);
+      // حماية: لو ما فيه بيانات نعرض نقطة صفرية اليوم
+      if (daily.labels.length === 0) { daily.labels = [todayKey()]; daily.data = [0]; }
+
       const dailyCtx = document.getElementById('dailyChart').getContext('2d');
       dailyChart = new Chart(dailyCtx, {
         type: 'line',
@@ -204,7 +210,7 @@
           }]
         },
         options: {
-          maintainAspectRatio: false,  // يعتمد على chart-wrap
+          maintainAspectRatio: false,
           scales: {
             x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
             y: { beginAtZero: true, precision: 0 }
@@ -218,6 +224,8 @@
 
       // Clinics (Horizontal Bar) — مثل Google Console
       const clinics = buildClinicSeries(db.byClinic);
+      if (clinics.labels.length === 0) { clinics.labels = ['—']; clinics.data = [0]; }
+
       const clinicCtx = document.getElementById('clinicChart').getContext('2d');
       clinicChart = new Chart(clinicCtx, {
         type: 'bar',
@@ -230,7 +238,7 @@
           }]
         },
         options: {
-          maintainAspectRatio: false,  // يعتمد على chart-wrap
+          maintainAspectRatio: false,
           indexAxis: 'y',              // أعمدة أفقية
           scales: {
             x: { beginAtZero: true, precision: 0, ticks: { autoSkip: false } },
@@ -245,7 +253,7 @@
     }
 
     // ==== جلب البيانات وتحديث كل شيء ====
-    async function loadStats(){
+    async function _loadStatsCore(){
       const key = document.getElementById('staffKey').value.trim();
       if (!key){ return alert('فضلاً أدخل STAFF_KEY'); }
       try{
@@ -260,19 +268,43 @@
         renderCards(data);
         renderTables(data);
         renderCharts(data);
+
+        // آخر تحديث
+        document.getElementById('lastUpdate').textContent =
+          'آخر تحديث: ' + new Date().toLocaleString('ar-SA');
       } catch(e){
         alert('تعذّر جلب الإحصاءات: ' + e.message);
       }
     }
 
+    async function loadStats(){
+      const key = document.getElementById('staffKey').value.trim();
+      if (key) sessionStorage.setItem('phoenix_staff_key', key);
+      return _loadStatsCore();
+    }
+
     document.getElementById('loadBtn').addEventListener('click', loadStats);
+
+    // حمّل تلقائيًا إن كان المفتاح محفوظ في نفس الجلسة
+    (function autoPrefillAndLoad(){
+      const saved = sessionStorage.getItem('phoenix_staff_key');
+      if (saved) {
+        document.getElementById('staffKey').value = saved;
+        _loadStatsCore();
+      }
+    })();
+
+    // اختصار Enter
+    document.getElementById('staffKey').addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter') loadStats();
+    });
 
     // (اختياري) تحديث تلقائي كل 60 ثانية بعد أول تحميل ناجح:
     // let autoTimer=null;
     // document.getElementById('loadBtn').addEventListener('click', async ()=>{
     //   await loadStats();
     //   if (autoTimer) clearInterval(autoTimer);
-    //   autoTimer = setInterval(loadStats, 60000);
+    //   autoTimer = setInterval(_loadStatsCore, 60000);
     // });
   </script>
 </body>

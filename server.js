@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -587,78 +587,6 @@ function verifyOtpInline(phone, otp){
   const rec = otpStore[intl];
   return !!(rec && String(rec.code)===String(otp));
 }
-
-/** ===== NEW: تتبّع الوصول لصفحة النجاح + ملخص الإحصاءات =====
- * التخزين في ملف JSON بسيط: metrics.json
- * البنية: { total: number, byDate: {YYYY-MM-DD: n}, byClinic: {clinicName: n} }
- */
-const METRICS_PATH = path.join(__dirname, 'metrics.json');
-const STAFF_KEY = process.env.STAFF_KEY || 'change-me-please';
-
-// تحميل/حفظ قاعدة الإحصاءات
-function loadMetrics() {
-  try {
-    if (!fs.existsSync(METRICS_PATH)) {
-      const init = { total: 0, byDate: {}, byClinic: {} };
-      fs.writeFileSync(METRICS_PATH, JSON.stringify(init, null, 2));
-      return init;
-    }
-    const raw = fs.readFileSync(METRICS_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    return {
-      total: parsed.total || 0,
-      byDate: parsed.byDate || {},
-      byClinic: parsed.byClinic || {}
-    };
-  } catch {
-    return { total: 0, byDate: {}, byClinic: {} };
-  }
-}
-function saveMetrics(db) {
-  try {
-    fs.writeFileSync(METRICS_PATH, JSON.stringify(db, null, 2));
-  } catch (e) {
-    console.error('saveMetrics error:', e?.message||e);
-  }
-}
-
-// API: تسجيل الوصول (يُستدعى من success.html)
-app.post('/api/track-success', (req, res) => {
-  try {
-    const { clinic = '', month = '' } = req.body || {};
-    const now = new Date();
-    const dateKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
-
-    const db = loadMetrics();
-    db.total = (db.total || 0) + 1;
-    db.byDate[dateKey] = (db.byDate[dateKey] || 0) + 1;
-
-    const clinicKey = String(clinic || '').trim();
-    if (clinicKey) db.byClinic[clinicKey] = (db.byClinic[clinicKey] || 0) + 1;
-
-    // (اختياري) يمكن أيضًا حفظ إحصاء حسب "month" لو أردت لاحقًا
-    saveMetrics(db);
-    return res.json({ ok: true });
-  } catch (e) {
-    console.error('/api/track-success error', e?.message||e);
-    return res.status(500).json({ ok:false, error:'failed' });
-  }
-});
-
-// API: ملخص الإحصاءات (محمي بمفتاح بسيط)
-app.get('/api/stats/summary', (req, res) => {
-  try {
-    const key = req.headers['x-staff-key'] || req.query.key;
-    if (!key || key !== STAFF_KEY) {
-      return res.status(401).json({ ok:false, error:'Unauthorized' });
-    }
-    const db = loadMetrics();
-    return res.json({ ok:true, ...db });
-  } catch (e) {
-    console.error('/api/stats/summary error', e?.message||e);
-    return res.status(500).json({ ok:false, error:'failed' });
-  }
-});
 
 /** ===== Search by name/phone → open patient ===== */
 app.post('/api/login', async (req, res) => {
@@ -1403,6 +1331,108 @@ app.post('/api/new-file', async (req, res) => {
     try { return res.json({ success:false, reason:'timeout', message:'المهلة انتهت' }); }
     catch(_) { /* ignore */ }
   });
+});
+
+/** =========================================================
+ *                 Persistent Metrics (stats.json)
+ * ========================================================= */
+const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
+const STAFF_KEY = process.env.STAFF_KEY || '';
+
+function ensureDir(p) {
+  try {
+    const dir = path.dirname(p);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    console.error('[metrics] ensureDir error:', e?.message || e);
+  }
+}
+function safeReadJSON(p, fallback) {
+  try {
+    if (!fs.existsSync(p)) return fallback;
+    const txt = fs.readFileSync(p, 'utf8');
+    return JSON.parse(txt);
+  } catch (e) {
+    console.error('[metrics] read error:', e?.message || e);
+    return fallback;
+  }
+}
+function safeWriteJSON(p, obj) {
+  try {
+    ensureDir(p);
+    const tmp = p + '.tmp';
+    const bak = p + '.bak';
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
+    if (fs.existsSync(p)) fs.copyFileSync(p, bak);
+    fs.renameSync(tmp, p);
+  } catch (e) {
+    console.error('[metrics] write error:', e?.message || e);
+  }
+}
+function loadMetrics() {
+  const init = { ok: true, total: 0, byClinic: {}, byDate: {} };
+  const main = safeReadJSON(METRICS_PATH, null);
+  if (main) return { ok: true, total: Number(main.total||0), byClinic: main.byClinic||{}, byDate: main.byDate||{} };
+  const backup = safeReadJSON(METRICS_PATH + '.bak', null);
+  if (backup) return { ok: true, total: Number(backup.total||0), byClinic: backup.byClinic||{}, byDate: backup.byDate||{} };
+  safeWriteJSON(METRICS_PATH, init);
+  return init;
+}
+let METRICS = loadMetrics();
+let _writing = false, _pendingWrite = false;
+function saveMetrics() {
+  if (_writing) { _pendingWrite = true; return; }
+  _writing = true;
+  try { safeWriteJSON(METRICS_PATH, METRICS); }
+  finally {
+    _writing = false;
+    if (_pendingWrite) { _pendingWrite = false; saveMetrics(); }
+  }
+}
+function todayKeyRiyadh() {
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' });
+  return fmt.format(new Date()); // YYYY-MM-DD
+}
+function incMetrics({ clinic }) {
+  const dateKey = todayKeyRiyadh();
+  METRICS.total = (Number(METRICS.total) || 0) + 1;
+  const c = (clinic || '').trim() || 'غير محدد';
+  METRICS.byClinic[c] = (Number(METRICS.byClinic[c]) || 0) + 1;
+  METRICS.byDate[dateKey] = (Number(METRICS.byDate[dateKey]) || 0) + 1;
+  saveMetrics();
+}
+
+/** Track success (called from success.html) */
+app.post('/api/track-success', (req, res) => {
+  try {
+    const { clinic } = req.body || {};
+    incMetrics({ clinic });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/track-success', e?.message || e);
+    return res.status(500).json({ ok: false, error: 'failed' });
+  }
+});
+
+/** Staff dashboard summary (protected) */
+app.get('/api/stats/summary', (req, res) => {
+  const key = req.headers['x-staff-key'] || req.query.key || '';
+  if (!STAFF_KEY || key !== STAFF_KEY) {
+    return res.status(403).json({ ok: false, error: 'Forbidden' });
+  }
+  METRICS = loadMetrics(); // حمّل آخر نسخة قبل الإرجاع
+  return res.json(METRICS);
+});
+
+/** Reset metrics (protected) */
+app.post('/api/stats/reset', (req, res) => {
+  const key = req.headers['x-staff-key'] || req.query.key || '';
+  if (!STAFF_KEY || key !== STAFF_KEY) {
+    return res.status(403).json({ ok: false, error: 'Forbidden' });
+  }
+  METRICS = { ok: true, total: 0, byClinic: {}, byDate: {} };
+  saveMetrics();
+  res.json({ ok: true });
 });
 
 /** ===== Health/Diag ===== */
