@@ -224,7 +224,28 @@
     // عرض رسالة الخادم إن وُجدت (بدون إجراء أي حجز من هنا)
     const srvMsg = localStorage.getItem('booking_result_msg');
     document.getElementById('statusMsg').textContent = srvMsg || '🚀 تم استلام بياناتك وسيتم تأكيد الحجز عبر النظام.';
-    
+
+    /* =========================================================
+       تتبّع الوصول لصفحة النجاح (بدون تعطيل تجربة المستخدم)
+       يُنفَّذ قبل تنظيف القيم من localStorage
+    ========================================================= */
+    (async () => {
+      try {
+        // نرسل أقل قدر من البيانات: العيادة + الشهر (بدون اسم/جوال)
+        await fetch('/api/track-success', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clinic: clinic || "",
+            month : month  || ""
+          })
+        });
+      } catch (e) {
+        // لا نُظهر أي خطأ للمستخدم
+        console.warn('track-success failed', e);
+      }
+    })();
+
     // تنظيف القيم بعد العرض
     localStorage.removeItem('booking_result_msg');
     localStorage.removeItem('pending_name');

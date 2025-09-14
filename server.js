@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -587,6 +587,78 @@ function verifyOtpInline(phone, otp){
   const rec = otpStore[intl];
   return !!(rec && String(rec.code)===String(otp));
 }
+
+/** ===== NEW: تتبّع الوصول لصفحة النجاح + ملخص الإحصاءات =====
+ * التخزين في ملف JSON بسيط: metrics.json
+ * البنية: { total: number, byDate: {YYYY-MM-DD: n}, byClinic: {clinicName: n} }
+ */
+const METRICS_PATH = path.join(__dirname, 'metrics.json');
+const STAFF_KEY = process.env.STAFF_KEY || 'change-me-please';
+
+// تحميل/حفظ قاعدة الإحصاءات
+function loadMetrics() {
+  try {
+    if (!fs.existsSync(METRICS_PATH)) {
+      const init = { total: 0, byDate: {}, byClinic: {} };
+      fs.writeFileSync(METRICS_PATH, JSON.stringify(init, null, 2));
+      return init;
+    }
+    const raw = fs.readFileSync(METRICS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return {
+      total: parsed.total || 0,
+      byDate: parsed.byDate || {},
+      byClinic: parsed.byClinic || {}
+    };
+  } catch {
+    return { total: 0, byDate: {}, byClinic: {} };
+  }
+}
+function saveMetrics(db) {
+  try {
+    fs.writeFileSync(METRICS_PATH, JSON.stringify(db, null, 2));
+  } catch (e) {
+    console.error('saveMetrics error:', e?.message||e);
+  }
+}
+
+// API: تسجيل الوصول (يُستدعى من success.html)
+app.post('/api/track-success', (req, res) => {
+  try {
+    const { clinic = '', month = '' } = req.body || {};
+    const now = new Date();
+    const dateKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const db = loadMetrics();
+    db.total = (db.total || 0) + 1;
+    db.byDate[dateKey] = (db.byDate[dateKey] || 0) + 1;
+
+    const clinicKey = String(clinic || '').trim();
+    if (clinicKey) db.byClinic[clinicKey] = (db.byClinic[clinicKey] || 0) + 1;
+
+    // (اختياري) يمكن أيضًا حفظ إحصاء حسب "month" لو أردت لاحقًا
+    saveMetrics(db);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/track-success error', e?.message||e);
+    return res.status(500).json({ ok:false, error:'failed' });
+  }
+});
+
+// API: ملخص الإحصاءات (محمي بمفتاح بسيط)
+app.get('/api/stats/summary', (req, res) => {
+  try {
+    const key = req.headers['x-staff-key'] || req.query.key;
+    if (!key || key !== STAFF_KEY) {
+      return res.status(401).json({ ok:false, error:'Unauthorized' });
+    }
+    const db = loadMetrics();
+    return res.json({ ok:true, ...db });
+  } catch (e) {
+    console.error('/api/stats/summary error', e?.message||e);
+    return res.status(500).json({ ok:false, error:'failed' });
+  }
+});
 
 /** ===== Search by name/phone → open patient ===== */
 app.post('/api/login', async (req, res) => {
