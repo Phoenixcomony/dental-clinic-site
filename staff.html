@@ -24,11 +24,10 @@
     .card h3 { margin:0 0 6px 0; font-size:0.95rem; color:#7a6741; }
     .num { font-size:1.8rem; color:#000; font-weight:bold; }
 
-    /* شبكة الرسوم: مثل Google Console — عمودين على الديسكتوب، عمود واحد على الجوال */
+    /* شبكة الرسوم */
     .grid { display:grid; grid-template-columns: 1fr; gap:14px; margin-top:16px; min-width: 0; }
     @media (min-width: 900px){ .grid { grid-template-columns: 1fr 1fr; } }
 
-    /* بانل الرسم مرن: العنوان فوق والرسم يشغل الباقي */
     .panel {
       background:#fff; border-radius:14px; padding:14px;
       box-shadow:0 4px 20px #e2be6d2f; min-width:0; overflow:hidden;
@@ -36,14 +35,11 @@
     }
     .panel h3 { margin:0 0 10px 0; font-size:0.95rem; color:#7a6741; }
 
-    /* حاوية الرسم بارتفاع ثابت لمنع التمدد العمودي */
     .chart-wrap { flex:1; height: 320px; max-height: 320px; }
     @media (max-width: 480px){ .chart-wrap { height: 240px; max-height:240px; } }
 
-    /* الكانفس يملأ الحاوية بالكامل */
     .chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
 
-    /* الجداول داخل حاويات تمرير أفقي عند الحاجة */
     .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     table { width:100%; border-collapse: collapse; background:#fff; box-shadow:0 4px 20px #e2be6d2f; border-radius:14px; overflow:hidden; table-layout: fixed; }
     th, td { padding:10px; border-bottom:1px solid #f1e7c8; text-align:right; white-space: normal; word-break: break-word; }
@@ -60,7 +56,7 @@
 <body>
   <div class="wrap">
     <div class="head">
-      <h1>لوحة الأداء    </h1>
+      <h1>لوحة الأداء</h1>
       <div class="key">
         <input id="staffKey" type="password" placeholder="ادخل STAFF_KEY" />
         <button class="btn" id="loadBtn">عرض الإحصاءات</button>
@@ -118,6 +114,17 @@
       </table>
     </div>
 
+    <!-- جديد: تفصيل يومي للعيادات -->
+    <h3 class="muted" style="margin: 16px 2px;">تفصيل يومي: العيادات لكل يوم</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>التاريخ</th><th>العيادات</th></tr>
+        </thead>
+        <tbody id="perDayBody"></tbody>
+      </table>
+    </div>
+
     <div class="foot">
       ملاحظة: endpoint المستخدم <code>/api/stats/summary</code> يتطلب تمرير المفتاح في الهيدر <code>x-staff-key</code> أو كـ <code>?key=</code>.
     </div>
@@ -128,6 +135,12 @@
     function formatNum(n){ return new Intl.NumberFormat('ar-EG').format(n || 0); }
     function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
 
+    // تطبيع اسم العيادة: استبدال "غير محدد" بالاسم المقصود
+    function normalizeClinic(name){
+      const n = (name || '').trim();
+      return (!n || n === 'غير محدد') ? 'عيادة الأسنان 4**الفترة الثانية' : n;
+    }
+
     // ==== جداول HTML ====
     function renderTables(db){
       const clinicBody = document.getElementById('clinicBody');
@@ -135,11 +148,18 @@
 
       // حسب العيادة
       clinicBody.innerHTML = '';
-      const clinics = Object.entries(db.byClinic || {}).sort((a,b)=>b[1]-a[1]);
-      if (!clinics.length){
+      // طبّق التطبيع على مفاتيح byClinic قبل العرض
+      const clinics = Object.entries(db.byClinic || {}).reduce((acc,[k,v])=>{
+        const nk = normalizeClinic(k);
+        acc[nk] = (acc[nk] || 0) + Number(v||0); // دمج لو كان فيه مفتاحين
+        return acc;
+      }, {});
+      const clinicEntries = Object.entries(clinics).sort((a,b)=>b[1]-a[1]);
+
+      if (!clinicEntries.length){
         clinicBody.innerHTML = '<tr><td colspan="2" class="muted">لا توجد بيانات بعد</td></tr>';
       } else {
-        clinics.forEach(([key, val])=>{
+        clinicEntries.forEach(([key, val])=>{
           const tr = document.createElement('tr');
           tr.innerHTML = `<td>${key || '—'}</td><td>${formatNum(val)}</td>`;
           clinicBody.appendChild(tr);
@@ -158,6 +178,51 @@
           dateBody.appendChild(tr);
         });
       }
+    }
+
+    // جديد: تفصيل يومي
+    function renderPerDay(db){
+      const perDayBody = document.getElementById('perDayBody');
+      perDayBody.innerHTML = '';
+
+      const byDateClinic = db.byDateClinic;
+      const topClinicPerDay = db.topClinicPerDay;
+
+      if (byDateClinic && Object.keys(byDateClinic).length){
+        // اعرض كل العيادات لكل يوم
+        const dates = Object.keys(byDateClinic).sort(); // تصاعدي
+        dates.forEach(date=>{
+          const rowData = byDateClinic[date] || {};
+          const parts = Object.entries(rowData)
+            .map(([clinic, count]) => `${normalizeClinic(clinic)}: ${formatNum(count)}`)
+            .sort((a,b)=> {
+              // فرز بالقيم داخل النص: نفصل العدد في النهاية
+              const va = Number(a.split(': ').pop().replace(/[^\d]/g,'') || 0);
+              const vb = Number(b.split(': ').pop().replace(/[^\d]/g,'') || 0);
+              return vb - va;
+            });
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td style="width:140px">${date}</td><td>${parts.join(' — ') || '—'}</td>`;
+          perDayBody.appendChild(tr);
+        });
+        return;
+      }
+
+      if (Array.isArray(topClinicPerDay) && topClinicPerDay.length){
+        // اعرض العيادة الأكثر لكل يوم فقط
+        topClinicPerDay
+          .slice() // لا تعدّل الأصل
+          .sort((a,b)=> a.date.localeCompare(b.date))
+          .forEach(item=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td style="width:140px">${item.date}</td><td>${normalizeClinic(item.clinic)} — ${formatNum(item.count)}</td>`;
+            perDayBody.appendChild(tr);
+          });
+        return;
+      }
+
+      // لا توجد بيانات تفصيل يومي من الخادم
+      perDayBody.innerHTML = '<tr><td colspan="2" class="muted">تفصيل اليوم غير متاح من الخادم حالياً</td></tr>';
     }
 
     // ==== بطاقات الملخص ====
@@ -182,7 +247,13 @@
     }
 
     function buildClinicSeries(byClinic){
-      const entries = Object.entries(byClinic || {}).map(([k, v])=>({k, v:Number(v||0)}));
+      // طبّق التطبيع وادمج
+      const merged = Object.entries(byClinic || {}).reduce((acc,[k,v])=>{
+        const nk = normalizeClinic(k);
+        acc[nk] = (acc[nk] || 0) + Number(v||0);
+        return acc;
+      }, {});
+      const entries = Object.entries(merged).map(([k, v])=>({k, v:Number(v||0)}));
       entries.sort((a,b)=> b.v - a.v);
       return { labels: entries.map(e=>e.k || '—'), data: entries.map(e=>e.v) };
     }
@@ -191,9 +262,8 @@
       if (dailyChart) dailyChart.destroy();
       if (clinicChart) clinicChart.destroy();
 
-      // Daily (Line) — بعرض الحاوية
+      // Daily (Line)
       const daily = buildDailySeries(db.byDate);
-      // حماية: لو ما فيه بيانات نعرض نقطة صفرية اليوم
       if (daily.labels.length === 0) { daily.labels = [todayKey()]; daily.data = [0]; }
 
       const dailyCtx = document.getElementById('dailyChart').getContext('2d');
@@ -222,7 +292,7 @@
         }
       });
 
-      // Clinics (Horizontal Bar) — مثل Google Console
+      // Clinics (Horizontal Bar)
       const clinics = buildClinicSeries(db.byClinic);
       if (clinics.labels.length === 0) { clinics.labels = ['—']; clinics.data = [0]; }
 
@@ -239,7 +309,7 @@
         },
         options: {
           maintainAspectRatio: false,
-          indexAxis: 'y',              // أعمدة أفقية
+          indexAxis: 'y',
           scales: {
             x: { beginAtZero: true, precision: 0, ticks: { autoSkip: false } },
             y: { ticks: { autoSkip: false } }
@@ -263,11 +333,12 @@
           throw new Error(info.error || ('HTTP '+res.status));
         }
         const data = await res.json();
-        if (!data.ok) throw new Error('طلب غير صالح');
+        if (!data.ok && data.ok !== undefined) throw new Error('طلب غير صالح');
 
         renderCards(data);
         renderTables(data);
         renderCharts(data);
+        renderPerDay(data); // جديد
 
         // آخر تحديث
         document.getElementById('lastUpdate').textContent =
