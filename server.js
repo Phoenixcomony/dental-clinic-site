@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -572,7 +572,7 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15000 });
+    await axios.get(url, { timeout: 15015 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -916,6 +916,7 @@ async function applyOneMonthView(page){
  * ✅ تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
  * ✅ استثناء خاص: "عيادة الجلدية والتجميل**الفترة الثانية" = 15:00–22:00
  * ✅ الباقي: صباحي 08:00–11:30، مسائي 16:00–22:00
+ * ✅ (جديد) استبعاد الجمعة/السبت للعيادات المطلوبة حسب طلب العميل
  */
 app.post('/api/times', async (req, res) => {
   try {
@@ -933,11 +934,56 @@ app.post('/api/times', async (req, res) => {
     const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل**الفترة الثانية';
     const isDermEvening = clinicStr === DERM_EVENING_VALUE;
 
-    // Helpers
+    // Helpers (وقت)
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };                 // 08:00 → 11:30
     const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; }; // 15:00(الجلدية) أو 16:00 → 22:00
+
+    // Helpers (تاريخ) — تحديد الجمعة/السبت بشكل آمن من قيمة التاريخ القادمة من الموقع
+    const parseYMD = (s='')=>{
+      // يدعم: YYYY-MM-DD ، YYYY/MM/DD ، DD-MM-YYYY ، DD/MM/YYYY
+      const str = String(s).trim();
+      let y,m,d;
+      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(str)) {
+        const [Y,M,D] = str.split(/[-/]/).map(n=>+n);
+        y=Y; m=M; d=D;
+      } else if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/.test(str)) {
+        const [D,M,Y] = str.split(/[-/]/).map(n=>+n);
+        y=Y; m=M; d=D;
+      } else {
+        // آخر حل: جرّب استخراج 3 أرقام متتالية
+        const mch = str.match(/(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})/);
+        if (mch) {
+          let a=+mch[1], b=+mch[2], c=+mch[3];
+          if (a>31) { y=a; m=b; d=c; } else { d=a; m=b; y=c; }
+        }
+      }
+      if (!y || !m || !d) return null;
+      // استخدم UTC لتجنب انزياحات المنطقة
+      const wd = new Date(Date.UTC(y, m-1, d)).getUTCDay(); // 0=أحد ... 5=جمعة 6=سبت
+      return { y, m, d, wd };
+    };
+    const isFriOrSat = (dateStr)=> {
+      const p = parseYMD(dateStr);
+      if (!p) return false;
+      return p.wd === 5 || p.wd === 6;
+    };
+
+    // تحديد إن كانت العيادة تقع ضمن قواعد الاستبعاد
+    const isWomenClinic = /النساء|الولادة/.test(clinicStr);
+    const isDermClinic   = /الجلدية/.test(clinicStr);
+    const isDental124    = /الأسنان/.test(clinicStr) && /(1|٢|2|٤|4)\b/.test(clinicStr);
+
+    const shouldBlockFriSat = (() => {
+      // الجلدية: فقط المسائي
+      if (isDermClinic && (effectivePeriod === 'evening' || isDermEvening)) return true;
+      // النساء والولادة: صباحي ومسائي
+      if (isWomenClinic) return true;
+      // الأسنان 1/2/4: صباحي ومسائي
+      if (isDental124) return true;
+      return false;
+    })();
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -981,9 +1027,15 @@ app.post('/api/times', async (req, res) => {
         return out;
       });
 
+      // فلترة حسب الفترة (إن طُلبت/استنتجت)
       let filtered = raw;
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+
+      // (جديد) استبعاد الجمعة/السبت حسب قواعد العميل
+      if (shouldBlockFriSat) {
+        filtered = filtered.filter(x => !isFriOrSat(x.date));
+      }
 
       const times = filtered.map(x => ({
         value: x.value,
