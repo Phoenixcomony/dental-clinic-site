@@ -210,7 +210,8 @@
       <option value="">يرجى البحث أولاً</option>
     </select>
 
-    <button id="goConfirm" class="btn btn-glass" style="margin-top:12px;" disabled>متابعة لتأكيد الحجز</button>
+    <!-- تم تغيير وظيفة هذا الزر ليحجز مباشرة -->
+    <button id="bookNowBtn" class="btn btn-glass" style="margin-top:12px;" disabled>تأكيد الحجز الآن</button>
 
     <div id="bkMsg" class="muted"></div>
   </section>
@@ -486,7 +487,7 @@
   // ===== عناصر الحجز =====
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
-  const goConfirm = document.getElementById('goConfirm');
+  const bookNowBtn = document.getElementById('bookNowBtn');
   const bkMsg = document.getElementById('bkMsg');
   const clinicSel = document.getElementById('clinic');
   const monthSel  = document.getElementById('month');
@@ -494,7 +495,7 @@
   const noteWrap  = document.getElementById('noteWrap');
   const noteInput = document.getElementById('note');
 
-  // >>> دالة صغيرة لتخزين لقطة بيانات الحجز لصفحة success.html (ولأي سيناريو حجز مباشر مستقبلاً)
+  // >>> دالة صغيرة لتخزين لقطة بيانات الحجز لصفحة success.html
   function snapshotPendingForSuccess(){
     localStorage.setItem('pending_name',  localStorage.getItem('auth_name')  || '');
     localStorage.setItem('pending_phone', localStorage.getItem('auth_phone') || '');
@@ -509,7 +510,7 @@
   function resetTimes(trigger=''){
     timeSel.innerHTML = `<option value="">يرجى الضغط على "عرض المواعيد" بعد التغيير</option>`;
     timeSel.disabled = true;
-    goConfirm.disabled = true;
+    bookNowBtn.disabled = true;
     bkMsg.textContent = trigger === 'clinic'
       ? 'تم تغيير العيادة — اعرض المواعيد من جديد.'
       : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
@@ -534,7 +535,7 @@
 
     bkMsg.textContent = '';
     timeSel.disabled = true;
-    goConfirm.disabled = true;
+    bookNowBtn.disabled = true;
     timeSel.innerHTML = `<option>...جاري جلب الأوقات...</option>`;
 
     if (!clinic || !month) {
@@ -558,7 +559,7 @@
       if (data.times && data.times.length) {
         timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         timeSel.disabled = false;
-        goConfirm.disabled = false;
+        bookNowBtn.disabled = false;
       } else {
         timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
         bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
@@ -575,13 +576,55 @@
     }
   });
 
-  // المتابعة لصفحة التأكيد — (نفس السلوك) + تخزين لقطة البيانات لضمان الظهور في success.html
-  goConfirm.addEventListener('click', () => {
-    // لقطة موحدة لنجاح العرض لاحقًا
+  // الحجز المباشر الآن (بدون confirm.html)
+  bookNowBtn.addEventListener('click', async () => {
+    const clinic = clinicSel.value;
+    const month  = monthSel.value;
+    const time   = timeSel.value;
+    const name   = localStorage.getItem('auth_name')  || '';
+    const phone  = localStorage.getItem('auth_phone') || '';
+    const note   = (noteInput.value || '').trim();
+
+    if (!clinic || !month || !time || !name || !phone) {
+      bkMsg.textContent = 'الرجاء استكمال العيادة والشهر والوقت وتسجيل الدخول.';
+      return;
+    }
+
+    // خزّن لقطة التفاصيل لعرضها في success.html
     snapshotPendingForSuccess();
 
-    // سلوكك الحالي كما هو:
-    window.location.href = 'confirm.html';
+    // قفل الواجهة + لودر
+    bookNowBtn.disabled = true;
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    timeSel.disabled = true;
+    showLoader(true);
+    bkMsg.textContent = 'جاري تأكيد الحجز...';
+
+    try {
+      const payload = { name, phone, clinic, month, time, note, key: Date.now().toString() };
+      const res = await fetch('/api/book', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const msg  = (data && data.msg) ? String(data.msg) : '';
+
+      // خزّن رسالة النتيجة وانتقل لنجاح
+      localStorage.setItem('booking_result_msg', msg);
+      window.location.href = 'success.html';
+    } catch (e) {
+      bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
+      bookNowBtn.disabled = false;
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      timeSel.disabled = false;
+    } finally {
+      showLoader(false);
+    }
   });
 
   // ===== تبديل العرض بين الحجز وساعات العمل =====
