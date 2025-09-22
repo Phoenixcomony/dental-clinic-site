@@ -253,7 +253,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -572,7 +572,7 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15015 });
+    await axios.get(url, { timeout: 15000 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -940,9 +940,8 @@ app.post('/api/times', async (req, res) => {
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };                 // 08:00 → 11:30
     const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; }; // 15:00(الجلدية) أو 16:00 → 22:00
 
-    // Helpers (تاريخ) — تحديد الجمعة/السبت بشكل آمن من قيمة التاريخ القادمة من الموقع
+    // Helpers (تاريخ) — تحديد الجمعة/السبت
     const parseYMD = (s='')=>{
-      // يدعم: YYYY-MM-DD ، YYYY/MM/DD ، DD-MM-YYYY ، DD/MM/YYYY
       const str = String(s).trim();
       let y,m,d;
       if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(str)) {
@@ -952,7 +951,6 @@ app.post('/api/times', async (req, res) => {
         const [D,M,Y] = str.split(/[-/]/).map(n=>+n);
         y=Y; m=M; d=D;
       } else {
-        // آخر حل: جرّب استخراج 3 أرقام متتالية
         const mch = str.match(/(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})/);
         if (mch) {
           let a=+mch[1], b=+mch[2], c=+mch[3];
@@ -960,7 +958,6 @@ app.post('/api/times', async (req, res) => {
         }
       }
       if (!y || !m || !d) return null;
-      // استخدم UTC لتجنب انزياحات المنطقة
       const wd = new Date(Date.UTC(y, m-1, d)).getUTCDay(); // 0=أحد ... 5=جمعة 6=سبت
       return { y, m, d, wd };
     };
@@ -970,11 +967,25 @@ app.post('/api/times', async (req, res) => {
       return p.wd === 5 || p.wd === 6;
     };
 
-    // تحديد إن كانت العيادة تقع ضمن قواعد الاستبعاد
-    const isWomenClinic = /النساء|الولادة/.test(clinicStr);
-    const isDermClinic   = /الجلدية/.test(clinicStr);
-    const isDental124    = /الأسنان/.test(clinicStr) && /(1|٢|2|٤|4)\b/.test(clinicStr);
+    // ======= (مهم) التعرف الدقيق على عيادات الأسنان 1/2/4 =======
+    // نتعامل مع نص قد يحتوي لاحقة "**الفترة ..." فنأخذ الاسم الأساسي قبلها.
+    const baseClinicName = clinicStr.split('**')[0].trim();
+    const asciiClinic = toAsciiDigits(baseClinicName);
+    const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
+    const isDermClinic   = /الجلدية/.test(baseClinicName);
 
+    // مطابقة قوية للأسنان مع الأرقام 1 أو 2 أو 4 (تدعم الأرقام العربية بتحويلها مسبقًا)
+    const isDentalWord = /الأسنان|الاسنان/i.test(baseClinicName);
+    const has124Number = /(^^|[^0-9])(1|2|4)([^0-9]|$)/.test(asciiClinic);
+    const dental124Names = [
+      'عيادة الأسنان 1','عيادة الأسنان 2','عيادة الأسنان 4',
+      'عيادة الاسنان 1','عيادة الاسنان 2','عيادة الاسنان 4'
+    ].map(n => toAsciiDigits(n));
+    const isDental124 =
+      (isDentalWord && has124Number) ||
+      dental124Names.some(n => asciiClinic.includes(n));
+
+    // من تُطبَّق عليه قاعدة الحجب الجمعة/السبت؟
     const shouldBlockFriSat = (() => {
       // الجلدية: فقط المسائي
       if (isDermClinic && (effectivePeriod === 'evening' || isDermEvening)) return true;
