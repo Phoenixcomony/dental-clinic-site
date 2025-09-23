@@ -708,3 +708,23 @@ footer {
 
 /* الكانفس يملأ الحاوية أفقياً وعمودياً */
 .chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
+
+
+/* تصحيح مظهر select على الجوال */
+select {
+  color: #7a6d4e; /* نفس لون muted أو لون النص العادي */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #fffdfa; /* نفس خلفية الموقع */
+}
+
+/* عند اختيار قيمة حقيقية */
+select option {
+  color: #000; /* النصوص بعد الاختيار */
+}
+
+/* الخيار الفارغ (اختر العيادة / اختر الشهر) */
+select option[value=""] {
+  color: #7a6d4e; /* هادئ/محايد */
+}
