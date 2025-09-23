@@ -503,7 +503,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
         const tds = Array.from(document.querySelectorAll('td[height="29"]'));
         for(const td of tds){
           const val = (td.textContent||'').trim();
-          const digits = toAscii(val).replace(/[^\d]/g,'');
+          const digits = toAscii(val).replace(/\D/g,'');
           if(/^05\d{8}$/.test(digits)) return digits;
         }
         return '';
@@ -1169,81 +1169,74 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
     await page.select('select[name="nation_id"]', '1');
 
     const selected = await page.evaluate((wanted)=>{
-      const radios=document.querySelectorAll('input[type="radio"][name="ss"]');
-      for(const r of radios){ if(r.value===wanted && !r.disabled){ r.click(); return true; } }
+          const radios=document.querySelectorAll('input[type="radio"][name="ss"]');
+      for(const r of radios){
+        if(r.value === wanted && !r.disabled){
+          r.click();
+          return true;
+        }
+      }
       return false;
     }, time);
     if(!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
     const pressed = await page.evaluate(()=>{
-      const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
-        .find(el=>el.value && el.value.trim()==='حجز : Reserve');
+      const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
+        .find(el => el.value && el.value.trim() === 'حجز : Reserve');
       if(!btn) return false;
-      btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
+      btn.disabled = false;
+      btn.removeAttribute('disabled');
+      btn.click();
+      return true;
     });
     if(!pressed) throw new Error('زر الحجز غير متاح!');
 
     await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
     await browser.close();
-    return '✅ تم الحجز بنجاح بالحساب: '+account.user;
+    return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
   }catch(e){
     await browser.close();
-    return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
+    return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
 }
 
 /** ===== Verify OTP (optional) ===== */
 app.post('/verify-otp', (req,res)=>{
   let { phone, otp } = req.body || {};
-  if(verifyOtpInline(phone, otp)){ delete otpStore[normalizePhoneIntl(phone)]; return res.json({ success:true }); }
+  if(verifyOtpInline(phone, otp)){
+    delete otpStore[normalizePhoneIntl(phone)];
+    return res.json({ success:true });
+  }
   return res.json({ success:false, message:'رمز التحقق غير صحيح!' });
 });
 
-/** ===== NEW: Create New Patient File (مطوّر حسب فكرة الملف الثاني) =====
+/** ===== NEW: Create New Patient File =====
  * Endpoint: POST /api/new-file
- * Body: {
- *   fullName, nationalId, phone, nationality, gender,
- *   birthYear, birthMonth, birthDay, otp
- * }
- * Returns: { success, fileId?, fullName?, phoneLocal?, message, reason? }
+ * Body: { fullName, nationalId, phone, nationality, gender, birthYear, birthMonth, birthDay, otp }
  */
 app.post('/api/new-file', async (req, res) => {
-  // مهلة شاملة اختيارية لحماية العملية بأكملها
   const MASTER_TIMEOUT_MS = 90000;
   const masterTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
 
   const handler = (async () => {
     try {
       const {
-        fullName,
-        nationalId,
-        phone,
-        nationality,
-        gender,
-        birthYear,
-        birthMonth,
-        birthDay,
-        otp
+        fullName, nationalId, phone, nationality, gender,
+        birthYear, birthMonth, birthDay, otp
       } = req.body || {};
 
-      // تحقق إدخال (متوافق مع الواجهة الأولى)
       const nameNorm = normalizeArabic(fullName || '');
       const nameParts = nameNorm.split(' ').filter(Boolean);
-      if (!nameParts.length || nameParts.length < 3) {
+      if (!nameParts.length || nameParts.length < 3)
         return res.json({ success:false, message:'اكتب الاسم ثلاثيًّا على الأقل', reason:'invalid_input' });
-      }
-      if (!isSaudi05(phone)) {
+      if (!isSaudi05(phone))
         return res.json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx', reason:'invalid_input' });
-      }
-      if (!nationalId || /^0+$/.test(String(nationalId).replace(/\D/g,''))) {
+      if (!nationalId || /^0+$/.test(String(nationalId).replace(/\D/g,'')))
         return res.json({ success:false, message:'رقم الهوية غير صالح', reason:'invalid_input' });
-      }
-      if (!birthYear || !birthMonth || !birthDay) {
+      if (!birthYear || !birthMonth || !birthDay)
         return res.json({ success:false, message:'حدد تاريخ الميلاد (اليوم/الشهر/السنة)', reason:'invalid_input' });
-      }
-      if (!verifyOtpInline(phone, otp)) {
+      if (!verifyOtpInline(phone, otp))
         return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
-      }
 
       const browser = await launchBrowserSafe();
       const page = await browser.newPage(); await prepPage(page);
@@ -1251,13 +1244,12 @@ app.post('/api/new-file', async (req, res) => {
 
       let account = null;
       try {
-        // احجز حسابًا بمهلة لتفادي التعليق
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
 
         const phone05 = toLocal05(phone);
 
-        // فحص مسبق: هل الجوال موجود؟
+        // فحص مسبق للجوال
         if (await existsPatientByPhone(page, phone05)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود مسبقًا', reason:'duplicate_phone' });
@@ -1273,19 +1265,16 @@ app.post('/api/new-file', async (req, res) => {
         await page.waitForSelector('#fname', { timeout: 30000 });
         await page.waitForSelector('#phone', { timeout: 30000 });
 
-        // املأ الحقول الأساسية
+        // املأ الحقول
         await page.$eval('#fname', (el,v)=>{ el.value=v; }, nameNorm);
         await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
 
-        // تاريخ الميلاد
         await page.select('#day12',   String(birthDay));
         await page.select('#month12', String(birthMonth));
         await page.select('#year12',  String(birthYear));
 
-        // الجنس
         await page.select('#gender', String(gender || '1'));
 
-        // الجنسية (إن أرسلت)
         if (nationality) {
           await page.evaluate((val)=>{
             const sel = document.querySelector('#n');
@@ -1297,7 +1286,6 @@ app.post('/api/new-file', async (req, res) => {
           }, String(nationality));
         }
 
-        // كتابة الجوال ببطء + قراءة رجعية للتأكد
         async function typePhoneSlowAndEnsure(p){
           await page.$eval('#phone', (el)=>{ el.value=''; });
           for(let i=0;i<p.length;i++){
@@ -1316,14 +1304,12 @@ app.post('/api/new-file', async (req, res) => {
         }
         await typePhoneSlowAndEnsure(phone05);
 
-        // تحذير التكرار قبل الحفظ
         await sleep(2000);
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
         }
 
-        // إرسال النموذج
         await page.waitForSelector('#submit', { timeout: 20000 });
         await page.evaluate(() => {
           const btn = document.querySelector('#submit');
@@ -1333,13 +1319,12 @@ app.post('/api/new-file', async (req, res) => {
         await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{});
         await sleep(1200);
 
-        // تحذير التكرار بعد الحفظ
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
         }
 
-        // استخراج رقم الملف (إن أمكن)
+        // استخراج رقم الملف إن أمكن
         let fileId = '';
         try {
           const hrefId = await page.evaluate(()=>{
@@ -1353,7 +1338,6 @@ app.post('/api/new-file', async (req, res) => {
         } catch(_) {}
 
         if (!fileId) {
-          // محاولة أخيرة: ابحث باسم/جوال للتقاط الملف
           const byPhone = await searchSuggestionsByPhoneOnNavbar(page, phone05);
           const found = byPhone.find(it => phonesEqual05(it.parsed.phone, phone05));
           if (found && found.parsed.fileId) fileId = found.parsed.fileId;
@@ -1365,7 +1349,6 @@ app.post('/api/new-file', async (req, res) => {
           return res.json({ success:false, message:'تم الحفظ لكن تعذّر استخراج رقم الملف', reason:'unknown' });
         }
 
-        // إزالة كود OTP لهذا الرقم بعد النجاح
         delete otpStore[normalizePhoneIntl(phone)];
 
         return res.json({
@@ -1395,6 +1378,7 @@ app.post('/api/new-file', async (req, res) => {
     catch(_) { /* ignore */ }
   });
 });
+
 
 /** =========================================================
  *                 Persistent Metrics (stats.json)
@@ -1510,3 +1494,4 @@ app.get('/health', (_req,res)=> res.json({
 /** ===== Start server ===== */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', ()=> console.log(`Server running on http://0.0.0.0:${PORT} (debug=${DEBUG_BROWSER})`));
+
