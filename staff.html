@@ -65,23 +65,10 @@
     /* لوحة تفصيل اليوم */
     .day-detail {
       background:#fff; border:1px solid #f1e7c8; border-radius:12px; padding:10px;
-      box-shadow:0 4px 20px #e2be62df; margin-top:10px;
+      box-shadow:0 4px 20px #e2be6d2f; margin-top:10px;
     }
     .bad { color:#b00020; font-weight:700; }
     .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#fff8df; color:#7a6741; font-weight:700; font-size:.9rem; }
-
-    /* شريط فلتر التاريخ داخل قسم اليوميات */
-    .inline-filter {
-      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-      margin: 6px 2px 10px;
-    }
-    .inline-filter input[type="date"] {
-      padding:8px 10px; border:1px solid #e0d4b0; border-radius:10px; background:#fff;
-      min-width: 160px;
-    }
-    .ghost-btn {
-      background:#fff; color:#7a6741; border:1px solid #e0d4b0; padding:8px 12px; border-radius:10px; cursor:pointer;
-    }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -144,14 +131,6 @@
       <span class="ttl">حسب التاريخ (اليوميات)</span><span class="arrow">▾</span>
     </button>
     <div id="secDates" class="section-body">
-      <!-- فلتر تاريخ داخل القسم نفسه -->
-      <div class="inline-filter">
-        <label for="dateFilter" class="muted">اختر تاريخًا:</label>
-        <input id="dateFilter" type="date" />
-        <button class="ghost-btn" id="clearFilter" type="button">مسح الفلتر</button>
-        <span class="muted" id="filterHint">—</span>
-      </div>
-
       <div class="table-scroll">
         <table>
           <thead><tr><th>التاريخ</th><th>عدد الوصول</th></tr></thead>
@@ -195,45 +174,51 @@
       return (!n || n === 'غير محدد') ? 'عيادة الأسنان 4**الفترة الثانية' : n;
     }
 
-    // تطبيع التواريخ إلى ISO YYYY-MM-DD
+    // تحويل أي صيغة تاريخ إلى ISO yyyy-mm-dd (يدعم الأرقام العربية-الهندية)
     function toIsoDate(anyKey){
       if (!anyKey) return '';
-      const s = String(anyKey).trim();
+      let s = String(anyKey).trim();
 
-      // إذا كان ISO بالفعل أو يتضمن وقت: خذ أول 10 أحرف
-      const maybeIso = s.slice(0,10);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(maybeIso)) return maybeIso;
-
-      // dd/mm/yyyy أو d/m/yyyy
-      const m1 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
-      if (m1){
-        const dd = String(m1[1]).padStart(2,'0');
-        const mm = String(m1[2]).padStart(2,'0');
-        const yyyy = m1[3];
-        // نفترض التنسيق عربي شائع: dd/mm/yyyy
-        return `${yyyy}-${mm}-${dd}`;
+      // استبدال الأرقام العربية-الهندية
+      const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+      if ([...s].some(ch => arabicDigits.includes(ch))){
+        s = s.replace(/[٠-٩]/g, d => String(arabicDigits.indexOf(d)));
       }
 
-      // mm/dd/yyyy
-      const m2 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
-      if (m2){
-        const mm = String(m2[1]).padStart(2,'0');
-        const dd = String(m2[2]).padStart(2,'0');
-        const yyyy = m2[3];
-        // fallback لو كانت أمريكية
-        return `${yyyy}-${mm}-${dd}`;
+      // لو ISO جاهز أو مع وقت
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+
+      // yyyy/mm/dd أو yyyy.mm.dd
+      let m = s.match(/^(\d{4})[\/\.](\d{1,2})[\/\.](\d{1,2})/);
+      if (m){
+        const y=m[1], mo=String(m[2]).padStart(2,'0'), da=String(m[3]).padStart(2,'0');
+        return `${y}-${mo}-${da}`;
       }
 
-      // محاولة عامة عبر Date
+      // d/m/yyyy أو m/d/yyyy أو d-m-yyyy أو m-d-yyyy
+      m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+      if (m){
+        let a = parseInt(m[1],10);
+        let b = parseInt(m[2],10);
+        const y = m[3];
+        // فضّ التباس: إن كان الأول >12 فهو يوم؛ إن كان الثاني >12 فالأول شهر؛ وإلا نرجّح dd/mm
+        let dd, mm;
+        if (a > 12 && b <= 12){ dd = a; mm = b; }
+        else if (b > 12 && a <= 12){ mm = a; dd = b; }
+        else { dd = a; mm = b; }
+        return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+      }
+
+      // محاولة عامة
       const d = new Date(s);
       if (!isNaN(d)) return d.toISOString().slice(0,10);
 
-      return s; // نرجع الأصل لو ما عرفنا
+      return s; // نرجع كما هو لو ما قدرنا
     }
 
     const STATE = {
       raw: null,
-      byDateClinicNorm: {}, // تاريخ ISO -> { عيادة: عدد }
+      byDateClinicNorm: {}, // ISO -> { clinic: count }
     };
 
     let dailyChart, clinicChart;
@@ -284,19 +269,18 @@
         });
       }
 
-      // حسب التاريخ
-      // نعرض من byDate لو موجود، وإلا نبني من byDateClinicNorm
+      // حسب التاريخ: نطبّع مفاتيح byDate قبل العرض
       let datePairs = [];
       if (db.byDate && Object.keys(db.byDate).length){
         datePairs = Object.entries(db.byDate).map(([k,v])=>[toIsoDate(k), Number(v||0)]);
       } else {
-        // جمع من التفصيل اليومي إن لم تتوفر byDate
+        // لو ما فيه byDate، نبني من التفصيل اليومي
         datePairs = Object.entries(STATE.byDateClinicNorm).map(([d, map])=>[
           d,
           Object.values(map||{}).reduce((a,b)=>a+Number(b||0),0)
         ]);
       }
-      // إزالة مكرّر
+      // إزالة المكرر + جمع
       const tmp = {};
       datePairs.forEach(([d,c])=> tmp[d]=(tmp[d]||0)+Number(c||0));
       const dates = Object.entries(tmp).sort((a,b)=> a[0] < b[0] ? 1 : -1);
@@ -351,37 +335,6 @@
       tr.classList.add('hl');
       const dateIso = tr.dataset.date;
       showDayDetails(dateIso);
-    }
-
-    /* ===== فلترة الجدول داخليًا ===== */
-    function applyDateFilter(dateIso){
-      const body = document.getElementById('dateBody');
-      const rows = Array.from(body.querySelectorAll('tr.clickable-row'));
-      let visible = 0;
-      rows.forEach(tr=>{
-        const d = tr.dataset.date;
-        const show = !dateIso || d === dateIso;
-        tr.style.display = show ? '' : 'none';
-        if (show) visible++;
-      });
-
-      const hint = document.getElementById('filterHint');
-      if (dateIso){
-        hint.textContent = visible ? `تم عرض يوم واحد: ${dateIso}` : `لا توجد سجلات للتاريخ ${dateIso}`;
-      }else{
-        hint.textContent = '—';
-      }
-
-      // إن كان الفلتر يعرض يومًا واحدًا، نظهر تفاصيله مباشرة
-      if (dateIso && visible){
-        showDayDetails(dateIso);
-        // تمييز الصف
-        rows.forEach(tr=> tr.classList.toggle('hl', tr.dataset.date === dateIso));
-      } else {
-        // إخفِ التفاصيل عند إزالة الفلتر أو عدم وجود نتائج
-        document.getElementById('dayDetailBox').style.display = 'none';
-        rows.forEach(tr=> tr.classList.remove('hl'));
-      }
     }
 
     /* ===== الرسوم ===== */
@@ -452,7 +405,7 @@
 
         STATE.raw = data;
 
-        // ابنِ خرائط مطبّعة للتواريخ/العيادات
+        // خرائط مطبّعة (التواريخ + دمج أسماء العيادات)
         buildNormalizedMaps(data);
 
         renderCards(data);
@@ -505,16 +458,6 @@
       return _loadStatsCore();
     }
     document.getElementById('loadBtn').addEventListener('click', loadStats);
-
-    // فلتر التاريخ داخل القسم
-    document.getElementById('dateFilter').addEventListener('change', (e)=>{
-      const iso = toIsoDate(e.target.value);
-      applyDateFilter(iso);
-    });
-    document.getElementById('clearFilter').addEventListener('click', ()=>{
-      document.getElementById('dateFilter').value = '';
-      applyDateFilter('');
-    });
 
     (function init(){
       setupCollapses();
