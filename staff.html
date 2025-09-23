@@ -65,10 +65,23 @@
     /* لوحة تفصيل اليوم */
     .day-detail {
       background:#fff; border:1px solid #f1e7c8; border-radius:12px; padding:10px;
-      box-shadow:0 4px 20px #e2be6d2f; margin-top:10px;
+      box-shadow:0 4px 20px #e2be62df; margin-top:10px;
     }
     .bad { color:#b00020; font-weight:700; }
     .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#fff8df; color:#7a6741; font-weight:700; font-size:.9rem; }
+
+    /* شريط فلتر التاريخ داخل قسم اليوميات */
+    .inline-filter {
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+      margin: 6px 2px 10px;
+    }
+    .inline-filter input[type="date"] {
+      padding:8px 10px; border:1px solid #e0d4b0; border-radius:10px; background:#fff;
+      min-width: 160px;
+    }
+    .ghost-btn {
+      background:#fff; color:#7a6741; border:1px solid #e0d4b0; padding:8px 12px; border-radius:10px; cursor:pointer;
+    }
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -131,6 +144,14 @@
       <span class="ttl">حسب التاريخ (اليوميات)</span><span class="arrow">▾</span>
     </button>
     <div id="secDates" class="section-body">
+      <!-- فلتر تاريخ داخل القسم نفسه -->
+      <div class="inline-filter">
+        <label for="dateFilter" class="muted">اختر تاريخًا:</label>
+        <input id="dateFilter" type="date" />
+        <button class="ghost-btn" id="clearFilter" type="button">مسح الفلتر</button>
+        <span class="muted" id="filterHint">—</span>
+      </div>
+
       <div class="table-scroll">
         <table>
           <thead><tr><th>التاريخ</th><th>عدد الوصول</th></tr></thead>
@@ -168,12 +189,53 @@
     function formatNum(n){ return new Intl.NumberFormat('ar-EG').format(n || 0); }
     function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
 
+    // تطبيع اسم العيادة
     function normalizeClinic(name){
       const n = (name || '').trim();
       return (!n || n === 'غير محدد') ? 'عيادة الأسنان 4**الفترة الثانية' : n;
     }
 
-    const STATE = { raw:null };
+    // تطبيع التواريخ إلى ISO YYYY-MM-DD
+    function toIsoDate(anyKey){
+      if (!anyKey) return '';
+      const s = String(anyKey).trim();
+
+      // إذا كان ISO بالفعل أو يتضمن وقت: خذ أول 10 أحرف
+      const maybeIso = s.slice(0,10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(maybeIso)) return maybeIso;
+
+      // dd/mm/yyyy أو d/m/yyyy
+      const m1 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+      if (m1){
+        const dd = String(m1[1]).padStart(2,'0');
+        const mm = String(m1[2]).padStart(2,'0');
+        const yyyy = m1[3];
+        // نفترض التنسيق عربي شائع: dd/mm/yyyy
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      // mm/dd/yyyy
+      const m2 = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+      if (m2){
+        const mm = String(m2[1]).padStart(2,'0');
+        const dd = String(m2[2]).padStart(2,'0');
+        const yyyy = m2[3];
+        // fallback لو كانت أمريكية
+        return `${yyyy}-${mm}-${dd}`;
+      }
+
+      // محاولة عامة عبر Date
+      const d = new Date(s);
+      if (!isNaN(d)) return d.toISOString().slice(0,10);
+
+      return s; // نرجع الأصل لو ما عرفنا
+    }
+
+    const STATE = {
+      raw: null,
+      byDateClinicNorm: {}, // تاريخ ISO -> { عيادة: عدد }
+    };
+
     let dailyChart, clinicChart;
 
     /* ===== بطاقات ===== */
@@ -182,6 +244,21 @@
       const tKey = todayKey();
       document.getElementById('today').textContent = formatNum((db.byDate && db.byDate[tKey]) || 0);
       document.getElementById('todayDate').textContent = tKey;
+    }
+
+    /* ===== بناء خرائط مطبّعة ===== */
+    function buildNormalizedMaps(data){
+      STATE.byDateClinicNorm = {};
+      const src = data.byDateClinic || {};
+      Object.entries(src).forEach(([k, vObj])=>{
+        const iso = toIsoDate(k);
+        const merged = {};
+        Object.entries(vObj || {}).forEach(([clinic, cnt])=>{
+          const nk = normalizeClinic(clinic);
+          merged[nk] = (merged[nk] || 0) + Number(cnt||0);
+        });
+        STATE.byDateClinicNorm[iso] = merged;
+      });
     }
 
     /* ===== الجداول ===== */
@@ -208,14 +285,29 @@
       }
 
       // حسب التاريخ
-      const dates = Object.entries(db.byDate || {}).sort((a,b)=> a[0] < b[0] ? 1 : -1);
+      // نعرض من byDate لو موجود، وإلا نبني من byDateClinicNorm
+      let datePairs = [];
+      if (db.byDate && Object.keys(db.byDate).length){
+        datePairs = Object.entries(db.byDate).map(([k,v])=>[toIsoDate(k), Number(v||0)]);
+      } else {
+        // جمع من التفصيل اليومي إن لم تتوفر byDate
+        datePairs = Object.entries(STATE.byDateClinicNorm).map(([d, map])=>[
+          d,
+          Object.values(map||{}).reduce((a,b)=>a+Number(b||0),0)
+        ]);
+      }
+      // إزالة مكرّر
+      const tmp = {};
+      datePairs.forEach(([d,c])=> tmp[d]=(tmp[d]||0)+Number(c||0));
+      const dates = Object.entries(tmp).sort((a,b)=> a[0] < b[0] ? 1 : -1);
+
       if (!dates.length){
         dateBody.innerHTML = '<tr><td colspan="2" class="muted">لا توجد بيانات بعد</td></tr>';
       } else {
         dates.forEach(([key, val])=>{
           const tr = document.createElement('tr');
           tr.className = 'clickable-row';
-          tr.dataset.date = key;
+          tr.dataset.date = key; // ISO
           tr.innerHTML = `<td>${key}</td><td>${formatNum(val)}</td>`;
           dateBody.appendChild(tr);
         });
@@ -226,21 +318,20 @@
     }
 
     /* ===== تفصيل يوم عند النقر ===== */
-    function showDayDetails(dateKey){
+    function showDayDetails(dateIso){
       const box = document.getElementById('dayDetailBox');
       const header = document.getElementById('dayDetailHeader');
       const list = document.getElementById('dayDetailList');
 
-      header.textContent = dateKey || '—';
+      header.textContent = dateIso || '—';
 
-      const all = STATE.raw && STATE.raw.byDateClinic;
-      const map = all ? all[dateKey] : null;
+      const map = STATE.byDateClinicNorm[dateIso];
 
       if (!map || !Object.keys(map).length){
         list.innerHTML = '<span class="bad">لا توجد تفاصيل عيادات متاحة لهذا اليوم.</span>';
       } else {
         const items = Object.entries(map)
-          .map(([k,v])=>({k: normalizeClinic(k), v:Number(v||0)}))
+          .map(([k,v])=>({k, v:Number(v||0)}))
           .sort((a,b)=> b.v - a.v)
           .map(i => `${i.k}: ${formatNum(i.v)}`);
         list.textContent = items.join(' — ');
@@ -258,13 +349,44 @@
       if (!tr) return;
       document.querySelectorAll('#dateBody tr').forEach(r=>r.classList.remove('hl'));
       tr.classList.add('hl');
-      const dateKey = tr.dataset.date;
-      showDayDetails(dateKey);
+      const dateIso = tr.dataset.date;
+      showDayDetails(dateIso);
+    }
+
+    /* ===== فلترة الجدول داخليًا ===== */
+    function applyDateFilter(dateIso){
+      const body = document.getElementById('dateBody');
+      const rows = Array.from(body.querySelectorAll('tr.clickable-row'));
+      let visible = 0;
+      rows.forEach(tr=>{
+        const d = tr.dataset.date;
+        const show = !dateIso || d === dateIso;
+        tr.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      const hint = document.getElementById('filterHint');
+      if (dateIso){
+        hint.textContent = visible ? `تم عرض يوم واحد: ${dateIso}` : `لا توجد سجلات للتاريخ ${dateIso}`;
+      }else{
+        hint.textContent = '—';
+      }
+
+      // إن كان الفلتر يعرض يومًا واحدًا، نظهر تفاصيله مباشرة
+      if (dateIso && visible){
+        showDayDetails(dateIso);
+        // تمييز الصف
+        rows.forEach(tr=> tr.classList.toggle('hl', tr.dataset.date === dateIso));
+      } else {
+        // إخفِ التفاصيل عند إزالة الفلتر أو عدم وجود نتائج
+        document.getElementById('dayDetailBox').style.display = 'none';
+        rows.forEach(tr=> tr.classList.remove('hl'));
+      }
     }
 
     /* ===== الرسوم ===== */
     function buildDailySeries(byDate){
-      const entries = Object.entries(byDate || {}).map(([d, v])=>({d, v:Number(v||0)}));
+      const entries = Object.entries(byDate || {}).map(([d, v])=>({d: toIsoDate(d), v:Number(v||0)}));
       entries.sort((a,b)=> a.d.localeCompare(b.d));
       return { labels: entries.map(e=>e.d), data: entries.map(e=>e.v) };
     }
@@ -282,7 +404,7 @@
       if (dailyChart) dailyChart.destroy();
       if (clinicChart) clinicChart.destroy();
 
-      const daily = buildDailySeries(db.byDate);
+      const daily = buildDailySeries(db.byDate || {});
       if (daily.labels.length === 0) { daily.labels = [todayKey()]; daily.data = [0]; }
       const dailyCtx = document.getElementById('dailyChart').getContext('2d');
       dailyChart = new Chart(dailyCtx, {
@@ -291,7 +413,7 @@
         options: { maintainAspectRatio:false, scales:{ x:{ticks:{autoSkip:true,maxTicksLimit:12}}, y:{beginAtZero:true,precision:0} }, plugins:{ legend:{display:false}, tooltip:{ rtl:true, textDirection:'rtl' } } }
       });
 
-      const clinics = buildClinicSeries(db.byClinic);
+      const clinics = buildClinicSeries(db.byClinic || {});
       if (clinics.labels.length === 0) { clinics.labels = ['—']; clinics.data = [0]; }
       const clinicCtx = document.getElementById('clinicChart').getContext('2d');
       clinicChart = new Chart(clinicCtx, {
@@ -330,6 +452,9 @@
 
         STATE.raw = data;
 
+        // ابنِ خرائط مطبّعة للتواريخ/العيادات
+        buildNormalizedMaps(data);
+
         renderCards(data);
         renderTables(data);
         renderCharts(data);
@@ -345,15 +470,14 @@
     function renderPerDay(db){
       const perDayBody = document.getElementById('perDayBody');
       perDayBody.innerHTML = '';
-      const byDateClinic = db.byDateClinic;
-      const topClinicPerDay = db.topClinicPerDay;
-
-      if (byDateClinic && Object.keys(byDateClinic).length){
-        const dates = Object.keys(byDateClinic).sort();
+      // نستخدم STATE.byDateClinicNorm لثبات التنسيق
+      const src = STATE.byDateClinicNorm;
+      if (src && Object.keys(src).length){
+        const dates = Object.keys(src).sort();
         dates.forEach(date=>{
-          const rowData = byDateClinic[date] || {};
+          const rowData = src[date] || {};
           const parts = Object.entries(rowData)
-            .map(([clinic, count]) => `${normalizeClinic(clinic)}: ${formatNum(count)}`)
+            .map(([clinic, count]) => `${clinic}: ${formatNum(count)}`)
             .sort((a,b)=> {
               const va = Number(a.split(': ').pop().replace(/[^\d]/g,'') || 0);
               const vb = Number(b.split(': ').pop().replace(/[^\d]/g,'') || 0);
@@ -363,10 +487,11 @@
           tr.innerHTML = `<td style="width:140px">${date}</td><td>${parts.join(' — ') || '—'}</td>`;
           perDayBody.appendChild(tr);
         });
-      } else if (Array.isArray(topClinicPerDay) && topClinicPerDay.length){
-        topClinicPerDay.slice().sort((a,b)=> a.date.localeCompare(b.date)).forEach(item=>{
+      } else if (Array.isArray(db.topClinicPerDay) && db.topClinicPerDay.length){
+        db.topClinicPerDay.slice().sort((a,b)=> a.date.localeCompare(b.date)).forEach(item=>{
+          const iso = toIsoDate(item.date);
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td style="width:140px">${item.date}</td><td>${normalizeClinic(item.clinic)} — ${formatNum(item.count)}</td>`;
+          tr.innerHTML = `<td style="width:140px">${iso}</td><td>${normalizeClinic(item.clinic)} — ${formatNum(item.count)}</td>`;
           perDayBody.appendChild(tr);
         });
       } else {
@@ -380,6 +505,16 @@
       return _loadStatsCore();
     }
     document.getElementById('loadBtn').addEventListener('click', loadStats);
+
+    // فلتر التاريخ داخل القسم
+    document.getElementById('dateFilter').addEventListener('change', (e)=>{
+      const iso = toIsoDate(e.target.value);
+      applyDateFilter(iso);
+    });
+    document.getElementById('clearFilter').addEventListener('click', ()=>{
+      document.getElementById('dateFilter').value = '';
+      applyDateFilter('');
+    });
 
     (function init(){
       setupCollapses();
