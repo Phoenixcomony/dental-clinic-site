@@ -6,9 +6,7 @@
   <title>لوحة الأداء - Phoenix Staff</title>
   <link rel="stylesheet" href="css/style.css" />
   <style>
-    /* منع أي تمدد أفقي للصفحة */
     html, body { max-width: 100%; overflow-x: hidden; }
-
     body { font-family: 'Cairo', Arial, Tahoma, sans-serif; background:#f7f6f2; padding:16px; }
     .wrap { max-width: 1100px; margin: 0 auto; min-width: 0; }
 
@@ -37,7 +35,6 @@
 
     .chart-wrap { flex:1; height: 320px; max-height: 320px; }
     @media (max-width: 480px){ .chart-wrap { height: 240px; max-height:240px; } }
-
     .chart-wrap canvas { width:100% !important; height:100% !important; display:block; }
 
     .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -49,18 +46,34 @@
     .muted { color:#8d7a54; font-size:0.9rem; }
     .foot { margin-top:14px; color:#8d7a54; font-size:0.85rem; }
 
-    /* إضافات الواجهة التفصيلية */
-    .filters { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    .filters select, .filters input[type="date"] {
-      padding:8px 10px; border:1px solid #e0d4b0; border-radius:10px; background:#fff; min-width: 160px;
+    /* ===== زر طيّ / فتح (سهم) ===== */
+    .collapse {
+      background:#fff8df; color:#7a6741; font-weight:800; border:1px solid #f1e7c8;
+      border-radius:12px; padding:10px 12px; display:flex; align-items:center; justify-content:space-between;
+      cursor:pointer; user-select:none; box-shadow:0 4px 20px #e2be6d2f;
+      margin:16px 2px 6px;
     }
-    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#fff8df; color:#7a6741; font-weight:700; font-size:.9rem; }
+    .collapse .ttl { font-size:0.95rem; }
+    .collapse .arrow { transition: transform .2s ease; display:inline-block; font-size:1.1rem; }
+    .collapse.active .arrow { transform: rotate(180deg); }
+
+    .section-body { background:#fff; border:1px solid #f1e7c8; border-radius:12px; padding:8px; box-shadow:0 4px 20px #e2be6d2f; }
+
+    /* ===== الفلاتر (جنب بعض) ===== */
+    .filters { display:grid; grid-template-columns: 1fr; gap:10px; }
+    @media (min-width: 720px){ .filters { grid-template-columns: 1fr 1fr; } }
+    .filter-box { background:#fff; border-radius:14px; padding:12px; box-shadow:0 4px 20px #e2be6d2f; }
+    .filter-box h4 { margin:0 0 8px 0; font-size:0.95rem; color:#7a6741; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row select, .row input[type="date"] { padding:8px 10px; border:1px solid #e0d4b0; border-radius:10px; background:#fff; min-width: 160px; }
+    .result { margin-top:6px; }
+    .warn { color:#b00020; font-weight:700; }
+
     .clickable-row { cursor:pointer; }
     .clickable-row:hover { background:#fffaf0; }
     .hl { outline: 2px solid #e9be4f66; }
   </style>
 
-  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -86,8 +99,32 @@
       </div>
     </div>
 
-    <!-- آخر تحديث -->
     <div class="muted" id="lastUpdate" style="margin-top:6px;">—</div>
+
+    <!-- ===== الفلاتر: التاريخ + العيادة جنب بعض ===== -->
+    <div class="filters" style="margin:16px 0;">
+      <!-- فلترة بالتاريخ أولًا -->
+      <div class="filter-box" id="dateFirstBox">
+        <h4>فلترة بالتاريخ أولًا</h4>
+        <div class="row">
+          <input id="fltDateB" type="date" />
+          <select id="fltClinicB"><option value="">اختر العيادة (اختياري)</option></select>
+          <button class="btn" id="runB" type="button">عرض النتيجة</button>
+        </div>
+        <div class="result muted" id="outB">—</div>
+      </div>
+
+      <!-- فلترة بالعيادة أولًا -->
+      <div class="filter-box" id="clinicFirstBox">
+        <h4>فلترة بالعيادة أولًا</h4>
+        <div class="row">
+          <select id="fltClinicA"><option value="">اختر العيادة</option></select>
+          <input id="fltDateA" type="date" />
+          <button class="btn" id="runA" type="button">عرض النتيجة</button>
+        </div>
+        <div class="result muted" id="outA">—</div>
+      </div>
+    </div>
 
     <div class="grid">
       <div class="panel">
@@ -104,58 +141,41 @@
       </div>
     </div>
 
-    <h3 class="muted" style="margin: 16px 2px;">حسب العيادة</h3>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>العيادة</th><th>عدد الوصول</th></tr>
-        </thead>
-        <tbody id="clinicBody"></tbody>
-      </table>
-    </div>
-
-    <h3 class="muted" style="margin: 16px 2px;">حسب التاريخ (اليوميات)</h3>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>التاريخ</th><th>عدد الوصول</th></tr>
-        </thead>
-        <tbody id="dateBody"></tbody>
-      </table>
-    </div>
-
-    <!-- جديد: تفصيل يومي للعيادات -->
-    <h3 class="muted" style="margin: 16px 2px;">تفصيل يومي: العيادات لكل يوم</h3>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>التاريخ</th><th>العيادات</th></tr>
-        </thead>
-        <tbody id="perDayBody"></tbody>
-      </table>
-    </div>
-
-    <!-- جديد: لوحة تفاعلية للنقر و الفلاتر -->
-    <div class="panel" style="margin-top:16px;">
-      <h3>تفاصيل تفاعلية</h3>
-
-      <!-- نتيجة النقر على تاريخ -->
-      <div id="dayDetailBox" style="display:none; margin-bottom:10px;">
-        <div class="muted" style="margin-bottom:6px;">تفاصيل اليوم المختار</div>
-        <div id="dayDetailHeader" class="pill">—</div>
-        <div id="dayDetailList" class="muted" style="margin-top:8px;">—</div>
+    <!-- ===== أقسام قابلة للطيّ ===== -->
+    <button class="collapse" data-target="#secClinic">
+      <span class="ttl">حسب العيادة</span><span class="arrow">▾</span>
+    </button>
+    <div id="secClinic" class="section-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>العيادة</th><th>عدد الوصول</th></tr></thead>
+          <tbody id="clinicBody"></tbody>
+        </table>
       </div>
+    </div>
 
-      <!-- فلاتر: عيادة + تاريخ -->
-      <div class="filters" style="margin-top:6px;">
-        <select id="fltClinic">
-          <option value="">اختر العيادة</option>
-          <!-- يُملأ تلقائيًا -->
-        </select>
-        <input id="fltDate" type="date" />
-        <button class="btn" id="fltBtn" type="button">عرض النتيجة</button>
+    <button class="collapse" data-target="#secDates">
+      <span class="ttl">حسب التاريخ (اليوميات)</span><span class="arrow">▾</span>
+    </button>
+    <div id="secDates" class="section-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>التاريخ</th><th>عدد الوصول</th></tr></thead>
+          <tbody id="dateBody"></tbody>
+        </table>
       </div>
-      <div id="fltResult" class="muted" style="margin-top:8px;">—</div>
+    </div>
+
+    <button class="collapse" data-target="#secPerDay">
+      <span class="ttl">تفصيل يومي: العيادات لكل يوم</span><span class="arrow">▾</span>
+    </button>
+    <div id="secPerDay" class="section-body">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>التاريخ</th><th>العيادات</th></tr></thead>
+          <tbody id="perDayBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="foot">
@@ -164,77 +184,72 @@
   </div>
 
   <script>
-    // ==== تنسيقات مساعدة ====
     function formatNum(n){ return new Intl.NumberFormat('ar-EG').format(n || 0); }
     function todayKey(){ const d = new Date(); return d.toISOString().slice(0,10); }
 
-    // تطبيع اسم العيادة: استبدال "غير محدد" بالاسم المقصود
     function normalizeClinic(name){
       const n = (name || '').trim();
       return (!n || n === 'غير محدد') ? 'عيادة الأسنان 4**الفترة الثانية' : n;
     }
 
-    // الحالة العامة للبيانات المجلوبة (نخزنها لاستخدام التفاعل)
-    const STATE = {
-      raw: null,
-      mergedClinics: [], // قائمة العيادات الموحّدة لواجهة الفلترة
-    };
+    const STATE = { raw:null, mergedClinics:[] };
+    let dailyChart, clinicChart;
 
-    // ==== جداول HTML ====
+    function renderCards(db){
+      document.getElementById('total').textContent = formatNum(db.total || 0);
+      const tKey = todayKey();
+      document.getElementById('today').textContent = formatNum((db.byDate && db.byDate[tKey]) || 0);
+      document.getElementById('todayDate').textContent = tKey;
+    }
+
     function renderTables(db){
       const clinicBody = document.getElementById('clinicBody');
       const dateBody = document.getElementById('dateBody');
+      clinicBody.innerHTML = ''; dateBody.innerHTML = '';
 
-      // حسب العيادة
-      clinicBody.innerHTML = '';
       const clinics = Object.entries(db.byClinic || {}).reduce((acc,[k,v])=>{
         const nk = normalizeClinic(k);
         acc[nk] = (acc[nk] || 0) + Number(v||0);
         return acc;
       }, {});
       const clinicEntries = Object.entries(clinics).sort((a,b)=>b[1]-a[1]);
-
       if (!clinicEntries.length){
         clinicBody.innerHTML = '<tr><td colspan="2" class="muted">لا توجد بيانات بعد</td></tr>';
       } else {
         clinicEntries.forEach(([key, val])=>{
           const tr = document.createElement('tr');
+          tr.className='clickable-row'; tr.dataset.clinic = key;
           tr.innerHTML = `<td>${key || '—'}</td><td>${formatNum(val)}</td>`;
           clinicBody.appendChild(tr);
         });
       }
 
-      // حسب التاريخ
-      dateBody.innerHTML = '';
       const dates = Object.entries(db.byDate || {}).sort((a,b)=> a[0] < b[0] ? 1 : -1);
       if (!dates.length){
         dateBody.innerHTML = '<tr><td colspan="2" class="muted">لا توجد بيانات بعد</td></tr>';
       } else {
         dates.forEach(([key, val])=>{
           const tr = document.createElement('tr');
-          tr.className = 'clickable-row';
-          tr.dataset.date = key;
+          tr.className='clickable-row'; tr.dataset.date = key;
           tr.innerHTML = `<td>${key}</td><td>${formatNum(val)}</td>`;
           dateBody.appendChild(tr);
         });
       }
 
-      // خزّن قائمة العيادات الموحّدة (لاستخدام الفلاتر)
       STATE.mergedClinics = Object.keys(clinics);
-      fillClinicFilter(STATE.mergedClinics);
+      fillClinicFilters(STATE.mergedClinics);
+
+      bindRowClicks();
     }
 
-    // جديد: تفصيل يومي
     function renderPerDay(db){
       const perDayBody = document.getElementById('perDayBody');
       perDayBody.innerHTML = '';
-
       const byDateClinic = db.byDateClinic;
       const topClinicPerDay = db.topClinicPerDay;
 
       if (byDateClinic && Object.keys(byDateClinic).length){
-        // اعرض كل العيادات لكل يوم
-        const dates = Object.keys(byDateClinic).sort(); // تصاعدي
+        const dates = Object.keys(byDateClinic).sort();
         dates.forEach(date=>{
           const rowData = byDateClinic[date] || {};
           const parts = Object.entries(rowData)
@@ -252,40 +267,20 @@
       }
 
       if (Array.isArray(topClinicPerDay) && topClinicPerDay.length){
-        // اعرض العيادة الأكثر لكل يوم فقط
-        topClinicPerDay
-          .slice()
-          .sort((a,b)=> a.date.localeCompare(b.date))
-          .forEach(item=>{
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td style="width:140px">${item.date}</td><td>${normalizeClinic(item.clinic)} — ${formatNum(item.count)}</td>`;
-            perDayBody.appendChild(tr);
-          });
+        topClinicPerDay.slice().sort((a,b)=> a.date.localeCompare(b.date)).forEach(item=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td style="width:140px">${item.date}</td><td>${normalizeClinic(item.clinic)} — ${formatNum(item.count)}</td>`;
+          perDayBody.appendChild(tr);
+        });
         return;
       }
 
-      // لا توجد بيانات تفصيل يومي من الخادم
       perDayBody.innerHTML = '<tr><td colspan="2" class="muted">تفصيل اليوم غير متاح من الخادم حالياً</td></tr>';
     }
 
-    // ==== بطاقات الملخص ====
-    function renderCards(db){
-      const totalEl = document.getElementById('total');
-      const todayEl = document.getElementById('today');
-      const todayLbl = document.getElementById('todayDate');
-
-      totalEl.textContent = formatNum(db.total || 0);
-      const tKey = todayKey();
-      todayEl.textContent = formatNum((db.byDate && db.byDate[tKey]) || 0);
-      todayLbl.textContent = tKey;
-    }
-
-    // ==== الرسوم البيانية (Chart.js) ====
-    let dailyChart, clinicChart;
-
     function buildDailySeries(byDate){
       const entries = Object.entries(byDate || {}).map(([d, v])=>({d, v:Number(v||0)}));
-      entries.sort((a,b)=> a.d.localeCompare(b.d)); // تصاعدي
+      entries.sort((a,b)=> a.d.localeCompare(b.d));
       return { labels: entries.map(e=>e.d), data: entries.map(e=>e.v) };
     }
 
@@ -304,95 +299,167 @@
       if (dailyChart) dailyChart.destroy();
       if (clinicChart) clinicChart.destroy();
 
-      // Daily (Line)
       const daily = buildDailySeries(db.byDate);
       if (daily.labels.length === 0) { daily.labels = [todayKey()]; daily.data = [0]; }
-
       const dailyCtx = document.getElementById('dailyChart').getContext('2d');
       dailyChart = new Chart(dailyCtx, {
         type: 'line',
-        data: {
-          labels: daily.labels,
-          datasets: [{
-            label: 'وصولات يومية',
-            data: daily.data,
-            tension: 0.25,
-            borderWidth: 2,
-            pointRadius: 3
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,
-          scales: {
-            x: { ticks: { autoSkip: true, maxTicksLimit: 12 } },
-            y: { beginAtZero: true, precision: 0 }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: { rtl: true, textDirection: 'rtl' }
-          }
-        }
+        data: { labels: daily.labels, datasets: [{ label: 'وصولات يومية', data: daily.data, tension: 0.25, borderWidth: 2, pointRadius: 3 }] },
+        options: { maintainAspectRatio:false, scales:{ x:{ticks:{autoSkip:true,maxTicksLimit:12}}, y:{beginAtZero:true,precision:0} }, plugins:{ legend:{display:false}, tooltip:{ rtl:true, textDirection:'rtl' } } }
       });
 
-      // Clinics (Horizontal Bar)
       const clinics = buildClinicSeries(db.byClinic);
       if (clinics.labels.length === 0) { clinics.labels = ['—']; clinics.data = [0]; }
-
       const clinicCtx = document.getElementById('clinicChart').getContext('2d');
       clinicChart = new Chart(clinicCtx, {
         type: 'bar',
-        data: {
-          labels: clinics.labels,
-          datasets: [{
-            label: 'عدد الوصول',
-            data: clinics.data,
-            borderWidth: 1
-          }]
-        },
-        options: {
-          maintainAspectRatio: false,
-          indexAxis: 'y',
-          scales: {
-            x: { beginAtZero: true, precision: 0, ticks: { autoSkip: false } },
-            y: { ticks: { autoSkip: false } }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: { rtl: true, textDirection: 'rtl' }
-          }
-        }
+        data: { labels: clinics.labels, datasets: [{ label: 'عدد الوصول', data: clinics.data, borderWidth: 1 }] },
+        options: { maintainAspectRatio:false, indexAxis:'y', scales:{ x:{beginAtZero:true,precision:0,ticks:{autoSkip:false}}, y:{ticks:{autoSkip:false}} }, plugins:{ legend:{display:false}, tooltip:{ rtl:true, textDirection:'rtl' } } }
       });
     }
 
-    // ==== تعبئة فلتر العيادات ====
-    function fillClinicFilter(list){
-      const sel = document.getElementById('fltClinic');
-      const current = sel.value;
-      sel.innerHTML = '<option value="">اختر العيادة</option>' +
-        (list || []).map(c=>`<option value="${c}">${c}</option>`).join('');
-      if (list.includes(current)) sel.value = current;
+    /* ========== الفلاتر ========== */
+    function fillClinicFilters(list){
+      const selA = document.getElementById('fltClinicA');
+      const selB = document.getElementById('fltClinicB');
+      const opts = (list||[]).map(c=>`<option value="${c}">${c}</option>`).join('');
+      selA.innerHTML = '<option value="">اختر العيادة</option>' + opts;
+      selB.innerHTML = '<option value="">اختر العيادة (اختياري)</option>' + opts;
     }
 
-    // ==== عرض تفاصيل يوم مختار ====
-    function showDayDetails(dateKey){
-      const box = document.getElementById('dayDetailBox');
-      const header = document.getElementById('dayDetailHeader');
-      const list = document.getElementById('dayDetailList');
+    function totalForClinic(clinic){
+      if (!STATE.raw) return 0;
+      const bC = STATE.raw.byClinic || {};
+      let sum = 0;
+      Object.entries(bC).forEach(([k,v])=>{
+        if (normalizeClinic(k) === clinic) sum += Number(v||0);
+      });
+      if (sum > 0) return sum;
 
-      const map = (STATE.raw && STATE.raw.byDateClinic) ? STATE.raw.byDateClinic[dateKey] : null;
-      header.textContent = dateKey;
-      if (!map || !Object.keys(map).length){
-        list.textContent = 'لا توجد تفاصيل عيادات لهذا اليوم.';
-      } else {
-        const items = Object.entries(map).map(([k,v])=>({k: normalizeClinic(k), v:Number(v||0)}))
-          .sort((a,b)=> b.v - a.v)
-          .map(i => `${i.k}: ${formatNum(i.v)}`);
-        list.textContent = items.join(' — ');
+      const bDC = STATE.raw.byDateClinic || {};
+      Object.values(bDC).forEach(map=>{
+        Object.entries(map||{}).forEach(([k,v])=>{
+          if (normalizeClinic(k) === clinic) sum += Number(v||0);
+        });
+      });
+      return sum;
+    }
+
+    function totalForDate(date){
+      if (!STATE.raw) return 0;
+      const bD = STATE.raw.byDate || {};
+      if (bD[date] != null) return Number(bD[date]||0);
+
+      const bDC = STATE.raw.byDateClinic || {};
+      const map = bDC[date] || {};
+      return Object.values(map).reduce((a,b)=> a + Number(b||0), 0);
+    }
+
+    function countClinicOnDate(clinic, date){
+      if (!STATE.raw) return 0;
+      const bDC = STATE.raw.byDateClinic || {};
+      const map = bDC[date] || null;
+      if (!map) return 0;
+      const merged = Object.entries(map).reduce((acc,[k,v])=>{
+        const nk = normalizeClinic(k);
+        acc[nk] = (acc[nk] || 0) + Number(v||0);
+        return acc;
+      }, {});
+      return Number(merged[clinic] || 0);
+    }
+
+    function runA(){
+      const out = document.getElementById('outA');
+      const clinic = (document.getElementById('fltClinicA').value || '').trim();
+      const date = (document.getElementById('fltDateA').value || '').trim();
+
+      if (!clinic){
+        out.textContent = 'اختر العيادة أولاً.';
+        return;
       }
-      box.style.display = '';
+
+      const totalClinic = totalForClinic(clinic);
+      let msg = `إجمالي اختيارات العيادة "${clinic}" عبر كل الأيام: ${formatNum(totalClinic)}.`;
+
+      if (date){
+        if (STATE.raw && STATE.raw.byDateClinic){
+          const c = countClinicOnDate(clinic, date);
+          msg += ` في ${date}: ${formatNum(c)}.`;
+        } else {
+          msg += ` في ${date}: —  | <span class="warn">تفصيل اليوم غير متاح من الخادم (byDateClinic مفقود).</span>`;
+        }
+      }
+      out.innerHTML = msg;
     }
 
-    // ==== جلب البيانات وتحديث كل شيء ====
+    function runB(){
+      const out = document.getElementById('outB');
+      const date = (document.getElementById('fltDateB').value || '').trim();
+      const clinic = (document.getElementById('fltClinicB').value || '').trim();
+
+      if (!date){
+        out.textContent = 'اختر التاريخ أولاً.';
+        return;
+      }
+
+      const totalDay = totalForDate(date);
+      let msg = `إجمالي الاختيارات في ${date}: ${formatNum(totalDay)}.`;
+
+      if (clinic){
+        if (STATE.raw && STATE.raw.byDateClinic){
+          const c = countClinicOnDate(clinic, date);
+          msg += ` منها "${clinic}": ${formatNum(c)}.`;
+        } else {
+          msg += ` منها "${clinic}": —  | <span class="warn">تفصيل اليوم غير متاح من الخادم (byDateClinic مفقود).</span>`;
+        }
+      }
+      out.innerHTML = msg;
+    }
+
+    document.addEventListener('click', (e)=>{
+      if (e.target && e.target.id === 'runA') runA();
+      if (e.target && e.target.id === 'runB') runB();
+    });
+
+    function bindRowClicks(){
+      const clinicTbody = document.getElementById('clinicBody');
+      const dateTbody = document.getElementById('dateBody');
+
+      clinicTbody.addEventListener('click', (e)=>{
+        const tr = e.target.closest('tr.clickable-row'); if (!tr) return;
+        document.querySelectorAll('#clinicBody tr').forEach(r=>r.classList.remove('hl'));
+        tr.classList.add('hl');
+        const clinic = tr.dataset.clinic;
+        document.getElementById('fltClinicA').value = clinic;
+        runA();
+      });
+
+      dateTbody.addEventListener('click', (e)=>{
+        const tr = e.target.closest('tr.clickable-row'); if (!tr) return;
+        document.querySelectorAll('#dateBody tr').forEach(r=>r.classList.remove('hl'));
+        tr.classList.add('hl');
+        const date = tr.dataset.date;
+        document.getElementById('fltDateB').value = date;
+        runB();
+      });
+    }
+
+    /* ========== طيّ/فتح الأقسام ========== */
+    function setupCollapses(){
+      document.querySelectorAll('.collapse').forEach(btn=>{
+        const sel = btn.getAttribute('data-target');
+        const box = document.querySelector(sel);
+        if (!box) return;
+        // افتراضيًا مفتوح
+        btn.classList.add('active');
+        btn.addEventListener('click', ()=>{
+          const isOpen = btn.classList.toggle('active');
+          box.style.display = isOpen ? '' : 'none';
+        });
+      });
+    }
+
+    /* ========== الجلب والتحديث ========== */
     async function _loadStatsCore(){
       const key = document.getElementById('staffKey').value.trim();
       if (!key){ return alert('فضلاً أدخل STAFF_KEY'); }
@@ -412,12 +479,8 @@
         renderCharts(data);
         renderPerDay(data);
 
-        // آخر تحديث
         document.getElementById('lastUpdate').textContent =
           'آخر تحديث: ' + new Date().toLocaleString('ar-SA');
-
-        // اربط نقر الصفوف (حسب التاريخ)
-        bindDateRowClicks();
       } catch(e){
         alert('تعذّر جلب الإحصاءات: ' + e.message);
       }
@@ -431,8 +494,8 @@
 
     document.getElementById('loadBtn').addEventListener('click', loadStats);
 
-    // حمّل تلقائيًا إن كان المفتاح محفوظ في نفس الجلسة
-    (function autoPrefillAndLoad(){
+    (function init(){
+      setupCollapses();
       const saved = sessionStorage.getItem('phoenix_staff_key');
       if (saved) {
         document.getElementById('staffKey').value = saved;
@@ -440,69 +503,9 @@
       }
     })();
 
-    // اختصار Enter
     document.getElementById('staffKey').addEventListener('keydown', (e)=>{
       if (e.key === 'Enter') loadStats();
     });
-
-    // ربط نقر الصفوف بعد إعادة بناء جدول التاريخ
-    function bindDateRowClicks(){
-      const body = document.getElementById('dateBody');
-      body.removeEventListener('click', _onDateBodyClick);
-      body.addEventListener('click', _onDateBodyClick);
-    }
-
-    function _onDateBodyClick(e){
-      const tr = e.target.closest('tr.clickable-row');
-      if (!tr) return;
-      // تمييز الصف المختار
-      document.querySelectorAll('#dateBody tr').forEach(r=>r.classList.remove('hl'));
-      tr.classList.add('hl');
-      const dateKey = tr.dataset.date;
-      showDayDetails(dateKey);
-
-      // إن كان هناك عيادة مختارة في الفلتر، اعرض النتيجة مباشرةً
-      const selClinic = document.getElementById('fltClinic').value;
-      if (selClinic){
-        document.getElementById('fltDate').value = dateKey;
-        runFilter(); // يحسب العدد مباشرة
-      }
-    }
-
-    // تشغيل الفلتر
-    function runFilter(){
-      const out = document.getElementById('fltResult');
-      const date = (document.getElementById('fltDate').value || '').trim();
-      const clinic = (document.getElementById('fltClinic').value || '').trim();
-      if (!date || !clinic){
-        out.textContent = 'اختر العيادة والتاريخ ثم اضغط "عرض النتيجة".';
-        return;
-      }
-      const byDateClinic = STATE.raw && STATE.raw.byDateClinic;
-      const map = byDateClinic ? byDateClinic[date] : null;
-      let count = 0;
-      if (map){
-        // قد يأتي الاسم بشكل غير مطبّع من الخادم؛ نجرب المطابقة بعد التطبيع
-        // نبني جدولًا عكسيًا مطبّعًا
-        const normalized = Object.entries(map).reduce((acc,[k,v])=>{
-          const nk = normalizeClinic(k);
-          acc[nk] = (acc[nk] || 0) + Number(v||0);
-          return acc;
-        }, {});
-        count = Number(normalized[clinic] || 0);
-      }
-      out.textContent = `في ${date} تم اختيار "${clinic}" عدد ${formatNum(count)} مرة.`;
-    }
-
-    document.getElementById('fltBtn').addEventListener('click', runFilter);
-
-    // (اختياري) تحديث تلقائي كل 60 ثانية بعد أول تحميل ناجح:
-    // let autoTimer=null;
-    // document.getElementById('loadBtn').addEventListener('click', async ()=>{
-    //   await loadStats();
-    //   if (autoTimer) clearInterval(autoTimer);
-    //   autoTimer = setInterval(_loadStatsCore, 60000);
-    // });
   </script>
 </body>
 </html>
