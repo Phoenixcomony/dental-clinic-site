@@ -503,7 +503,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
         const tds = Array.from(document.querySelectorAll('td[height="29"]'));
         for(const td of tds){
           const val = (td.textContent||'').trim();
-          const digits = toAscii(val).replace(/[^\d]/g,'');
+          const digits = toAscii(val).replace(/\D/g,'');
           if(/^05\d{8}$/.test(digits)) return digits;
         }
         return '';
@@ -669,7 +669,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\s+/g,' ');
+      const ascii = toAscii(val).replace(/\س+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
@@ -951,7 +951,7 @@ app.post('/api/times', async (req, res) => {
         const [D,M,Y] = str.split(/[-/]/).map(n=>+n);
         y=Y; m=M; d=D;
       } else {
-        const mch = str.match(/(\d{1,4})\D+(\d{1,2})\D+(\d{1,4})/);
+        const mch = str.match(/(\d{1,4})\D+(\د{1,2})\D+(\د{1,4})/);
         if (mch) {
           let a=+mch[1], b=+mch[2], c=+mch[3];
           if (a>31) { y=a; m=b; d=c; } else { d=a; m=b; y=c; }
@@ -1170,7 +1170,9 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
 
     const selected = await page.evaluate((wanted)=>{
       const radios=document.querySelectorAll('input[type="radio"][name="ss"]');
-      for(const r of radios){ if(r.value===wanted && !r.disabled){ r.click(); return true; } }
+      for(const r of radios){
+        if(r.value===wanted && !r.disabled){ r.click(); return true; }
+      }
       return false;
     }, time);
     if(!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
@@ -1199,16 +1201,8 @@ app.post('/verify-otp', (req,res)=>{
   return res.json({ success:false, message:'رمز التحقق غير صحيح!' });
 });
 
-/** ===== NEW: Create New Patient File (مطوّر حسب فكرة الملف الثاني) =====
- * Endpoint: POST /api/new-file
- * Body: {
- *   fullName, nationalId, phone, nationality, gender,
- *   birthYear, birthMonth, birthDay, otp
- * }
- * Returns: { success, fileId?, fullName?, phoneLocal?, message, reason? }
- */
+/** ===== NEW: Create New Patient File ===== */
 app.post('/api/new-file', async (req, res) => {
-  // مهلة شاملة اختيارية لحماية العملية بأكملها
   const MASTER_TIMEOUT_MS = 90000;
   const masterTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
 
@@ -1226,7 +1220,6 @@ app.post('/api/new-file', async (req, res) => {
         otp
       } = req.body || {};
 
-      // تحقق إدخال (متوافق مع الواجهة الأولى)
       const nameNorm = normalizeArabic(fullName || '');
       const nameParts = nameNorm.split(' ').filter(Boolean);
       if (!nameParts.length || nameParts.length < 3) {
@@ -1251,7 +1244,6 @@ app.post('/api/new-file', async (req, res) => {
 
       let account = null;
       try {
-        // احجز حسابًا بمهلة لتفادي التعليق
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
 
@@ -1273,19 +1265,14 @@ app.post('/api/new-file', async (req, res) => {
         await page.waitForSelector('#fname', { timeout: 30000 });
         await page.waitForSelector('#phone', { timeout: 30000 });
 
-        // املأ الحقول الأساسية
+        // املأ الحقول
         await page.$eval('#fname', (el,v)=>{ el.value=v; }, nameNorm);
         await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
-
-        // تاريخ الميلاد
         await page.select('#day12',   String(birthDay));
         await page.select('#month12', String(birthMonth));
         await page.select('#year12',  String(birthYear));
-
-        // الجنس
         await page.select('#gender', String(gender || '1'));
 
-        // الجنسية (إن أرسلت)
         if (nationality) {
           await page.evaluate((val)=>{
             const sel = document.querySelector('#n');
@@ -1297,7 +1284,6 @@ app.post('/api/new-file', async (req, res) => {
           }, String(nationality));
         }
 
-        // كتابة الجوال ببطء + قراءة رجعية للتأكد
         async function typePhoneSlowAndEnsure(p){
           await page.$eval('#phone', (el)=>{ el.value=''; });
           for(let i=0;i<p.length;i++){
@@ -1316,14 +1302,12 @@ app.post('/api/new-file', async (req, res) => {
         }
         await typePhoneSlowAndEnsure(phone05);
 
-        // تحذير التكرار قبل الحفظ
         await sleep(2000);
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
         }
 
-        // إرسال النموذج
         await page.waitForSelector('#submit', { timeout: 20000 });
         await page.evaluate(() => {
           const btn = document.querySelector('#submit');
@@ -1333,13 +1317,11 @@ app.post('/api/new-file', async (req, res) => {
         await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{});
         await sleep(1200);
 
-        // تحذير التكرار بعد الحفظ
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
         }
 
-        // استخراج رقم الملف (إن أمكن)
         let fileId = '';
         try {
           const hrefId = await page.evaluate(()=>{
@@ -1353,7 +1335,6 @@ app.post('/api/new-file', async (req, res) => {
         } catch(_) {}
 
         if (!fileId) {
-          // محاولة أخيرة: ابحث باسم/جوال للتقاط الملف
           const byPhone = await searchSuggestionsByPhoneOnNavbar(page, phone05);
           const found = byPhone.find(it => phonesEqual05(it.parsed.phone, phone05));
           if (found && found.parsed.fileId) fileId = found.parsed.fileId;
@@ -1361,12 +1342,11 @@ app.post('/api/new-file', async (req, res) => {
 
         await browser.close(); if (account) releaseAccount(account);
 
+        delete otpStore[normalizePhoneIntl(phone)];
+
         if (!fileId) {
           return res.json({ success:false, message:'تم الحفظ لكن تعذّر استخراج رقم الملف', reason:'unknown' });
         }
-
-        // إزالة كود OTP لهذا الرقم بعد النجاح
-        delete otpStore[normalizePhoneIntl(phone)];
 
         return res.json({
           success:true,
@@ -1433,11 +1413,23 @@ function safeWriteJSON(p, obj) {
   }
 }
 function loadMetrics() {
-  const init = { ok: true, total: 0, byClinic: {}, byDate: {} };
+  const init = { ok: true, total: 0, byClinic: {}, byDate: {}, byDateClinic: {} };
   const main = safeReadJSON(METRICS_PATH, null);
-  if (main) return { ok: true, total: Number(main.total||0), byClinic: main.byClinic||{}, byDate: main.byDate||{} };
+  if (main) return {
+    ok: true,
+    total: Number(main.total||0),
+    byClinic: main.byClinic||{},
+    byDate: main.byDate||{},
+    byDateClinic: main.byDateClinic||{}
+  };
   const backup = safeReadJSON(METRICS_PATH + '.bak', null);
-  if (backup) return { ok: true, total: Number(backup.total||0), byClinic: backup.byClinic||{}, byDate: backup.byDate||{} };
+  if (backup) return {
+    ok: true,
+    total: Number(backup.total||0),
+    byClinic: backup.byClinic||{},
+    byDate: backup.byDate||{},
+    byDateClinic: backup.byDateClinic||{}
+  };
   safeWriteJSON(METRICS_PATH, init);
   return init;
 }
@@ -1462,6 +1454,9 @@ function incMetrics({ clinic }) {
   const c = (clinic || '').trim() || 'غير محدد';
   METRICS.byClinic[c] = (Number(METRICS.byClinic[c]) || 0) + 1;
   METRICS.byDate[dateKey] = (Number(METRICS.byDate[dateKey]) || 0) + 1;
+  METRICS.byDateClinic = METRICS.byDateClinic || {};
+  const dayMap = METRICS.byDateClinic[dateKey] = METRICS.byDateClinic[dateKey] || {};
+  dayMap[c] = (Number(dayMap[c]) || 0) + 1;
   saveMetrics();
 }
 
@@ -1493,7 +1488,7 @@ app.post('/api/stats/reset', (req, res) => {
   if (!STAFF_KEY || key !== STAFF_KEY) {
     return res.status(403).json({ ok: false, error: 'Forbidden' });
   }
-  METRICS = { ok: true, total: 0, byClinic: {}, byDate: {} };
+  METRICS = { ok: true, total: 0, byClinic: {}, byDate: {}, byDateClinic: {} };
   saveMetrics();
   res.json({ ok: true });
 });
