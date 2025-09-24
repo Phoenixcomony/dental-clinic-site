@@ -931,7 +931,7 @@ app.post('/api/times', async (req, res) => {
     const effectivePeriod = period || autoPeriod; // تُفضَّل period لو مررتها الواجهة
 
     // ⚠️ استثناء خاص للمسائية في "الجلدية والتجميل"
-    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل**الفترة الثانية';
+    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
     const isDermEvening = clinicStr === DERM_EVENING_VALUE;
 
     // Helpers (وقت)
