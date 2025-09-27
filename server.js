@@ -18,28 +18,49 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-const sendIndex = (res) => res.sendFile(path.join(__dirname, 'index.html'));
+// ===== Pretty Arabic Routes & SEO Redirects =====
+const canonical = {
+  'index.html':               ['الرئيسية', 'الرئيسيه'],
+  'about.html':               ['من-نحن', 'نبذة'],
+  'appointment.html':         ['حجز-موعد'],
+  'contact.html':             ['اتصل-بنا'],
+  'dental.html':              ['الأسنان', 'الاسنان'],
+  'dermatology.html':         ['الجلدية-والتجميل', 'الجلديه-والتجميل'],
+  'general-medicine.html':    ['الطب-العام', 'الطب-العام-والطوارئ'],
+  'gynecology.html':          ['النساء-والولادة', 'النساء-و-الولادة'],
+  'hydrafacial.html':         ['هايدرافيشل', 'تنظيف-البشرة-العميق'],
+  'identity.html':            ['الهوية'],
+  'laser-hair-removal.html':  ['إزالة-الشعر-بالليزر', 'الليزر'],
+  'new-file.html':            ['فتح-ملف-جديد'],
+};
 
-// 1) SEO: من /index.html إلى /الرئيسية
-app.get('/index.html', (req, res) => res.redirect(301, '/الرئيسية'));
+// 1) SEO 301: من الاسم الإنجليزي → أول مسار عربي (الكانوني)
+for (const [file, slugs] of Object.entries(canonical)) {
+  const target = `/${slugs[0]}`;
+  app.get(`/${file}`, (req, res) => res.redirect(301, target));
+}
 
-// 2) التقديم على الروابط العربية سواء كانت مُرمَّزة أو لا (مع/بدون سلاش)
+// 2) خدمة الملفات عند زيارة المسارات العربية (تفك ترميز %D8…)
 app.get('*', (req, res, next) => {
-  // نفك ترميز المسار يدويًا لو وصل %D8...
   let p = req.path;
   try { p = decodeURIComponent(p); } catch (_) {}
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1); // شيل السلاش الأخير
 
-  if (
-    p === '/الرئيسية'   || p === '/الرئيسية/' ||
-    p === '/الرئيسيه'   || p === '/الرئيسيه/'
-  ) {
-    return sendIndex(res);
+  // طابق أي مسار عربي معروف وقدّم ملفه
+  for (const [file, slugs] of Object.entries(canonical)) {
+    for (const slug of slugs) {
+      if (p === `/${slug}`) {
+        return res.sendFile(path.join(__dirname, file));
+      }
+    }
   }
+
+  // غير ذلك → كمل لباقي الراوتس/الستاتك
   next();
 });
 
-// 3) (اختياري) الجذر يحوّل مؤقتًا إلى /الرئيسية ليظهر المسار الجميل
-app.get('/', (req, res) => res.redirect(302, '/الرئيسية'));
+// 3) (اختياري) خَلّ الجذر يظهر المسار الجميل للرئيسية
+app.get('/', (req, res) => res.redirect(302, `/${canonical['index.html'][0]}`));
 
 app.use(express.static(__dirname));
 
