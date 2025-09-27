@@ -18,26 +18,28 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-// يقدّم index.html على الروابط العربية (مع وبدون سلاش)
-function serveIndex(req, res) {
-  res.sendFile(path.resolve(__dirname, 'index.html'));
-}
+const sendIndex = (res) => res.sendFile(path.join(__dirname, 'index.html'));
 
-// روابط عربية صريحة
-app.get('/الرئيسية', serveIndex);
-app.get('/الرئيسية/', serveIndex);
-app.get('/الرئيسيه', serveIndex);
-app.get('/الرئيسيه/', serveIndex);
+// 1) SEO: من /index.html إلى /الرئيسية
+app.get('/index.html', (req, res) => res.redirect(301, '/الرئيسية'));
 
-// (تحويل SEO) index.html → /الرئيسية
-app.get('/index.html', (req, res) => {
-  res.redirect(301, '/الرئيسية');
+// 2) التقديم على الروابط العربية سواء كانت مُرمَّزة أو لا (مع/بدون سلاش)
+app.get('*', (req, res, next) => {
+  // نفك ترميز المسار يدويًا لو وصل %D8...
+  let p = req.path;
+  try { p = decodeURIComponent(p); } catch (_) {}
+
+  if (
+    p === '/الرئيسية'   || p === '/الرئيسية/' ||
+    p === '/الرئيسيه'   || p === '/الرئيسيه/'
+  ) {
+    return sendIndex(res);
+  }
+  next();
 });
 
-// (اختياري) الجذر → /الرئيسية ليظهر المسار الجميل
-app.get('/', (req, res) => {
-  res.redirect(302, '/الرئيسية');
-});
+// 3) (اختياري) الجذر يحوّل مؤقتًا إلى /الرئيسية ليظهر المسار الجميل
+app.get('/', (req, res) => res.redirect(302, '/الرئيسية'));
 
 app.use(express.static(__dirname));
 
