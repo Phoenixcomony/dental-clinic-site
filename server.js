@@ -22,7 +22,7 @@ app.use(bodyParser.json({ limit: '2mb' }));
 const canonical = {
   'index.html':               ['الرئيسية', 'الرئيسيه'],
   'about.html':               ['من-نحن', 'نبذة'],
-  'appointment.html':         ['المواعيد'],
+  'appointment.html':         ['حجز-موعد'],
   'contact.html':             ['اتصل-بنا'],
   'dental.html':              ['الأسنان', 'الاسنان'],
   'dermatology.html':         ['الجلدية-و-التجميل', 'الجلديه-و-التجميل'],
