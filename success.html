@@ -199,26 +199,46 @@
       }
     }
 
+    // تنقية رسالة الحجز لإخفاء "رقم الحساب" إن وُجد (مثلاً: … بالحساب: 1111111111)
+    function sanitizeBookingMsg(msg){
+      if(!msg) return '';
+      let s = String(msg);
+
+      // احذف صيغة "بالحساب: <أي أحرف/أرقام>" كاملة
+      s = s.replace(/بالحساب\s*:\s*[\d\w_-]+/g, '').trim();
+
+      // احذف أي أرقام طويلة (6+ أرقام) قد تكون مُعرّفات
+      s = s.replace(/\b\d{6,}\b/g, '').trim();
+
+      // تنظيف مسافات متكررة أو فواصل متبقية
+      s = s.replace(/\s{2,}/g, ' ').replace(/[،,:;]\s*[،,:;]+/g, ',').trim();
+
+      // لو أصبحت الرسالة فارغة بعد التنقية، أعطِ جملة افتراضية
+      if(!s) s = '✅ تم تأكيد الحجز بنجاح.';
+      return s;
+    }
+
     // ==== قراءة البيانات مع بدائل آمنة ====
-    // الاسم والجوال قد يكونان محفوظين باسمَي auth_* إذا لم تُستخدم صفحة التأكيد الوسيطة
-    const name   = localStorage.getItem('pending_name')   || localStorage.getItem('auth_name')  || '';
-    const phone  = localStorage.getItem('pending_phone')  || localStorage.getItem('auth_phone') || '';
-    const clinic = localStorage.getItem('pending_clinic_label') || localStorage.getItem('pending_clinic') || '';
-    const month  = localStorage.getItem('pending_month')  || ''; // إن لم يوجد سيُترك فارغًا
-    const time   = localStorage.getItem('pending_time')   || '';
+    // العرض الآن يعتمد على "رقم الهوية/الإقامة" بدل الاسم.
+    const nationalId = localStorage.getItem('pending_nationalId') || localStorage.getItem('auth_nationalId') || '';
+    const phone      = localStorage.getItem('pending_phone')      || localStorage.getItem('auth_phone')      || '';
+    const clinic     = localStorage.getItem('pending_clinic_label') || localStorage.getItem('pending_clinic') || '';
+    const month      = localStorage.getItem('pending_month')      || '';
+    const time       = localStorage.getItem('pending_time')       || '';
 
     // عرض التفاصيل
     document.getElementById('details').innerHTML = `
-      <div><strong>الاسم:</strong> ${name || '—'}</div>
+      <div><strong>رقم الهوية/الإقامة:</strong> ${nationalId || '—'}</div>
       <div><strong>رقم الجوال:</strong> ${phone || '—'}</div>
       <div><strong>العيادة:</strong> ${clinic || '—'}</div>
       <div><strong>الشهر:</strong> ${month || '—'}</div>
       <div><strong>الوقت:</strong> ${time ? formatTimeValue(time) : '—'}</div>
     `;
 
-    // رسالة الخادم (من /api/book) إن وُجدت
-    const srvMsg = localStorage.getItem('booking_result_msg');
-    document.getElementById('statusMsg').textContent = srvMsg || '🚀 تم استلام بياناتك وسيتم تأكيد الحجز عبر النظام.';
+    // رسالة الخادم (من /api/book) مع إزالة "رقم الحساب" منها
+    const rawMsg = localStorage.getItem('booking_result_msg') || '';
+    const safeMsg = sanitizeBookingMsg(rawMsg);
+    document.getElementById('statusMsg').textContent = safeMsg || '🚀 تم استلام بياناتك وسيتم تأكيد الحجز عبر النظام.';
 
     // ===== تتبّع النجاح (بدون إزعاج المستخدم) =====
     (async () => {
@@ -233,9 +253,9 @@
       }
     })();
 
-    // تنظيف القيم بعد العرض (اترك auth_* لأنها تُستخدم لاحقًا في الجلسة)
+    // تنظيف القيم بعد العرض (اترك auth_* للجلسة إذا كنت تحتاجها لاحقاً)
     localStorage.removeItem('booking_result_msg');
-    localStorage.removeItem('pending_name');
+    localStorage.removeItem('pending_nationalId');  // نظّف الهوية المؤقتة للصفحة
     localStorage.removeItem('pending_phone');
     localStorage.removeItem('pending_clinic');
     localStorage.removeItem('pending_clinic_label');
