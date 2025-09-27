@@ -22,16 +22,19 @@ app.use(bodyParser.json({ limit: '2mb' }));
 const canonical = {
   'index.html':               ['الرئيسية', 'الرئيسيه'],
   'about.html':               ['من-نحن', 'نبذة'],
-  'appointment.html':         ['حجز-موعد'],
+  'appointment.html':         ['المواعيد'],
   'contact.html':             ['اتصل-بنا'],
   'dental.html':              ['الأسنان', 'الاسنان'],
-  'dermatology.html':         ['الجلدية-والتجميل', 'الجلديه-والتجميل'],
+  'dermatology.html':         ['الجلدية-و-التجميل', 'الجلديه-و-التجميل'],
   'general-medicine.html':    ['الطب-العام', 'الطب-العام-والطوارئ'],
-  'gynecology.html':          ['النساء-والولادة', 'النساء-و-الولادة'],
+  'gynecology.html':          ['النساء-و-الولادة', 'النساء-و-الولادة'],
   'hydrafacial.html':         ['هايدرافيشل', 'تنظيف-البشرة-العميق'],
   'identity.html':            ['الهوية'],
   'laser-hair-removal.html':  ['إزالة-الشعر-بالليزر', 'الليزر'],
   'new-file.html':            ['فتح-ملف-جديد'],
+  'services.html':            ['الخدمات'],
+  'success.html':             ['تاكيد-الحجز'],
+
 };
 
 // 1) SEO 301: من الاسم الإنجليزي → أول مسار عربي (الكانوني)
