@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>المخزن | صرف أو إضافة</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root{
+    --blue:#1976d2;         /* أزرق أساسي */
+    --blue-dark:#0d47a1;    /* أزرق غامق */
+    --blue-soft:#e3f2fd;    /* خلفية فاتحة */
+    --text:#0c1b2a;
+    --muted:#5f6b76;
+    --white:#ffffff;
+    --shadow:0 10px 30px rgba(13,71,161,.15);
+    --border:#cfe3fb;
+    --chip:#eef6ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Cairo',Tahoma,Arial,sans-serif;background:var(--blue-soft);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+  header{position:sticky;top:0;background:linear-gradient(90deg,var(--blue),var(--blue-dark));color:var(--white);box-shadow:var(--shadow);z-index:10}
+  .container{max-width:540px;margin:0 auto;padding:14px}
+  h1{margin:0;display:flex;align-items:center;gap:10px;font-size:1.2rem}
+  main.container{flex:1;width:100%}
+  .card{background:var(--white);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin:16px 0;border:1px solid #d7e7fb}
+  .muted{color:var(--muted);font-size:.95rem}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .full{grid-column:1/-1}
+  button{cursor:pointer;border:none;border-radius:14px;font-weight:800}
+  .btn{background:linear-gradient(90deg,var(--blue),var(--blue-dark));color:#fff;padding:12px 14px;box-shadow:0 8px 16px rgba(25,118,210,.25)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:var(--white);color:var(--blue);padding:11px 14px;border:1.6px solid var(--border)}
+  input{width:100%;padding:12px 12px;border-radius:12px;border:1.6px solid var(--border);background:#f8fbff}
+  input:focus{outline:none;border-color:var(--blue)}
+  .choice{display:flex;align-items:center;justify-content:center;gap:10px;padding:18px;border-radius:16px;border:1.8px dashed var(--border);background:#fff;transition:.15s;user-select:none}
+  .choice:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(0,0,0,.06)}
+  .big-choice{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hide{display:none !important}
+  .title{font-weight:800;color:var(--blue-dark);margin:0 0 10px}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:var(--chip);color:#0d47a1;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-weight:700}
+  footer{margin-top:auto;text-align:center;color:#2b3a45;font-weight:700;background:#f4f9ff;border-top:1px solid #e3eefb;padding:12px}
+  /* قائمة المنتجات */
+  .add-box{display:flex;gap:8px;align-items:center}
+  .items{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+  .line{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fdfefe}
+  .info{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .sku{font-weight:800;color:#0d47a1;word-break:break-word}
+  .hint{font-size:.9rem;color:var(--muted)}
+  .qty-wrap{display:flex;align-items:center;gap:8px}
+  .qty-btn{width:42px;height:42px;border-radius:10px;background:#f1f7ff;border:1px solid var(--border);color:var(--blue);font-size:1.1rem}
+  .qty-val{min-width:46px;text-align:center;font-size:1.1rem;font-weight:900;padding:8px;border-radius:10px;background:#f8fbff;border:1.4px dashed var(--border)}
+</style>
+</head>
+<body>
+<header>
+  <div class="container"><h1><i class="fa-solid fa-warehouse"></i> إدارة المخزن (واجهة مبسّطة)</h1></div>
+</header>
+
+<main class="container">
+
+  <!-- (1) اختيار العملية -->
+  <section id="screen-choose" class="card">
+    <p class="title">اختر نوع العملية</p>
+    <div class="big-choice">
+      <div class="choice" id="choose-issue"><i class="fa-solid fa-arrow-up-from-bracket"></i> صرف مواد</div>
+      <div class="choice" id="choose-receive"><i class="fa-solid fa-arrow-down-to-bracket"></i> إضافة بضاعة جديدة</div>
+    </div>
+    <p class="muted" style="margin-top:10px">كل خطوة تظهر لوحدها — إذا انتقلت للي بعدها تختفي اللي قبلها.</p>
+  </section>
+
+  <!-- (2) صرف: إضافة منتجات + تحديد الكميات داخل نفس الشاشة -->
+  <section id="screen-items" class="card hide">
+    <p class="title">صرف — إضافة المنتجات</p>
+
+    <div class="add-box">
+      <input id="skuInput" placeholder="أدخل كود/باركود المنتج">
+      <button class="btn" id="addItem"><i class="fa-solid fa-plus"></i> إضافة منتج</button>
+    </div>
+    <div class="muted" style="margin-top:6px">أضف منتجًا واحدًا أو أكثر، وعدّل الكمية من السطر نفسه.</div>
+
+    <div id="items" class="items"></div>
+
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="toPassword" disabled>التالي</button>
+      <button class="btn-ghost" id="backItems">رجوع</button>
+    </div>
+  </section>
+
+  <!-- (3) كلمة مرور أمين المخزن -->
+  <section id="screen-pass" class="card hide">
+    <p class="title">التحقق من كلمة المرور</p>
+    <p class="muted">التحقق سيكون عبر السيرفر لاحقًا — الآن تحقق تجريبي داخل الصفحة.</p>
+    <div class="grid2">
+      <input id="keeperPass" type="password" placeholder="كلمة مرور أمين المخزن" class="full">
+      <button class="btn full" id="confirmIssue"><i class="fa-solid fa-check"></i> تأكيد</button>
+      <button class="btn-ghost" id="backPass">رجوع</button>
+    </div>
+    <div id="passMsg" class="muted" style="margin-top:8px"></div>
+  </section>
+
+  <!-- (4) تم — (سنربطها بالسيرفر لاحقًا) -->
+  <section id="screen-done" class="card hide">
+    <p class="title">تم — جاهز للتنفيذ</p>
+    <div id="summary" class="muted"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="restart">عملية جديدة</button>
+    </div>
+  </section>
+
+  <!-- إضافة بضاعة (placeholder بسيط الآن) -->
+  <section id="screen-receive" class="card hide">
+    <p class="title">إضافة بضاعة جديدة</p>
+    <p class="muted">سنفعل هذه الشاشة بعد الانتهاء من مسار الصرف.</p>
+    <button class="btn-ghost" id="backRcv">رجوع</button>
+  </section>
+
+</main>
+
+<footer>© المخزن — واجهة تجريبية باللونين الأزرق والأبيض</footer>
+
+<script>
+  // ===== الحالة العامة =====
+  const S = {
+    mode:null,
+    items:{} // { sku: qty }
+  };
+
+  // ===== تبديل الشاشات =====
+  const screens = {
+    choose:  document.getElementById('screen-choose'),
+    items:   document.getElementById('screen-items'),
+    pass:    document.getElementById('screen-pass'),
+    done:    document.getElementById('screen-done'),
+    receive: document.getElementById('screen-receive')
+  };
+  function show(k){
+    Object.values(screens).forEach(el=>el.classList.add('hide'));
+    screens[k].classList.remove('hide');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // ===== (1) اختيار العملية =====
+  document.getElementById('choose-issue').addEventListener('click', ()=>{
+    S.mode='issue'; S.items = {};
+    renderItems();
+    document.getElementById('toPassword').disabled = true;
+    show('items');
+    document.getElementById('skuInput').focus();
+  });
+  document.getElementById('choose-receive').addEventListener('click', ()=>{ S.mode='receive'; show('receive'); });
+
+  // ===== (2) شاشة الصرف: إضافة المنتجات + كميات على اليسار =====
+  const skuInput   = document.getElementById('skuInput');
+  const addItemBtn = document.getElementById('addItem');
+  const itemsEl    = document.getElementById('items');
+  const toPasswordBtn = document.getElementById('toPassword');
+
+  function normalizeSku(v){ return String(v||'').trim(); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  function addOrBumpSku(raw){
+    const sku = normalizeSku(raw);
+    if(!sku) return;
+    if(!S.items[sku]) S.items[sku] = 0;
+    S.items[sku] += 1;
+    renderItems();
+    skuInput.value = '';
+    skuInput.focus();
+  }
+
+  function inc(sku){ if(S.items[sku]){ S.items[sku] += 1; renderItems(); } }
+  function dec(sku){
+    if(!S.items[sku]) return;
+    S.items[sku] = Math.max(1, S.items[sku]-1);
+    renderItems();
+  }
+
+  function renderItems(){
+    const keys = Object.keys(S.items);
+    if(!keys.length){
+      itemsEl.innerHTML = `<span class="pill"><i class="fa-solid fa-box-open"></i> لا توجد منتجات بعد</span>`;
+      toPasswordBtn.disabled = true;
+      return;
+    }
+    const html = keys.map(sku=>{
+      const qty = S.items[sku];
+      return `
+        <div class="line">
+          <div class="info">
+            <div class="sku">${escapeHtml(sku)}</div>
+            <div class="hint">اضفته للتو — عدّل الكمية من اليسار</div>
+          </div>
+          <div class="qty-wrap">
+            <button class="qty-btn" data-dec="${escapeHtml(sku)}">–</button>
+            <div class="qty-val">${qty}</div>
+            <button class="qty-btn" data-inc="${escapeHtml(sku)}">+</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    itemsEl.innerHTML = html;
+
+    // اربط أزرار +/- لكل سطر
+    itemsEl.querySelectorAll('[data-inc]').forEach(btn=>{
+      btn.addEventListener('click', ()=> inc(btn.getAttribute('data-inc')));
+    });
+    itemsEl.querySelectorAll('[data-dec]').forEach(btn=>{
+      btn.addEventListener('click', ()=> dec(btn.getAttribute('data-dec')));
+    });
+
+    toPasswordBtn.disabled = false;
+  }
+
+  addItemBtn.addEventListener('click', ()=> addOrBumpSku(skuInput.value));
+  skuInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') addOrBumpSku(skuInput.value); });
+
+  document.getElementById('backItems').addEventListener('click', ()=>{
+    S.mode=null; S.items={};
+    show('choose');
+  });
+
+  // ===== (3) كلمة المرور =====
+  const keeperPass = document.getElementById('keeperPass');
+  const passMsg    = document.getElementById('passMsg');
+
+  toPasswordBtn.addEventListener('click', ()=>{ show('pass'); keeperPass.focus(); });
+  document.getElementById('backPass').addEventListener('click', ()=> show('items'));
+
+  document.getElementById('confirmIssue').addEventListener('click', ()=>{
+    const p = (keeperPass.value||'').trim();
+    if(!p){ passMsg.textContent='أدخل كلمة المرور.'; return; }
+    if(p.length < 4){ passMsg.textContent='كلمة المرور قصيرة.'; return; }
+
+    // تحقق محلي تجريبي — الربط الحقيقي عبر API لاحقًا
+    passMsg.innerHTML = '<span style="color:#1b5e20;font-weight:800">تم التحقق ✅</span>';
+
+    const payload = {
+      action:'issue',
+      items: Object.entries(S.items).map(([sku,qty])=>({sku,qty})),
+      keeper_pass: '*** سيتم التحقق بالخادم ***'
+    };
+
+    document.getElementById('summary').innerHTML =
+      `سيتم تنفيذ عملية <b>صرف</b> بالبيانات:<br>`+
+      payload.items.map((it,i)=>`• ${i+1}) الكود: <b>${escapeHtml(it.sku)}</b> — الكمية: <b>${it.qty}</b>`).join('<br>')+
+      `<br><br><span class="muted">هذا عرض تجريبي — سنرسل الطلب للسيرفر عند الربط.</span>`;
+
+    show('done');
+  });
+
+  // ===== (4) إعادة تشغيل =====
+  document.getElementById('restart').addEventListener('click', ()=>{
+    S.mode=null; S.items={};
+    keeperPass.value=''; passMsg.textContent='';
+    skuInput.value=''; renderItems();
+    show('choose');
+  });
+
+  // ===== إضافة بضاعة (placeholder) =====
+  document.getElementById('backRcv').addEventListener('click', ()=> show('choose'));
+</script>
+</body>
+</html>

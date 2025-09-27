@@ -18,6 +18,10 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+// (حطّه قبل express.static) — إعادة توجيه من /index.html إلى /الرئيسيه (دائم 301)
+app.get('/index.html', (req, res) => {
+  res.redirect(301, '/الرئيسيه');
+});
 app.use(express.static(__dirname));
 
 /** ===== ENV =====
