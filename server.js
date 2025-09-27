@@ -18,10 +18,21 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-// (حطّه قبل express.static) — إعادة توجيه من /index.html إلى /الرئيسيه (دائم 301)
+// 1) تحويل دائم: /index.html → /الرئيسية  (SEO 301)
 app.get('/index.html', (req, res) => {
-  res.redirect(301, '/الرئيسيه');
+  res.redirect(301, '/الرئيسية');
 });
+
+// 2) مسار جميل: يدعم /الرئيسيه أو /الرئيسية (مع/بدون سلاش) ويقدّم index.html
+app.get('/:p(الرئيسيه|الرئيسية)/?', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// 3) (اختياري) خلّ الجذر / يحوّل مؤقتًا لـ /الرئيسية عشان يظهر المسار الجميل
+app.get('/', (req, res) => {
+  res.redirect(302, '/الرئيسية');
+});
+
 app.use(express.static(__dirname));
 
 /** ===== ENV =====
