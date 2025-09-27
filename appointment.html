@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>حجز موعد | مجمع فينكس الطبي</title>
-  <meta name="description" content="سجّل دخولك بالاسم الثلاثي والجوال مع تحقق واتساب، ثم احجز موعدك.">
+  <meta name="description" content="سجّل دخولك برقم الهوية/الإقامة والجوال مع تحقق واتساب، ثم احجز موعدك.">
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
@@ -76,13 +76,6 @@
 
     /* حاوية الملاحظة */
     .note-wrap{ display:none; margin-top:10px; }
-
-    /* ===== تنسيقات خاصة بتنبيه الاسم المركّب ===== */
-    .field-wrap{ position:relative; }
-    .input-error{ border-color:#d32f2f !important; box-shadow:0 0 0 3px rgba(211,47,47,.08); }
-    .name-hint{ display:none; color:#b00020; font-weight:700; font-size:.92rem; margin-top:6px; text-align:right; }
-    .name-arrow{ display:none; position:absolute; bottom:-2px; /* أسفل الحقل */
-                 font-size:16px; color:#b00020; line-height:1; pointer-events:none; }
   </style>
 </head>
 <body>
@@ -123,27 +116,21 @@
   <section id="loginSection" class="wrap">
     <div class="title"><i class="fa fa-user-check"></i> تسجيل الدخول</div>
 
-    <label for="fullname">الاسم الثلاثي</label>
-
-    <!-- حاوية مخصّصة للسهم والتنبيه -->
-    <div class="field-wrap">
-      <input id="fullname" type="text" placeholder="مثال: محمد أحمد مصطفى" autocomplete="name">
-      <div id="nameArrow" class="name-arrow">↙</div>
-    </div>
-    <div id="nameHint" class="name-hint"></div>
+    <label for="identity">رقم الهوية / الإقامة</label>
+    <input id="identity" type="text" placeholder="مثال: 1234567890" inputmode="numeric" maxlength="15" autocomplete="off">
 
     <label for="mobile">رقم الجوال</label>
-    <input id="mobile" type="text" placeholder="05xxxxxxxx" autocomplete="tel" inputmode="numeric" maxlength="10">
+    <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
 
     <!-- تنبيه خاص -->
     <p style="color:#b00020; font-weight:bold; margin:12px 0; text-align:center;">
       🔔تنبيه: عيادة الليزر متاحة فقط للحجز في المجمع.
     </p>
 
-    <!-- خانة رمز التحقق (مخفية حتى يضغط إرسال الكود) -->
+    <!-- خانة رمز التحقق (تظهر بعد إرسال الكود) -->
     <div id="otpGroup" style="display:none;">
       <label for="otp">رمز التحقق (واتساب)</label>
-      <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6">
+      <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
       <div class="row" style="margin-top:8px;">
         <button id="resendOtp" class="btn btn-glass" type="button" style="display:none;">إعادة الإرسال</button>
       </div>
@@ -197,9 +184,10 @@
 
     <!-- ملاحظة خاصة لعيادة تنظيف البشرة فقط -->
     <div id="dermNote" class="clinic-note">
-      تتضمن الخدمة تقشير وجه نصف ساعة + تشقير حواجب نصف ساعة + تنظيف البشرة نصف ساعة — المدة ساعة</div>
+      تتضمن الخدمة تقشير وجه نصف ساعة + تشقير حواجب نصف ساعة + تنظيف البشرة نصف ساعة — المدة ساعة
+    </div>
 
-    <!-- نوع الخدمة / ملاحظة (لا تظهر إلا بعد اختيار العيادة) -->
+    <!-- نوع الخدمة / ملاحظة (تظهر بعد اختيار العيادة) -->
     <div id="noteWrap" class="note-wrap">
       <label for="note">نوع الخدمة / ملاحظة</label>
       <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
@@ -222,7 +210,7 @@
     </select>
 
     <!-- تم تغيير وظيفة هذا الزر ليحجز مباشرة -->
-    <button id="bookNowBtn" class="btn btn-glass" style="margin-top:12px;" disabled>تأكيد الحجز </button>
+    <button id="bookNowBtn" class="btn btn-glass" style="margin-top:12px;" disabled>تأكيد الحجز</button>
 
     <div id="bkMsg" class="muted"></div>
   </section>
@@ -328,7 +316,6 @@
 
 <script>
   // ===== Helpers =====
-  const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
   // ===== عناصر تسجيل الدخول =====
@@ -336,17 +323,12 @@
   const resendOtpBtn = document.getElementById('resendOtp');
   const loginBtn = document.getElementById('loginBtn');
   const loginMsg = document.getElementById('loginMsg');
-  const fullname = document.getElementById('fullname');
+  const identity = document.getElementById('identity');
   const mobile = document.getElementById('mobile');
   const otpInput = document.getElementById('otp');
   const otpGroup = document.getElementById('otpGroup');
   const otpTimerEl = document.getElementById('otpTimer');
   const screenLoader = document.getElementById('screenLoader');
-
-  // --- عناصر السهم/التنبيه لحقل الاسم ---
-  const nameHint = document.getElementById('nameHint');
-  const nameArrow = document.getElementById('nameArrow');
-  const nameFieldWrap = nameArrow.parentElement;
 
   // شاشة الانتظار
   const showLoader = (on)=> {
@@ -357,127 +339,6 @@
   // OTP 60s cooldown (UI فقط؛ السيرفر لديه Throttle أيضًا)
   let otpCooldown = 0, otpTimer = null;
   function formatSecs(s){ return s + 'ث'; }
-
-  // ====== فحص الاسم المركّب "عبد ___" مع مسافة ======
-  // نعتبر أي نمط: "عبد + مسافة + (الـ...)" خطأ، ونقترح دمجها
-  // أمثلة: عبد الله -> عبدالله، عبد الرحمن -> عبدالرحمن
-  function checkCompoundAbd(name){
-    const text = (name || '').trim();
-
-    // نبحث عن "عبد " ثم "ال..."
-    // نستخدم u-flag لدعم العربية
-    const re = /(^|\s)عبد\s+(?=(?:[اأإآ]ل)[\p{L}_]+)/u;
-    const m = re.exec(text);
-    if(!m) return null;
-
-    // موضع بداية "عبد"
-    const start = m.index + m[1].length;
-    // موضع المسافة بعد "عبد"
-    const spaceIndex = start + 'عبد'.length;
-
-    // الكلمة التالية (التي تبدأ بـ ال...)
-    const tail = text.slice(spaceIndex+1).trim(); // بعد المسافة
-    const nextWord = tail.split(/\s+/)[0] || '';
-    if(!nextWord) return null;
-
-    // اقتراح: دمج "عبد" مع الكلمة التالية
-    const suggestion = 'عبد' + nextWord;
-
-    return { spaceIndex, nextWord, suggestion, text };
-  }
-
-  // تقدير موضع السهم داخل الحقل (RTL): نستخدم قياس عرض النص قبل المسافة
-  function positionNameArrow(spaceIndex){
-    try{
-      const cs = getComputedStyle(fullname);
-      const paddingRight = parseFloat(cs.paddingRight) || 12;
-      const paddingLeft  = parseFloat(cs.paddingLeft) || 12;
-      const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-
-      // نأخذ النص حتى المسافة (يشمل "عبد")
-      const val = fullname.value;
-      const pre = val.slice(0, spaceIndex); // حتى موقع المسافة
-
-      const canvas = positionNameArrow._canvas || (positionNameArrow._canvas = document.createElement('canvas'));
-      const ctx = canvas.getContext('2d');
-      ctx.font = font;
-
-      // لكون الحقل RTL، السطر يبدأ من اليمين. نقيس عرض pre ونضع السهم من جهة اليمين.
-      const preWidth = ctx.measureText(pre).width;
-
-      const inputWidth = fullname.clientWidth;
-      const contentWidth = inputWidth - paddingRight - paddingLeft;
-
-      let rightPx = paddingRight + Math.min(preWidth, contentWidth-8);
-      // نحافظ على الحدود
-      rightPx = Math.max(paddingRight + 4, Math.min(rightPx, inputWidth - paddingLeft - 8));
-
-      nameArrow.style.right = rightPx + 'px';
-      nameArrow.style.display = 'block';
-    }catch(_){
-      // في حال فشل القياس لأي سبب، نظهر السهم قرب يمين الحقل
-      nameArrow.style.right = '22px';
-      nameArrow.style.display = 'block';
-    }
-  }
-
-  function clearNameErrorUI(){
-    fullname.classList.remove('input-error');
-    nameArrow.style.display = 'none';
-    nameHint.style.display = 'none';
-    nameHint.textContent = '';
-  }
-
-  function applyNameErrorUI(info){
-    fullname.classList.add('input-error');
-    // نص التنبيه
-    // مثال: لا تضع مسافة بين “عبد” و“الله” — اكتب: “عبدالله”
-    const shownNext = info.nextWord.replace(/["“”]/g,'');
-    nameHint.textContent = `↙ لا تضع مسافة بين "عبد" و"${shownNext}" — اكتب: "${info.suggestion}"`;
-    nameHint.style.display = 'block';
-    // موضع السهم قرب المسافة
-    positionNameArrow(info.spaceIndex);
-  }
-
-  function updateNameValidation(){
-    const info = checkCompoundAbd(fullname.value);
-    if(info){
-      applyNameErrorUI(info);
-    }else{
-      clearNameErrorUI();
-    }
-  }
-
-  // ===== زر/حقول تسجيل الدخول =====
-  function updateLoginBtn(){
-    // أولاً: نفّذ فحص الاسم المركّب
-    updateNameValidation();
-
-    const phoneOK = isSaudi05(mobile.value);
-
-    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال (حتى بدون الاسم)، إذا كانت خانة الكود مخفية
-    sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
-
-    const okName = isTriple(fullname.value) && !checkCompoundAbd(fullname.value); // اسم ثلاثي ولا يوجد خطأ "عبد ___"
-    const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
-    const ok = okName && phoneOK && okOtp;
-
-    loginBtn.disabled = !ok;
-    if (!ok) {
-      // رسالة عامة فقط (تفصيل الخطأ الخاص يظهر أسفل الاسم)
-      loginMsg.textContent = 'أدخل الاسم الثلاثي، رقم 05xxxxxxxx، وكود 6 أرقام.';
-    } else {
-      loginMsg.textContent = '';
-    }
-  }
-
-  ['input','change','keyup'].forEach(ev=>{
-    fullname.addEventListener(ev, updateLoginBtn);
-    mobile.addEventListener(ev, updateLoginBtn);
-    otpInput.addEventListener(ev, updateLoginBtn);
-  });
-  // حدّث عند التحميل
-  updateLoginBtn();
 
   function startOtpTimer(startFrom=60){
     otpCooldown = startFrom;
@@ -496,6 +357,28 @@
       }
     },1000);
   }
+
+  function updateLoginBtn(){
+    const phoneOK = isSaudi05(mobile.value);
+    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال (حتى بدون الهوية)، إذا كانت خانة الكود مخفية
+    sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
+
+    const idDigits = (identity.value||'').replace(/\D/g,'');
+    const okId = idDigits.length >= 9;              // قبول 9+ أرقام كحد أدنى
+    const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
+    const ok = okId && phoneOK && okOtp;
+
+    loginBtn.disabled = !ok;
+    loginMsg.textContent = ok ? '' : 'أدخل رقم الهوية/الإقامة، رقم 05xxxxxxxx، وكود 6 أرقام.';
+  }
+
+  ['input','change','keyup'].forEach(ev=>{
+    identity.addEventListener(ev, updateLoginBtn);
+    mobile.addEventListener(ev, updateLoginBtn);
+    otpInput.addEventListener(ev, updateLoginBtn);
+  });
+  // حدّث عند التحميل
+  updateLoginBtn();
 
   async function sendOtp(phone){
     loginMsg.textContent = 'جاري إرسال الكود...';
@@ -527,7 +410,7 @@
     }
   }
 
-  // عند الضغط على "إرسال كود واتساب"
+  // إرسال كود واتساب
   sendOtpBtn.addEventListener('click', async ()=>{
     const phone = mobile.value.trim();
     if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
@@ -552,8 +435,8 @@
 
   // فتح ملف جديد
   document.getElementById('openNewFileBtn').addEventListener('click', ()=>{
-    if (isTriple(fullname.value)) localStorage.setItem('auth_name', fullname.value.trim());
-    if (isSaudi05(mobile.value))  localStorage.setItem('auth_phone', mobile.value.trim());
+    if ((identity.value||'').trim()) localStorage.setItem('auth_identity', (identity.value||'').trim());
+    if (isSaudi05(mobile.value))     localStorage.setItem('auth_phone', mobile.value.trim());
     window.location.href = 'new-file.html';
   });
 
@@ -562,8 +445,8 @@
     loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
     const payload = {
-      name: fullname.value.trim(),
-      phone: mobile.value.trim(),
+      identity: (identity.value||'').trim(),
+      phone: (mobile.value||'').trim(),
       otp: (otpInput.value||'').trim()
     };
     showLoader(true);
@@ -581,7 +464,7 @@
       }
 
       // يوجد ملف
-      localStorage.setItem('auth_name', data.fullName || payload.name);
+      localStorage.setItem('auth_identity', payload.identity);
       localStorage.setItem('auth_phone', payload.phone);
       localStorage.setItem('auth_fileId', data.fileId || '');
 
@@ -617,8 +500,8 @@
 
   // >>> دالة صغيرة لتخزين لقطة بيانات الحجز لصفحة success.html
   function snapshotPendingForSuccess(){
-    localStorage.setItem('pending_name',  localStorage.getItem('auth_name')  || '');
-    localStorage.setItem('pending_phone', localStorage.getItem('auth_phone') || '');
+    localStorage.setItem('pending_identity', localStorage.getItem('auth_identity') || '');
+    localStorage.setItem('pending_phone',    localStorage.getItem('auth_phone')    || '');
     localStorage.setItem('pending_clinic', clinicSel.value);
     localStorage.setItem('pending_clinic_label', clinicSel.selectedOptions[0]?.text || clinicSel.value || '');
     localStorage.setItem('pending_month', monthSel.value);
@@ -696,16 +579,16 @@
     }
   });
 
-  // الحجز المباشر الآن (بدون confirm.html)
+  // الحجز المباشر الآن
   bookNowBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const month  = monthSel.value;
     const time   = timeSel.value;
-    const name   = localStorage.getItem('auth_name')  || '';
+    const identityVal = localStorage.getItem('auth_identity') || '';
     const phone  = localStorage.getItem('auth_phone') || '';
     const note   = (noteInput.value || '').trim();
 
-    if (!clinic || !month || !time || !name || !phone) {
+    if (!clinic || !month || !time || !identityVal || !phone) {
       bkMsg.textContent = 'الرجاء استكمال العيادة والشهر والوقت وتسجيل الدخول.';
       return;
     }
@@ -723,7 +606,7 @@
     bkMsg.textContent = 'جاري تأكيد الحجز...';
 
     try {
-      const payload = { name, phone, clinic, month, time, note, key: Date.now().toString() };
+      const payload = { identity: identityVal, phone, clinic, month, time, note, key: Date.now().toString() };
       const res = await fetch('/api/book', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
