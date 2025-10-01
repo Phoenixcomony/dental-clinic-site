@@ -34,7 +34,6 @@ const canonical = {
   'new-file.html':            ['فتح-ملف-جديد'],
   'services.html':            ['الخدمات'],
   'success.html':             ['تاكيد-الحجز'],
-
 };
 
 // 1) SEO 301: من الاسم الإنجليزي → أول مسار عربي (الكانوني)
@@ -552,7 +551,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   if (!liPhone) {
     try {
       liPhone = await page.evaluate(()=>{
-        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
         const tds = Array.from(document.querySelectorAll('td[height="29"]'));
         for(const td of tds){
           const val = (td.textContent||'').trim();
@@ -618,7 +617,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   let pagePhone = '';
   try {
     pagePhone = await page.evaluate(()=>{
-      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
       const tds = Array.from(document.querySelectorAll('td[height="29"]'));
       for(const td of tds){
         const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
@@ -704,7 +703,7 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15000 });
+    await axios.get(url, { timeout: 15015 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -1170,6 +1169,20 @@ app.post('/api/times', async (req, res) => {
 
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+
+      // === خاص: عيادة الأسنان 2 (الفترة المسائية) — 4:00 م → 8:00 م فقط ===
+      (function applyDental2EveningWindow() {
+        // نتحقق أن العيادة هي "الأسنان" وبها الرقم 2 وأن الفترة مسائية
+        const isDentalWordHere = /الأسنان|الاسنان/.test(baseClinicName);
+        const hasNumber2 = /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
+        const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        if (isDentalWordHere && hasNumber2 && isEvening) {
+          filtered = filtered.filter(x => {
+            const m = timeToMinutes(x.time24);
+            return m >= 16 * 60 && m <= 20 * 60; // 16:00 → 20:00 شامل
+          });
+        }
+      })();
 
       if (shouldBlockFriSat) {
         const isFriOrSat = (dateStr)=> {
