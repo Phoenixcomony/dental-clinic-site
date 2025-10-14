@@ -305,7 +305,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
 }
 
 /** ===== Login (hardened with retry) ===== */
@@ -876,7 +876,7 @@ app.post('/api/create-patient', async (req, res) => {
 
       const _isTripleName = (n)=> (n||'').trim().split(/\s+/).filter(Boolean).length === 3;
       const _isSaudi05 = (v)=> /^05\d{8}$/.test(toAsciiDigits(v||'').replace(/\D/g,''));
-      const _normalize = (s='') => (s||'').replace(/\s+/g,' ').trim();
+      const _normalize = (s='') => (s||'').replace(/\س+/g,' ').trim();
 
       if(!_isTripleName(fullName)) return res.json({ success:false, message:'الاسم الثلاثي مطلوب' });
       if(!_isSaudi05(phone))      return res.json({ success:false, message:'رقم الجوال 05xxxxxxxx' });
@@ -1058,63 +1058,34 @@ app.post('/api/times', async (req, res) => {
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
     const effectivePeriod = period || autoPeriod;
 
-    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
-    const isDermEvening = clinicStr === DERM_EVENING_VALUE;
-
     // Helpers (وقت)
-    const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
+    const minutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
-    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; };
+    const between = (t, h1, m1, h2, m2) => {
+      const m = minutes(t);
+      const s = h1*60 + m1;
+      const e = h2*60 + m2;
+      return m >= s && m <= e;
+    };
 
     // Helpers (تاريخ) — تحديد الجمعة/السبت
-    const parseYMD = (s='')=>{
-      const str = String(s).trim();
-      let y,m,d;
-      if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(str)) {
-        const [Y,M,D] = str.split(/[-/]/).map(n=>+n);
-        y=Y; m=M; d=D;
-      } else if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/.test(str)) {
-        const [D,M,Y] = str.split(/[-/]/).map(n=>+n);
-        y=Y; m=M; d=D;
-      } else {
-        const mch = str.match(/(\d{1,4})\D+(\د{1,2})\D+(\د{1,4})/);
-        if (mch) {
-          let a=+mch[1], b=+mch[2], c=+mch[3];
-          if (a>31) { y=a; m=b; d=c; } else { d=a; m=b; y=c; }
-        }
-      }
-      if (!y || !m || !d) return null;
-      const wd = new Date(Date.UTC(y, m-1, d)).getUTCDay(); // 0=أحد ... 5=جمعة 6=سبت
-      return { y, m, d, wd };
-    };
     const isFriOrSat = (dateStr)=> {
-      const p = parseYMD(dateStr);
-      if (!p) return false;
-      return p.wd === 5 || p.wd === 6;
+      const [Y,M,D] = (dateStr||'').split('-').map(n=>+n);
+      if(!Y||!M||!D) return false;
+      const wd = new Date(Date.UTC(Y, M-1, D)).getUTCDay(); // 0=أحد ... 5=جمعة 6=سبت
+      return wd === 5 || wd === 6;
     };
 
-    // ======= (مهم) التعرف الدقيق على بعض العيادات =======
+    // ======= التعرف على العيادات =======
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic = toAsciiDigits(baseClinicName);
-    const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
-    const isDermClinic   = /الجلدية/.test(baseClinicName);
-    const isDentalWord = /الأسنان|الاسنان/i.test(baseClinicName);
-    const has124Number = /(^^|[^0-9])(1|2|4)([^0-9]|$)/.test(asciiClinic);
-    const dental124Names = [
-      'عيادة الأسنان 1','عيادة الأسنان 2','عيادة الأسنان 4',
-      'عيادة الاسنان 1','عيادة الاسنان 2','عيادة الاسنان 4'
-    ].map(n => toAsciiDigits(n));
-    const isDental124 =
-      (isDentalWord && has124Number) ||
-      dental124Names.some(n => asciiClinic.includes(n));
-
-    const shouldBlockFriSat = (() => {
-      if (isDermClinic && (effectivePeriod === 'evening' || isDermEvening)) return true;
-      if (isWomenClinic) return true;
-      if (isDental124) return true;
-      return false;
-    })();
+    const isDental     = /الأسنان|الاسنان/.test(baseClinicName);
+    const isDental1    = isDental && /(^|[^0-9])1([^0-9]|$)/.test(asciiClinic);
+    const isDental2    = isDental && /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
+    const isDental4    = isDental && /(^|[^0-9])4([^0-9]|$)/.test(asciiClinic);
+    const isDental5    = isDental && /(^|[^0-9])5([^0-9]|$)/.test(asciiClinic);
+    const isDerm       = /الجلدية|التجميل/.test(baseClinicName);
+    const isSkinClean  = /(تنظيف.?البشرة|هايدرافيشل|التشقير)/i.test(baseClinicName);
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -1157,42 +1128,40 @@ app.post('/api/times', async (req, res) => {
         return out;
       });
 
+      // ================== ✨ التصفية المخصصة حسب طلبك ✨ ==================
       let filtered = raw;
-      const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
-      const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-      const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
-      const inEvening = (t)=>{ const m=timeToMinutes(t); const start = (clinicStr === 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية') ? 15*60 : 16*60; return m>=start && m<=22*60; };
 
-      const effectivePeriod =
-        /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
-        (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
+      // لا نغيّر شيء في "الصباحي" حالياً (حسب آخر طلبك)
+      // نطبّق النوافذ فقط إذا الفترة مسائية
+      const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
 
-      if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
-
-      // === خاص: عيادة الأسنان 2 (الفترة المسائية) — 4:00 م → 8:00 م فقط ===
-      (function applyDental2EveningWindow() {
-        // نتحقق أن العيادة هي "الأسنان" وبها الرقم 2 وأن الفترة مسائية
-        const isDentalWordHere = /الأسنان|الاسنان/.test(baseClinicName);
-        const hasNumber2 = /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
-        const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
-        if (isDentalWordHere && hasNumber2 && isEvening) {
-          filtered = filtered.filter(x => {
-            const m = timeToMinutes(x.time24);
-            return m >= 16 * 60 && m <= 20 * 60; // 16:00 → 20:00 شامل
-          });
+      if (isEvening) {
+        if (isDental1 || isDental2) {
+          // الأسنان 1 أو 2 (د. ريان): 04:00 → 09:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 21, 30));
+        } else if (isDental4) {
+          // الأسنان 4: 02:00 → 09:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 14, 0, 21, 30));
+        } else if (isDental5) {
+          // الأسنان 5 (د. معاذ): 12:00 → 07:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 12, 0, 19, 30));
+        } else if (isDerm) {
+          // الجلدية والتجميل: 02:00 → 09:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 14, 0, 21, 30));
+        } else if (isSkinClean) {
+          // التشقير وتنظيف البشرة / هايدرافيشل: 03:30 → 09:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 30, 21, 30));
+        } else if (isDental) {
+          // أسنان عامة (بدون رقم محدد): 04:00 → 09:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 21, 30));
+        } else {
+          // عيادات أخرى مسائية — اتركها كما هي
+          filtered = raw.filter(x => !!x.time24);
         }
-      })();
-
-      if (shouldBlockFriSat) {
-        const isFriOrSat = (dateStr)=> {
-          const [Y,M,D] = (dateStr||'').split('-').map(n=>+n);
-          if(!Y||!M||!D) return false;
-          const wd = new Date(Date.UTC(Y, M-1, D)).getUTCDay();
-          return wd === 5 || wd === 6;
-        };
-        filtered = filtered.filter(x => !isFriOrSat(x.date));
       }
+
+      // حجب الجمعة/السبت حسب المنطق العام (بدون تغيير)
+      filtered = filtered.filter(x => !isFriOrSat(x.date));
 
       const times = filtered.map(x => ({
         value: x.value,
