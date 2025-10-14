@@ -1209,8 +1209,8 @@ app.post('/api/times', async (req, res) => {
         };
 
         if (isDental1 || isDental2) {
-          // عيادة الأسنان 1 أو 2 (د. ريان): 4:00 م → 9:30 م
-          filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 21, 30));
+          // عيادة الأسنان 1 أو 2 (د. ريان): 4:00 م → 8:30 م
+            filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 20, 30)); // 4:00 → 8:30
           return;
         }
         if (isDental4) {
