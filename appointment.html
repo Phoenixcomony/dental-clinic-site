@@ -648,29 +648,5 @@
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
 </script>
-
-<!-- ✅ فلترة العيادات المسائية للمقيم (هوية تبدأ بـ 2) -->
-<script>
-  const clinicSelect = document.getElementById("clinic");
-  const identityEl   = document.getElementById("identity");
-
-  function applyClinicFilter(){
-    const id = (identityEl?.value || localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
-    const isIqama = id.startsWith('2');
-
-    for (const option of clinicSelect.options) {
-      const isEvening = option.value.includes("الفترة الثانية");
-      option.hidden   = isIqama && isEvening;
-      option.disabled = isIqama && isEvening;
-    }
-    if (isIqama && clinicSelect.value.includes("الفترة الثانية")) {
-      clinicSelect.value = "";
-    }
-  }
-
-  // تعمل عند الكتابة وعند التحميل
-  identityEl?.addEventListener('input', applyClinicFilter);
-  document.addEventListener('DOMContentLoaded', applyClinicFilter);
-</script>
 </body>
 </html>

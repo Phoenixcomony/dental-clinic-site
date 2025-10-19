@@ -1169,6 +1169,21 @@ app.post('/api/times', async (req, res) => {
 
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+      // === خاص: المقيم (رقم الإقامة يبدأ بـ2) + الفترة الثانية فقط ===
+if (req.body.identity && String(req.body.identity).trim().startsWith('2')) {
+  const isEvening =
+    (period === 'evening') ||
+    (/\*\*الفترة الثانية$/.test(String(clinic)));
+
+  if (isEvening) {
+    filtered = filtered.filter(x => {
+      const [h, m] = x.time24.split(':').map(Number);
+      const total = h * 60 + m;
+      return total >= 12 * 60 && total <= 14 * 60 + 30; // من 12:00م إلى 2:30م
+    });
+  }
+}
+
 
       // === خاص: عيادة الأسنان 2 (الفترة المسائية) — 4:00 م → 8:00 م فقط ===
       (function applyDental2EveningWindow() {
