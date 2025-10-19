@@ -62,7 +62,7 @@
     @keyframes breathe{ 0%{ transform:scale(1); box-shadow:var(--green-shadow); } 50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(27,94,32,.55); } 100%{ transform:scale(1); box-shadow:var(--green-shadow); } }
 
     /* زر زجاجي */
-    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease; }
+    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;}
     .btn-glass:hover{ background:#cb9816; color:#ffffff; border-color:#111111; transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.12); }
     .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); }
 
@@ -475,7 +475,6 @@
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('bookingSection').style.display = '';
       window.scrollTo({top:0, behavior:'smooth'});
-      applyClinicFilter(); // ✅ فعل الفلترة عند إظهار الحجز
     }catch(e){
       loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
       loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
@@ -556,14 +555,35 @@
         body: JSON.stringify({ clinic, month })
       });
       const data = await r.json();
-      if (data.times && data.times.length) {
-        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+
+      /* ==== فلترة إضافية في الواجهة:
+       * إذا كان رقم الهوية يبدأ بـ 2 (إقامة) + العيادة مسائية → حصر الأوقات بين 12:00م و 2:30م
+       */
+      let list = Array.isArray(data.times) ? data.times : [];
+
+      const idDigits = (document.getElementById('identity')?.value || localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
+      const isIqama   = idDigits.startsWith('2');
+      const isEvening = /\*\*الفترة الثانية$/.test(String(clinic));
+
+      if (isIqama && isEvening) {
+        const toMin = t => { const [H,M] = t.split(':').map(Number); return H*60+M; };
+        list = list.filter(item => {
+          const time24 = String(item.value).split('*')[1] || '';  // HH:mm
+          const m = toMin(time24);
+          return m >= (12*60) && m <= (14*60 + 30); // 12:00 → 14:30
+        });
+      }
+
+      // استخدم list فقط
+      if (list.length) {
+        timeSel.innerHTML = list.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         timeSel.disabled = false;
         bookNowBtn.disabled = false;
       } else {
         timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
         bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
       }
+
     } catch {
       timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
       bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
@@ -642,7 +662,6 @@
     hoursSection.style.display = 'none';
     bookingSection.style.display = '';
     window.scrollTo({top:0, behavior:'smooth'});
-    applyClinicFilter(); // ✅ تأكيد الفلترة عند إظهار الحجز
   }
 
   toggleHoursBtn.addEventListener('click', showHours);
