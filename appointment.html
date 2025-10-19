@@ -62,9 +62,9 @@
     @keyframes breathe{ 0%{ transform:scale(1); box-shadow:var(--green-shadow); } 50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(27,94,32,.55); } 100%{ transform:scale(1); box-shadow:var(--green-shadow); } }
 
     /* زر زجاجي */
-    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease; }
+    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2sease, border-color .2s ease; }
     .btn-glass:hover{ background:#cb9816; color:#ffffff; border-color:#111111; transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.12); }
-    .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); }
+    .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); } 
 
     /* ملاحظة تنظيف البشرة */
     .clinic-note{ display:none; margin:8px 0 0; color:#7a5d16; background:#fff9e8; border:1px dashed #e8ca7c; border-radius:12px; padding:10px 12px; font-weight:700; text-align:right; }
@@ -76,6 +76,13 @@
 
     /* حاوية الملاحظة */
     .note-wrap{ display:none; margin-top:10px; }
+
+    /* Chips (خدمات البشرة) */
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+    .chip{user-select:none;cursor:pointer;border:1.6px solid #e6e6e6;border-radius:999px;padding:8px 12px;font-weight:800;background:#fff;filter:grayscale(1) contrast(.9);opacity:.8;transition:.15s}
+    .chip:hover{transform:translateY(-1px)}
+    .chip.active{filter:none;opacity:1;border-color:#d8b665;box-shadow:0 2px 10px #e2be6d2e;background:#fffdfa;color:#6b4b00}
+    .chip small{font-weight:700;color:#7a6d4e;margin-inline-start:6px}
   </style>
 </head>
 <body>
@@ -174,7 +181,7 @@
 
       <option value="عيادة الاسنان 4 (NO.102)**الفترة الثانية">عيادة الاسنان 4 الفترة المسائية(د.رونالدو)</option>
       <option value="عيادة الجلدية والتجميل (NO.200)**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
-      <option value="عيادة تنظيف البشرة**الفترة الثانية">عيادة التقشير و تنظيف البشرة الفترة المسائية</option>
+      <option value="تقشير وتنظيف البشرة**الفترة الثانية">عيادة التقشير و تنظيف البشرة الفترة المسائية</option>
       <option value="النساء و الولادة (NO.400)**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
       <option value="النساء و الولادة (NO.400)**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
     </select>
@@ -188,6 +195,19 @@
     <div id="noteWrap" class="note-wrap">
       <label for="note">نوع الخدمة / ملاحظة</label>
       <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
+    </div>
+
+    <!-- خيارات خدمات التقشير/تنظيف البشرة (تظهر فقط لتلك العيادة) -->
+    <div id="skinServices" style="display:none;margin-top:8px;">
+      <label>الخدمة المختارة</label>
+      <div class="chips" id="chipsWrap">
+        <button type="button" class="chip" data-key="brows"  data-min="30">تشقير حواجب <small>30د</small></button>
+        <button type="button" class="chip" data-key="face"   data-min="30">تشقير وجه <small>30د</small></button>
+        <button type="button" class="chip" data-key="clean"  data-min="60">تنظيف البشرة بدون ماسك <small>60د</small></button>
+        <button type="button" class="chip" data-key="carbon" data-min="30">ليزر كربوني <small>30د</small></button>
+        <button type="button" class="chip" data-key="mask"   data-min="75">تنظيف البشرة مع ماسك <small>75د</small></button>
+      </div>
+      <div id="svcHint" class="muted" style="text-align:right;margin-top:6px"></div>
     </div>
     
     <label for="month" style="margin-top:10px;">اختر الشهر</label>
@@ -356,11 +376,11 @@
 
   function updateLoginBtn(){
     const phoneOK = isSaudi05(mobile.value);
-    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال (حتى بدون الهوية)، إذا كانت خانة الكود مخفية
+    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال
     sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
 
     const idDigits = (identity.value||'').replace(/\D/g,'');
-    const okId = idDigits.length >= 9;              // قبول 9+ أرقام كحد أدنى
+    const okId = idDigits.length >= 9;
     const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
     const ok = okId && phoneOK && okOtp;
 
@@ -373,7 +393,6 @@
     mobile.addEventListener(ev, updateLoginBtn);
     otpInput.addEventListener(ev, updateLoginBtn);
   });
-  // حدّث عند التحميل
   updateLoginBtn();
 
   async function sendOtp(phone){
@@ -411,7 +430,6 @@
     const phone = mobile.value.trim();
     if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
 
-    // إظهار خانة الكود وإخفاء زر الإرسال
     sendOtpBtn.style.display = 'none';
     otpGroup.style.display = '';
     otpInput.value = '';
@@ -475,7 +493,7 @@
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('bookingSection').style.display = '';
       window.scrollTo({top:0, behavior:'smooth'});
-      applyClinicFilter(); // ✅ فعل الفلترة عند إظهار الحجز
+      applyClinicFilter(); // حالياً لا تُخفي شيئاً (نُبقي المسائي ظاهر لأنه سيتم تقييد الأوقات فقط)
     }catch(e){
       loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
       loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
@@ -494,6 +512,48 @@
   const dermNote  = document.getElementById('dermNote');
   const noteWrap  = document.getElementById('noteWrap');
   const noteInput = document.getElementById('note');
+
+  // إدارة تشيبس خدمات البشرة
+  const chipsWrap = document.getElementById('chipsWrap');
+  const skinServices = document.getElementById('skinServices');
+  const svcHint   = document.getElementById('svcHint');
+
+  function activeKeys(){
+    return Array.from(chipsWrap?.querySelectorAll('.chip.active')||[]).map(b=>b.dataset.key);
+  }
+  function setHint(){
+    const keys = activeKeys();
+    if(keys.includes('brows') && keys.includes('face')){
+      svcHint.textContent = 'سيتم احتساب 30د + 30د (خانتان متتاليتان).';
+    }else if(keys.length===1){
+      const one = keys[0];
+      const btn = chipsWrap.querySelector(`.chip[data-key="${one}"]`);
+      const mins = btn ? Number(btn.dataset.min||0) : 0;
+      svcHint.textContent = mins ? `المدة: ${mins} دقيقة.` : '';
+    }else if(keys.length>1){
+      svcHint.textContent = 'يمكن الجمع فقط بين "تشقير حواجب" و"تشقير وجه".';
+    }else{
+      svcHint.textContent = '';
+    }
+  }
+  chipsWrap?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip'); if(!btn) return;
+    const key = btn.dataset.key;
+
+    const isOn = btn.classList.contains('active');
+    if(isOn){ btn.classList.remove('active'); setHint(); return; }
+
+    if(key==='brows' || key==='face'){
+      for(const b of chipsWrap.querySelectorAll('.chip.active')){
+        if(!['brows','face'].includes(b.dataset.key)) b.classList.remove('active');
+      }
+      btn.classList.add('active');
+    }else{
+      for(const b of chipsWrap.querySelectorAll('.chip.active')) b.classList.remove('active');
+      btn.classList.add('active');
+    }
+    setHint();
+  });
 
   // >>> دالة صغيرة لتخزين لقطة بيانات الحجز لصفحة success.html
   function snapshotPendingForSuccess(){
@@ -516,19 +576,21 @@
       : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
   }
 
-  // إظهار الملاحظة الخاصة لعيادة تنظيف البشرة فقط + إظهار خانة "نوع الخدمة/ملاحظة" عند اختيار أي عيادة
+  // إظهار الملاحظة وخيارات الخدمات لعيادة التقشير/تنظيف البشرة
   clinicSel.addEventListener('change', ()=>{
     const v = clinicSel.value || '';
-    const isCleaning = v.startsWith('عيادة تنظيف البشرة'); // فقط تنظيف البشرة
+    const isCleaning = v.includes('تقشير وتنظيف البشرة');
     dermNote.style.display = isCleaning ? 'block' : 'none';
-    noteWrap.style.display = v ? 'block' : 'none';
-    // تفريغ الأوقات عند تغيير العيادة
+    noteWrap.style.display  = v ? 'block' : 'none';
+    skinServices.style.display = isCleaning ? 'block' : 'none';
+    // تفريغ الأوقات
     resetTimes('clinic');
   });
 
   // تفريغ الأوقات عند تغيير الشهر
   monthSel.addEventListener('change', ()=> resetTimes('month'));
 
+  // جلب المواعيد
   fetchBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const month  = monthSel.value;
@@ -543,7 +605,7 @@
       return;
     }
 
-    // قفل الحقول + منع النقرات + إظهار اللودر
+    // قفل الحقول + لودر
     fetchBtn.disabled = true;
     clinicSel.disabled = true;
     monthSel.disabled = true;
@@ -553,11 +615,30 @@
       const r = await fetch('/api/times', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ clinic, month })
+        body: JSON.stringify({
+          clinic,
+          month,
+          identity: localStorage.getItem('auth_identity') || ''
+        })
       });
       const data = await r.json();
-      if (data.times && data.times.length) {
-        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+
+      // فلترة إضافية للمقيم (هوية تبدأ بـ 2) في الفترة المسائية فقط (12:00–14:30)
+      let list = Array.isArray(data.times) ? data.times : [];
+      const idDigits = (localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
+      const isIqama   = idDigits.startsWith('2');
+      const isEvening = /\*\*الفترة الثانية$/.test(String(clinic));
+      if (isIqama && isEvening) {
+        const toMin = t => { const [H,M] = String(t).split(':').map(Number); return H*60+M; };
+        list = list.filter(item=>{
+          const t24 = String(item.value).split('*')[1] || ''; // HH:mm
+          const m   = toMin(t24);
+          return m >= (12*60) && m <= (14*60+30);
+        });
+      }
+
+      if (list.length) {
+        timeSel.innerHTML = list.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         timeSel.disabled = false;
         bookNowBtn.disabled = false;
       } else {
@@ -568,7 +649,6 @@
       timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
       bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
     } finally {
-      // فتح الحقول من جديد بعد ظهور النتيجة
       fetchBtn.disabled = false;
       clinicSel.disabled = false;
       monthSel.disabled = false;
@@ -583,7 +663,12 @@
     const time   = timeSel.value;
     const identityVal = localStorage.getItem('auth_identity') || '';
     const phone  = localStorage.getItem('auth_phone') || '';
-    const note   = (noteInput.value || '').trim();
+
+    // ملاحظة + الخدمات المختارة (تُلحق تلقائياً)
+    let note = (noteInput.value || '').trim();
+    const chosen = Array.from(document.querySelectorAll('#chipsWrap .chip.active'))
+                   .map(b=>b.textContent.trim()).join(' + ');
+    if (chosen) note = note ? `${note} — خدمات: ${chosen}` : `خدمات: ${chosen}`;
 
     if (!clinic || !month || !time || !identityVal || !phone) {
       bkMsg.textContent = 'الرجاء استكمال العيادة والشهر والوقت وتسجيل الدخول.';
@@ -642,35 +727,14 @@
     hoursSection.style.display = 'none';
     bookingSection.style.display = '';
     window.scrollTo({top:0, behavior:'smooth'});
-    applyClinicFilter(); // ✅ تأكيد الفلترة عند إظهار الحجز
+    applyClinicFilter();
   }
 
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
-</script>
 
-<!-- ✅ فلترة العيادات المسائية للمقيم (هوية تبدأ بـ 2) -->
-<script>
-  const clinicSelect = document.getElementById("clinic");
-  const identityEl   = document.getElementById("identity");
-
-  function applyClinicFilter(){
-    const id = (identityEl?.value || localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
-    const isIqama = id.startsWith('2');
-
-    for (const option of clinicSelect.options) {
-      const isEvening = option.value.includes("الفترة الثانية");
-      option.hidden   = isIqama && isEvening;
-      option.disabled = isIqama && isEvening;
-    }
-    if (isIqama && clinicSelect.value.includes("الفترة الثانية")) {
-      clinicSelect.value = "";
-    }
-  }
-
-  // تعمل عند الكتابة وعند التحميل
-  identityEl?.addEventListener('input', applyClinicFilter);
-  document.addEventListener('DOMContentLoaded', applyClinicFilter);
+  // إبقاء دالة الفلترة موجودة لكن بدون إخفاء العيادات (نقيّد الأوقات فقط)
+  function applyClinicFilter(){ /* no-op (لا نخفي الفترة المسائية للمقيم) */ }
 </script>
 </body>
 </html>
