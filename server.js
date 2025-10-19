@@ -1224,7 +1224,7 @@ app.post('/api/times', async (req, res) => {
           return;
         }
         if (isDerm) {
-          // الجلدية والتجميل: 2:00 م → 9:30 م
+          // الجلدية والتجميل: 3:00 م → 9:30 م
           filtered = raw.filter(x => x.time24 && between(x.time24, 15, 0, 21, 30));
           return;
         }
