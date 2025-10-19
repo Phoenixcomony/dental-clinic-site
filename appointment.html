@@ -180,7 +180,7 @@
       <option value="عيادة الاسنان 2 (NO.101)**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية(د.ريان)</option>
       <option value="عيادة الاسنان 4 (NO.102)**الفترة الثانية">عيادة الاسنان 4 الفترة المسائية(د.رونالدو)</option>
       <option value="عيادة الجلدية والتجميل (NO.200)**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
-      <option value="تشقير وتنظيف البشرة**الفترة الثانية">عيادة التقشير و تنظيف البشرة الفترة المسائية</option>
+      <option value="تشقير وتنظيف البشرة**الفترة الثانية">عيادة التشقير و تنظيف البشرة الفترة المسائية</option>
       <option value="النساء و الولادة (NO.400)**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
       <option value="النساء و الولادة (NO.400)**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
     </select>
@@ -196,7 +196,7 @@
       <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
     </div>
 
-    <!-- خيارات خدمات التقشير/تنظيف البشرة (تظهر فقط لتلك العيادة) -->
+    <!-- خيارات خدمات التشقير/تنظيف البشرة (تظهر فقط لتلك العيادة) -->
     <div id="skinServices" style="display:none;margin-top:8px;">
       <label>الخدمة المختارة</label>
       <div class="chips" id="chipsWrap">
@@ -514,9 +514,7 @@
 
   // إدارة تشيبس خدمات البشرة
   const chipsWrap = document.getElementById('chipsWrap');
-  const skinServices = document.getElementById('skinServices');
-  const svcHint   = document.getElementById('svcHint');
-
+  
   function activeKeys(){
     return Array.from(chipsWrap?.querySelectorAll('.chip.active')||[]).map(b=>b.dataset.key);
   }
@@ -575,16 +573,31 @@
       : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
   }
 
-  // إظهار الملاحظة وخيارات الخدمات لعيادة التقشير/تنظيف البشرة
-  clinicSel.addEventListener('change', ()=>{
-    const v = clinicSel.value || '';
-    const isCleaning = v.includes('تقشير وتنظيف البشرة');
-    dermNote.style.display = isCleaning ? 'block' : 'none';
-    noteWrap.style.display  = v ? 'block' : 'none';
-    skinServices.style.display = isCleaning ? 'block' : 'none';
-    // تفريغ الأوقات
-    resetTimes('clinic');
-  });
+  // إظهار الملاحظة وخيارات الخدمات لعيادة التشقير/تنظيف البشرة
+ // عناصر الخدمات
+const skinServices = document.getElementById('skinServices');
+const svcHint = document.getElementById('svcHint');
+
+clinicSel.addEventListener('change', ()=>{
+  const v = clinicSel.value || '';
+
+  // اعتبرها عيادة التشقير/تنظيف البشرة بأي صياغة
+  const isSkinClinic =
+    v.includes('تنظيف البشرة') ||          // أي خيار فيه "تنظيف البشرة"
+    v.includes('تشقير وتنظيف البشرة');     // صياغتك الجديدة
+
+  // أظهر/أخفِ المكونات
+  skinServices.style.display = isSkinClinic ? '' : 'none';
+  dermNote.style.display     = isSkinClinic ? 'block' : 'none';
+  noteWrap.style.display     = v ? 'block' : 'none';
+
+  // تفريغ الأوقات عند تغيير العيادة
+  resetTimes('clinic');
+
+  // تلميح تلقائي حسب اختيار الشرائح (اختياري)
+  if (!isSkinClinic) svcHint.textContent = '';
+});
+
 
   // تفريغ الأوقات عند تغيير الشهر
   monthSel.addEventListener('change', ()=> resetTimes('month'));
