@@ -475,6 +475,7 @@
       document.getElementById('loginSection').style.display = 'none';
       document.getElementById('bookingSection').style.display = '';
       window.scrollTo({top:0, behavior:'smooth'});
+      applyClinicFilter(); // ✅ فعل الفلترة عند إظهار الحجز
     }catch(e){
       loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
       loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
@@ -641,31 +642,35 @@
     hoursSection.style.display = 'none';
     bookingSection.style.display = '';
     window.scrollTo({top:0, behavior:'smooth'});
+    applyClinicFilter(); // ✅ تأكيد الفلترة عند إظهار الحجز
   }
 
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
 </script>
+
+<!-- ✅ فلترة العيادات المسائية للمقيم (هوية تبدأ بـ 2) -->
 <script>
-  const phoneInput = document.getElementById("nid"); // استبدل nid بمعرّف حقل الهوية عندك
   const clinicSelect = document.getElementById("clinic");
+  const identityEl   = document.getElementById("identity");
 
-  phoneInput.addEventListener("input", () => {
-    const value = phoneInput.value.trim();
-    const isIqama = value.startsWith("2"); // إذا بدأ بـ 2 فهو إقامة
+  function applyClinicFilter(){
+    const id = (identityEl?.value || localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
+    const isIqama = id.startsWith('2');
 
-    // نمر على كل الخيارات
     for (const option of clinicSelect.options) {
-      if (option.value.includes("الفترة الثانية")) {
-        option.style.display = isIqama ? "none" : "block";
-      }
+      const isEvening = option.value.includes("الفترة الثانية");
+      option.hidden   = isIqama && isEvening;
+      option.disabled = isIqama && isEvening;
     }
-
-    // إذا كانت الإقامة، نحذف التحديد في حال كان مختار عيادة مسائية
     if (isIqama && clinicSelect.value.includes("الفترة الثانية")) {
       clinicSelect.value = "";
     }
-  });
+  }
+
+  // تعمل عند الكتابة وعند التحميل
+  identityEl?.addEventListener('input', applyClinicFilter);
+  document.addEventListener('DOMContentLoaded', applyClinicFilter);
 </script>
 </body>
 </html>
