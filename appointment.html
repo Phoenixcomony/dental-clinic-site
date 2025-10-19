@@ -627,8 +627,12 @@
       const res = await fetch('/api/book', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
+        body: JSON.stringify({
+    clinic,
+    month,
+    identity: identityVal   // ← هنا الإضافة
+  })
+});
       const data = await res.json();
       const msg  = (data && data.msg) ? String(data.msg) : '';
 
