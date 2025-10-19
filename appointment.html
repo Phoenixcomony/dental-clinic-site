@@ -646,5 +646,26 @@
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
 </script>
+<script>
+  const phoneInput = document.getElementById("nid"); // استبدل nid بمعرّف حقل الهوية عندك
+  const clinicSelect = document.getElementById("clinic");
+
+  phoneInput.addEventListener("input", () => {
+    const value = phoneInput.value.trim();
+    const isIqama = value.startsWith("2"); // إذا بدأ بـ 2 فهو إقامة
+
+    // نمر على كل الخيارات
+    for (const option of clinicSelect.options) {
+      if (option.value.includes("الفترة الثانية")) {
+        option.style.display = isIqama ? "none" : "block";
+      }
+    }
+
+    // إذا كانت الإقامة، نحذف التحديد في حال كان مختار عيادة مسائية
+    if (isIqama && clinicSelect.value.includes("الفترة الثانية")) {
+      clinicSelect.value = "";
+    }
+  });
+</script>
 </body>
 </html>
