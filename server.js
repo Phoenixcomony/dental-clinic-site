@@ -310,19 +310,8 @@ async function prepPage(page){
 
 /** ===== Login (hardened with retry) ===== */
 async function loginToImdad(page, {user, pass}){
- console.log('[IMDAD] opening login…');
-
-// 🩵 تنظيف الكوكيز قبل كل تسجيل دخول جديد
-try {
-  const oldCookies = await page.cookies();
-  if (oldCookies.length) await page.deleteCookie(...oldCookies);
-} catch(e) {
-  console.warn('[IMDAD] no cookies to clear');
-}
-
-// الآن توجه إلى صفحة تسجيل الدخول
-await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'domcontentloaded' });
-
+  console.log('[IMDAD] opening login…');
+  await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'domcontentloaded' });
 
   await page.waitForSelector('input[name="username"]', { timeout: 30000 });
   await page.$eval('input[name="username"]', (el,v)=>{el.value=v;}, user);
