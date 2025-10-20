@@ -519,11 +519,11 @@
     showLoader(true);
 
     try {
-      const r = fetch('/api/times', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ clinic, month: monthText, period })
-});
+      const r = await fetch('/api/times', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ clinic, month, needChainMin })
+      });
       const data = await r.json();
 
       if (data.times && data.times.length) {
