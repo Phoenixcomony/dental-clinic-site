@@ -1266,7 +1266,6 @@ const bookingQueue = [];
 let processingBooking=false;
 
 app.post('/api/book', async (req,res)=>{ bookingQueue.push({req,res}); processQueue(); });
-
 /** ===== Multi-slot booking: /api/book-multi =====
  * يثبت أول خانة ويرجع نجاح للمستخدم، ثم يكمل باقي الخانات بالخلفية.
  */
@@ -1342,6 +1341,25 @@ app.post('/api/book-multi', async (req, res) => {
   }
 });
 
+
+async function processQueue(){
+  if(processingBooking || !bookingQueue.length) return;
+  processingBooking=true;
+
+  const { req, res } = bookingQueue.shift();
+  let account=null;
+  try{
+    account = await acquireAccount();
+    const msg = await bookNow({ ...req.body, account }); // ← يمرر note إن وجد
+    res.json({ msg });
+  }catch(e){
+    res.json({ msg:'❌ فشل الحجز! '+(e?.message||String(e)) });
+  }finally{
+    if(account) releaseAccount(account);
+    processingBooking=false;
+    processQueue();
+  }
+}
 
 /** ===== Booking flow (USES IDENTITY + USER NOTE IF PROVIDED) ===== */
 async function bookNow({ identity, name, phone, clinic, month, time, note, account }){
