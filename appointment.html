@@ -611,15 +611,17 @@
 
       // 2) احتياطي: /api/book-multi (حجز عدة خانات متتالية)
 if (useFallback) {
-  const payload = {
-    identity: identityVal,
-    phone,
-    clinic,
-    month: monthVal,
-    firstTimeValue: time,
-    slotsCount: Math.ceil(needChainMin / 15),
-    note
-  };
+ const monthText = monthSel.selectedOptions[0]?.text || monthVal;
+const payload = {
+  identity: identityVal,
+  phone,
+  clinic,
+  month: monthText,
+  firstTimeValue: time,
+  slotsCount: Math.ceil(needChainMin / 15),
+  note
+};
+
 
   const res = await fetch('/api/book-multi', {
     method: 'POST',
