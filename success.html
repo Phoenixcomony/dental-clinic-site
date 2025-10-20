@@ -1,137 +1,192 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>تم الحجز بنجاح - مجمع فينكس الطبي</title>
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>تم الحجز - عيادة فينكس</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    body{font-family:'Cairo',Arial,Tahoma,sans-serif;background:#faf6ee;min-height:100vh;margin:0;display:flex;flex-direction:column;}
-    .success-container{max-width:390px;margin:60px auto 30px;background:#fff;border-radius:21px;box-shadow:0 4px 36px #e2be6d2f;padding:28px 10px 20px;text-align:center;position:relative;overflow:hidden;}
-    .success-check{display:flex;justify-content:center;align-items:center;background:linear-gradient(135deg,#e9be4f,#eadcbc 80%);width:64px;height:64px;border-radius:50%;margin:0 auto 13px;box-shadow:0 3px 19px #e2be6d44;animation:pop .7s}
-    .success-check i{color:#fff;font-size:2.1em;animation:bounce 1.1s}
-    @keyframes pop{0%{transform:scale(.2)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
-    @keyframes bounce{0%{transform:scale(0)}80%{transform:scale(1.25)}100%{transform:scale(1)}}
-    h2{color:#b89023;font-size:1.45em;margin:8px 0 9px;font-weight:700;letter-spacing:1px;background:#fdf4dd;border-radius:10px;padding:5px 0}
-    .details-box{background:#f7f5ee;border-radius:10px;text-align:right;margin:16px auto 10px;padding:10px 8px;font-size:.93em;color:#7a6741;direction:rtl;box-shadow:0 2px 10px #2fa4c61c;border:1.3px solid #e8ca7c35;font-weight:700;min-height:95px;max-width:260px;display:flex;flex-direction:column;gap:4px}
-    .details-box div{word-break:break-word;font-weight:600;line-height:1.6}
-    .done-msg{color:#000;font-weight:700;font-size:1em;margin:10px 0 6px;letter-spacing:.2px;text-align:center;line-height:1.7;min-height:1.5em}
-    .hint{color:#6b5a33;font-size:.9em;margin-top:6px}
-    .social-icons{display:flex;justify-content:center;gap:7px;margin:15px 0 0}
-    .social-icons a{font-size:1em;padding:0 3px;border-radius:50%;background:#fff3ce;color:#b89023;border:1.2px solid #f9e9c8;transition:.19s;width:28px;height:28px;display:flex;align-items:center;justify-content:center}
-    .social-icons a:hover{background:#fffbe7;color:#84610f}
-    .home-btn{background:var(--gold-gradient,linear-gradient(90deg,#e9be4f 60%,#eadcbc 110%));color:#fff;font-weight:700;padding:9px 0;border-radius:10px;border:none;width:100%;font-size:1.04em;cursor:pointer;box-shadow:0 1px 12px #e2be6d54;margin-top:15px;transition:background .18s}
-    .home-btn:hover{background:linear-gradient(90deg,#f9dc8c 0%,#e8ca7c 100%);color:#805500}
-    @media(max-width:600px){.success-container{padding:3vw 0 4vw;max-width:98vw}.success-check{width:45px;height:45px}.success-check i{font-size:1.4em}.details-box{font-size:.93em;max-width:97vw}}
-    footer{background:rgba(255,255,255,.219)!important;color:#b89023!important;text-align:center;font-size:1em;font-weight:700;border-top:1.5px solid #eee;letter-spacing:.6px;padding:12px 0 9px;margin-top:auto;box-shadow:0 -2px 12px #e2be6d54}
+    :root{
+      --ok:#16a34a; --ok-bg:#ecfdf5;
+      --ink:#0f172a; --muted:#64748b; --card:#ffffff; --bg:#f8fafc; --border:#e2e8f0;
+      --brand:#0ea5e9;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:'Tajawal',system-ui,Segoe UI,Arial,sans-serif;
+      background:var(--bg); color:var(--ink);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .wrap{max-width:720px; width:100%}
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;
+      box-shadow:0 10px 25px rgba(2,8,23,.04);
+    }
+    .header{
+      display:flex; gap:16px; align-items:center; margin-bottom:12px;
+    }
+    .badge{
+      width:48px; height:48px; border-radius:12px; background:var(--ok-bg); display:grid; place-items:center; color:var(--ok); font-size:28px;
+      border:1px solid #bbf7d0;
+    }
+    h1{margin:0;font-size:22px}
+    .msg{color:var(--muted); margin-top:4px}
+    .grid{
+      display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px;
+    }
+    @media (min-width:640px){ .grid{ grid-template-columns:1fr 1fr; } }
+    .row{
+      border:1px dashed var(--border); padding:14px 16px; border-radius:12px; background:#fff;
+    }
+    .row b{display:block; color:#0b1220; margin-bottom:6px}
+    .row span{color:var(--muted)}
+    .note{white-space:pre-wrap}
+    .actions{display:flex; gap:10px; margin-top:18px; flex-wrap:wrap}
+    .btn{
+      appearance:none; border:none; outline:none; cursor:pointer;
+      padding:12px 16px; border-radius:10px; font-weight:600;
+    }
+    .primary{background:var(--brand); color:#fff}
+    .ghost{background:#fff; border:1px solid var(--border); color:#0b1220}
+    .tiny{font-size:12px; color:#94a3b8; margin-top:12px}
+    .hr{height:1px;background:var(--border);margin:18px 0}
+    .hint{background:#f1f5f9;border:1px solid var(--border); color:#0b1220; padding:12px 14px;border-radius:10px;font-size:14px}
+    .center{ text-align:center; }
   </style>
 </head>
 <body>
-  <div class="success-container">
-    <div class="success-check"><i class="fa fa-check"></i></div>
-    <h2>تم الحجز بنجاح!</h2>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="badge">✓</div>
+        <div>
+          <h1 id="title">تم تأكيد الحجز</h1>
+          <div id="subtitle" class="msg">جارٍ تجهيز تفاصيل الحجز…</div>
+        </div>
+      </div>
 
-    <div class="details-box" id="details"></div>
-    <div class="done-msg" id="statusMsg"></div>
-    <div class="hint" id="chainHint" style="display:none;"></div>
+      <div class="grid" id="detailsGrid" hidden>
+        <div class="row">
+          <b>العيادة</b>
+          <span id="clinicTxt">—</span>
+        </div>
+        <div class="row">
+          <b>التاريخ والوقت</b>
+          <span id="whenTxt">—</span>
+        </div>
+        <div class="row">
+          <b>الخدمات</b>
+          <span id="servicesTxt">—</span>
+        </div>
+        <div class="row">
+          <b>ملاحظة</b>
+          <span id="noteTxt" class="note">—</span>
+        </div>
+      </div>
 
-    <button class="home-btn" onclick="window.location.href='index.html'">العودة للصفحة الرئيسية</button>
-    <div class="social-icons">
-      <a href="https://wa.me/966531422555" target="_blank" title="واتساب"><i class="fab fa-whatsapp"></i></a>
-      <a href="https://www.instagram.com/phoenix.shq/" target="_blank" title="انستقرام"><i class="fab fa-instagram"></i></a>
-      <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" title="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+      <div class="hr"></div>
+
+      <div class="hint" id="serverMsg">تم الحجز بنجاح.</div>
+
+      <div class="actions">
+        <button class="btn primary" id="homeBtn">العودة للرئيسية</button>
+        <button class="btn ghost" id="againBtn">حجز موعد آخر</button>
+      </div>
+
+      <div class="tiny">
+        إن لم تصلك رسالة واتساب خلال دقائق، بإمكانك التواصل معنا عبر صفحة <a href="contact.html">اتصل بنا</a>.
+      </div>
     </div>
+
+    <p class="tiny center" id="diag"></p>
   </div>
 
-  <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
-
   <script>
-    // تنسيق الوقت القادم مثل: 21-10-2025*15:30
-    function formatTimeValue(raw){
-      try{
-        if(!raw) return '';
-        const [datePart, timePart=''] = raw.split('*');
-        const [day, month, year] = (datePart||'').split('-');
-        const [h='0', m='0'] = (timePart||'').split(':');
-        const hour = parseInt(h,10), minute = parseInt(m,10);
-        const ampm = hour < 12 ? 'صباحاً' : 'مساءً';
-        let hour12 = hour % 12; if(hour12===0) hour12 = 12;
+    // ـــــــــــــــ Helpers ـــــــــــــــ
+    const toAscii = s => String(s||'').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    const isIso = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'');
+    function to12h(t){
+      if(!t) return '';
+      const [H,M='00']=String(t).split(':'); let h=Number(H); const am=h<12; h=h%12||12;
+      return `${h}:${String(M).padStart(2,'0')} ${am?'ص':'م'}`;
+    }
 
-        let displayDate = raw;
-        if(day && month && year){
-          const dateObj = new Date(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
-          const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-          const dayName = weekDays[dateObj.getDay()];
-          displayDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} (${dayName})`;
+    // ـــــــــــــــ اقرا القيم من التخزين ـــــــــــــــ
+    const store = (k)=> localStorage.getItem(k) ?? sessionStorage.getItem(k);
+
+    // الرسالة القادمة من الحجز
+    const serverMsg = store('booking_result_msg') || 'تم الحجز بنجاح';
+    document.getElementById('serverMsg').textContent = serverMsg;
+
+    // تفاصيل الحجز (نحاول عدة مفاتيح شائعة)
+    const clinic = store('booking_clinic') || store('selected_clinic') || '';
+    const month  = store('booking_month_text') || store('booking_month') || '';
+    const date   = store('booking_date') || '';         // بصيغة YYYY-MM-DD إن وُجدت
+    const time24 = store('booking_time') || '';         // بصيغة HH:MM
+    const services = store('booking_services') || store('selected_services') || '';
+    const note   = store('booking_note') || '';
+
+    // تجميع الوقت/التاريخ
+    let whenTxt = '—';
+    if (date && time24) { whenTxt = `${date} - ${to12h(time24)}`; }
+    else if (month && time24) { whenTxt = `${month} - ${to12h(time24)}`; }
+    else if (month) { whenTxt = month; }
+
+    // أظهر التفاصيل إن وجد شيء مفيد
+    const hasAny =
+      (clinic && clinic.trim()) ||
+      (whenTxt && whenTxt !== '—') ||
+      (services && services.trim()) ||
+      (note && note.trim());
+
+    if (hasAny) {
+      detailsGrid.hidden = false;
+      document.getElementById('clinicTxt').textContent = clinic || '—';
+      document.getElementById('whenTxt').textContent   = whenTxt || '—';
+      document.getElementById('servicesTxt').textContent = services || '—';
+      document.getElementById('noteTxt').textContent     = note || '—';
+      document.getElementById('subtitle').textContent = 'سعداء بخدمتكم ✨';
+    } else {
+      document.getElementById('subtitle').textContent = 'تم الحجز بنجاح.';
+    }
+
+    // ـــــــــــــــ إرسال تتبع النجاح للمتركس — يستخدم الحقل clinic فقط ـــــــــــــــ
+    (async () => {
+      try {
+        if (clinic && clinic.trim()) {
+          await fetch('/api/track-success', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ clinic })
+          });
         }
-        return `${displayDate} ${hour12}:${String(minute).padStart(2,'0')} ${ampm}`;
-      }catch{ return raw; }
-    }
-
-    // إزالة أي رقم حساب/معرف طويل من رسالة الخادم
-    function sanitizeBookingMsg(msg){
-      if(!msg) return '';
-      let s = String(msg);
-      s = s.replace(/بالحساب\s*:\s*[\d\w_-]+/g,'').trim();
-      s = s.replace(/\b\d{6,}\b/g,'').trim();
-      s = s.replace(/\s{2,}/g,' ').replace(/[،,:;]\s*[،,:;]+/g,',').trim();
-      if(!s) s = '✅ تم تأكيد الحجز بنجاح.';
-      return s;
-    }
-
-    // قراءة البيانات من localStorage (تتوافق مع appointment.html المعدّل)
-    const nationalId = localStorage.getItem('pending_identity') || localStorage.getItem('auth_identity') || '';
-    const phone      = localStorage.getItem('pending_phone')    || localStorage.getItem('auth_phone')    || '';
-    const clinicLbl  = localStorage.getItem('pending_clinic_label') || localStorage.getItem('pending_clinic') || '';
-    const monthVal   = localStorage.getItem('pending_month')    || '';
-    const timeVal    = localStorage.getItem('pending_time')     || '';
-    const note       = localStorage.getItem('pending_note')     || '';
-    const slotsCount = parseInt(localStorage.getItem('pending_slots') || '0', 10);
-
-    // عرض التفاصيل
-    const detailsEl = document.getElementById('details');
-    const rows = [
-      ['رقم الهوية/الإقامة', nationalId || '—'],
-      ['رقم الجوال',         phone      || '—'],
-      ['العيادة',            clinicLbl  || '—'],
-      ['الشهر',              monthVal   || '—'],
-      ['الوقت',              timeVal ? formatTimeValue(timeVal) : '—']
-    ];
-
-    if (note) rows.push(['الملاحظة', note]);
-    if (!isNaN(slotsCount) && slotsCount > 1) rows.push(['عدد الخانات', String(slotsCount)]);
-
-    detailsEl.innerHTML = rows.map(([k,v])=>`<div><strong>${k}:</strong> ${v}</div>`).join('');
-
-    // رسالة الخادم
-    const rawMsg  = localStorage.getItem('booking_result_msg') || '';
-    const safeMsg = sanitizeBookingMsg(rawMsg);
-    document.getElementById('statusMsg').textContent = safeMsg || '🚀 تم استلام بياناتك وسيتم تأكيد الحجز عبر النظام.';
-
-    // تلميح اكتمال الحجز المتسلسل
-    const chainHint = document.getElementById('chainHint');
-    if (!isNaN(slotsCount) && slotsCount > 1) {
-      chainHint.style.display = '';
-      chainHint.textContent = `سيقوم النظام بإكمال ${slotsCount - 1} خانة إضافية تلقائيًا في الخلفية، لا يلزم أي إجراء من طرفك.`;
-    }
-
-    // تتبّع النجاح
-    (async ()=>{
-      try{
-        await fetch('/api/track-success', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ clinic: clinicLbl || '', month: monthVal || '' })
-        });
-      }catch(e){ console.warn('track-success failed', e); }
+      } catch (e) {
+        // صامت
+      }
     })();
 
-    // تنظيف القيم المؤقتة
-    ['booking_result_msg','pending_identity','pending_phone','pending_clinic','pending_clinic_label','pending_month','pending_time','pending_note','pending_slots'].forEach(k=>localStorage.removeItem(k));
+    // أزرار
+    document.getElementById('homeBtn').onclick = () => location.href = 'index.html';
+    document.getElementById('againBtn').onclick = () => location.href = 'appointment.html';
 
-    // رجوع تلقائي
-    setTimeout(()=>{ window.location.href='index.html'; }, 10000);
+    // تشخيص بسيط مفيد أحيانًا
+    (function diag(){
+      const d = [];
+      if (clinic) d.push('Clinic✓');
+      if (month||date) d.push('Month/Date✓');
+      if (time24) d.push('Time✓');
+      if (services) d.push('Services✓');
+      document.getElementById('diag').textContent = d.length ? 'Loaded: ' + d.join(' · ') : '';
+    })();
+
+    // (اختياري) لا تفرّغ القيم مباشرة حتى لو رجع الزائر للخلف؛
+    // لو حاب تنظف بعد العرض بدقائق:
+    // setTimeout(() => {
+    //   ['booking_result_msg','booking_clinic','booking_month','booking_month_text','booking_date','booking_time','booking_services','booking_note','selected_clinic','selected_services']
+    //     .forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+    // }, 60000);
   </script>
 </body>
 </html>
