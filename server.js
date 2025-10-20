@@ -719,6 +719,76 @@ function verifyOtpInline(phone, otp){
   return !!(rec && String(rec.code)===String(otp));
 }
 
+/** ===== Search by identity/phone → open patient ===== */
+app.post('/api/login', async (req, res) => {
+  try {
+    const { identity, phone, otp } = req.body || {};
+    // تحقق المُدخلات
+    const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
+    if(!isLikelyIdentity(idDigits)) return res.status(200).json({ success:false, message:'اكتب رقم الهوية/الإقامة بشكل صحيح' });
+    if(!isSaudi05(phone))  return res.status(200).json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
+    if(!verifyOtpInline(phone, otp)) return res.status(200).json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
+
+    const browser = await launchBrowserSafe();
+    const page = await browser.newPage(); await prepPage(page);
+    let account=null;
+    try{
+      account = await acquireAccount();
+      await loginToImdad(page, account);
+
+      const phone05 = toLocal05(phone);
+
+      // البحث بالهوية أولاً (حسب طلبك)
+      const searchRes = await searchAndOpenPatientByIdentity(page, {
+        identityDigits: idDigits,
+        expectedPhone05: phone05
+      });
+
+      if(!searchRes.ok){
+        console.log('[IMDAD] login-by-id result:', searchRes);
+        await browser.close(); if(account) releaseAccount(account);
+        // رسالة موحدة
+        if (searchRes.reason === 'phone_mismatch') {
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
+        }
+        return res.json({ success:false, exists:false, message:'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).' });
+      }
+
+      const fileId = searchRes.fileId;
+      const liPhone = searchRes.liPhone;
+
+      if (liPhone) {
+        if (!phonesEqual05(liPhone, phone)) {
+          await browser.close(); if(account) releaseAccount(account);
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
+        }
+      } else {
+        console.log('[IMDAD] patient has no phone on file; accepting identity match.');
+      }
+
+      const idStatus = await readIdentityStatus(page, fileId);
+
+      await browser.close(); if(account) releaseAccount(account);
+
+      return res.json({
+        success:true,
+        exists:true,
+        fileId,
+        hasIdentity: idStatus.hasIdentity, // غالبًا true بما أنه بحث بالهوية
+        pickedText: searchRes.pickedText
+      });
+    }catch(e){
+      console.error('[IMDAD] /api/login error:', e?.message||e);
+      try{ await browser.close(); }catch(_){}
+      if(account) releaseAccount(account);
+      return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
+    }
+  } catch (e) {
+    console.error('/api/login fatal', e?.message||e);
+    return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
+  }
+});
+
 /** ===== Read identity (SSN) robustly ===== */
 async function readIdentityStatus(page, fileId) {
   console.log('[IMDAD] checking identity…');
@@ -1066,7 +1136,6 @@ app.post('/api/times', async (req, res) => {
 
       // ✅ طبّق "1 month"
       await applyOneMonthView(page);
-      console.log("🔵 الشهر المطلوب من الواجهة:", month);
 
       const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
       const monthValue = months.find(m => m.text === month || m.value === month)?.value;
@@ -1196,83 +1265,7 @@ app.post('/api/times', async (req, res) => {
 const bookingQueue = [];
 let processingBooking=false;
 
-
-/** ===== Multi-slot booking: /api/book-multi =====
- * يثبت أول خانة ويرجع نجاح للمستخدم، ثم يكمل باقي الخانات بالخلفية.
- */
-app.post('/api/book-multi', async (req, res) => {
-  try {
-    const {
-      identity,            // رقم الهوية (مطلوب)
-      name = '',
-      phone,               // 05xxxxxxxx (مطلوب)
-      clinic,              // قيمة/نص العيادة (مطلوب)
-      month,               // اسم/قيمة الشهر المعروضة (مطلوب)
-      firstTimeValue,      // "YYYY-MM-DD*HH:MM" أول خانة يختارها المستخدم (مطلوب)
-      slotsCount = 1,      // عدد الخانات الإجمالي (كل خانة = 15 دقيقة)
-      note = ''            // ملاحظة المستخدم (اختياري)
-    } = req.body || {};
-
-    if (!identity || !phone || !clinic || !month || !firstTimeValue) {
-      return res.json({ success:false, message:'بيانات ناقصة' });
-    }
-
-    // سقف أمان للخانات
-    const totalSlots = Math.max(1, Math.min(Number(slotsCount)||1, 8));
-
-    // add minutes إلى قيمة "YYYY-MM-DD*HH:MM" بدون تواريخ
-    const addMin = (val, mins) => {
-      const [d, t] = String(val).split('*');
-      let [H, M] = (t||'').split(':').map(n => +n||0);
-      let total = H*60 + M + mins;
-      const hh = String(Math.floor(total/60)).padStart(2,'0');
-      const mm = String(total%60).padStart(2,'0');
-      return `${d}*${hh}:${mm}`;
-    };
-
-    // 1) احجز الخانة الأولى (التي يراها المستخدم)
-    let account = null;
-    try {
-      account = await acquireAccount();
-      const msg1 = await bookNow({
-        identity, name, phone, clinic, month,
-        time: firstTimeValue, note, account
-      });
-      // رد فوري للمستخدم
-      res.json({ success:true, message: msg1 });
-    } catch (e) {
-      if (account) releaseAccount(account);
-      return res.json({ success:false, message:'فشل الحجز الأول: '+(e?.message||e) });
-    } finally {
-      if (account) releaseAccount(account);
-    }
-
-    // 2) أكمل الباقي بالخلفية (كل خانة = 15 دقيقة)
-    const rest = totalSlots - 1;
-    if (rest > 0) {
-      (async () => {
-        let cur = firstTimeValue;
-        for (let i=0; i<rest; i++) {
-          cur = addMin(cur, 15);
-          let acc = null;
-          try {
-            acc = await acquireAccount();
-            await bookNow({ identity, name, phone, clinic, month, time: cur, note, account: acc });
-          } catch (_) {
-            // تجاهل أخطاء الخانات الإضافية
-          } finally {
-            if (acc) releaseAccount(acc);
-          }
-          await sleep(400);
-        }
-      })();
-    }
-  } catch (e) {
-    res.json({ success:false, message:'خطأ غير متوقع' });
-  }
-});
-
-
+app.post('/api/book', async (req,res)=>{ bookingQueue.push({req,res}); processQueue(); });
 
 async function processQueue(){
   if(processingBooking || !bookingQueue.length) return;
