@@ -609,30 +609,42 @@
         }
       }
 
-      // 2) احتياطي: /api/book (حجز خانة واحدة فقط)
-      if (useFallback) {
-        const payload = { identity: identityVal, phone, clinic, month: monthVal, time, note, needChainMin, key: Date.now().toString() };
-        const res = await fetch('/api/book', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        const msg  = (data && data.msg) ? String(data.msg) : 'تم الحجز';
-        localStorage.setItem('booking_result_msg', msg);
-        window.location.href = 'success.html';
-      }
-    } catch (e) {
-      bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
-      bookNowBtn.disabled = false;
-      fetchBtn.disabled = false;
-      clinicSel.disabled = false;
-      monthSel.disabled = false;
-      timeSel.disabled = false;
-    } finally {
-      showLoader(false);
-    }
+      // 2) احتياطي: /api/book-multi (حجز عدة خانات متتالية)
+if (useFallback) {
+  const payload = {
+    identity: identityVal,
+    phone,
+    clinic,
+    month: monthVal,
+    firstTimeValue: time,
+    slotsCount: Math.ceil(needChainMin / 15),
+    note
+  };
+
+  const res = await fetch('/api/book-multi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   });
+
+  const data = await res.json();
+  const msg = (data && data.msg) ? String(data.msg) : 'تم الحجز بنجاح';
+
+  localStorage.setItem('booking_result_msg', msg);
+  window.location.href = 'success.html';
+}
+} catch (e) {
+  bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
+  bookNowBtn.disabled = false;
+  fetchBtn.disabled = false;
+  clinicSel.disabled = false;
+  monthSel.disabled = false;
+  timeSel.disabled = false;
+} finally {
+  showLoader(false);
+}
+});
+
 
   // ===== تبديل العرض =====
   const bookingSection = document.getElementById('bookingSection');
