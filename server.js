@@ -649,7 +649,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
 async function isDuplicatePhoneWarning(page){
   try {
     const found = await page.evaluate(()=>{
-      const txt = (document.body.innerText||'').replace(/\s+/g,' ');
+      const txt = (document.body.innerText||'').replace(/\س+/g,' ');
       return /رقم هاتف موجود يخص المريض\s*:|رقم الجوال موجود|Existing phone number|Phone number already exists/i.test(txt);
     });
     return !!found;
@@ -657,7 +657,6 @@ async function isDuplicatePhoneWarning(page){
     return false;
   }
 }
-
 /** ===== Pre-check by phone (before creating) ===== */
 async function existsPatientByPhone(page, phone05){
   // جرّب بالهاتف (Navbar)
@@ -738,7 +737,7 @@ app.post('/api/login', async (req, res) => {
 
       const phone05 = toLocal05(phone);
 
-      // البحث بالهوية أولاً (حسب طلبك)
+      // البحث بالهوية أولاً
       const searchRes = await searchAndOpenPatientByIdentity(page, {
         identityDigits: idDigits,
         expectedPhone05: phone05
@@ -747,7 +746,6 @@ app.post('/api/login', async (req, res) => {
       if(!searchRes.ok){
         console.log('[IMDAD] login-by-id result:', searchRes);
         await browser.close(); if(account) releaseAccount(account);
-        // رسالة موحدة
         if (searchRes.reason === 'phone_mismatch') {
           return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
         }
@@ -774,7 +772,7 @@ app.post('/api/login', async (req, res) => {
         success:true,
         exists:true,
         fileId,
-        hasIdentity: idStatus.hasIdentity, // غالبًا true بما أنه بحث بالهوية
+        hasIdentity: idStatus.hasIdentity,
         pickedText: searchRes.pickedText
       });
     }catch(e){
@@ -1051,7 +1049,7 @@ app.post('/api/times', async (req, res) => {
     const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
-    // استنتاج الفترة تلقائيًا من نص/قيمة العيادة إن وُجد
+    // استنتاج الفترة تلقائيًا
     const clinicStr = String(clinic || '');
     const autoPeriod =
       /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
@@ -1067,14 +1065,14 @@ app.post('/api/times', async (req, res) => {
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
     const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; };
 
-    // Helpers (تاريخ) — تحديد الجمعة/السبت
+    // Helpers (تاريخ)
     const parseYMD = (s='')=>{
       const str = String(s).trim();
       let y,m,d;
       if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(str)) {
         const [Y,M,D] = str.split(/[-/]/).map(n=>+n);
         y=Y; m=M; d=D;
-      } else if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/.test(str)) {
+      } else if (/^\d{1,2}[-/]\د{1,2}[-/]\d{4}$/.test(str)) {
         const [D,M,Y] = str.split(/[-/]/).map(n=>+n);
         y=Y; m=M; d=D;
       } else {
@@ -1094,7 +1092,7 @@ app.post('/api/times', async (req, res) => {
       return p.wd === 5 || p.wd === 6;
     };
 
-    // ======= (مهم) التعرف الدقيق على بعض العيادات =======
+    // التعرف على العيادات الخاصة
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic = toAsciiDigits(baseClinicName);
     const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
@@ -1158,37 +1156,34 @@ app.post('/api/times', async (req, res) => {
       });
 
       let filtered = raw;
-      const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
-      const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-      const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
-      const inEvening = (t)=>{ const m=timeToMinutes(t); const start = (clinicStr === 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية') ? 15*60 : 16*60; return m>=start && m<=22*60; };
 
-      const effectivePeriod =
+      const inMorning2 = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
+      const inEvening2 = (t)=>{ const m=timeToMinutes(t); const start = (clinicStr === 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية') ? 15*60 : 16*60; return m>=start && m<=22*60; };
+
+      const effectivePeriod2 =
         /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
         (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
 
-      if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
-      // === خاص: عيادة الأسنان 2 (الفترة المسائية) — 4:00 م → 8:00 م فقط ===
+      if (effectivePeriod2 === 'morning') filtered = raw.filter(x => x.time24 && inMorning2(x.time24));
+      if (effectivePeriod2 === 'evening') filtered = raw.filter(x => x.time24 && inEvening2(x.time24));
+
+      // نافذة خاصة للأسنان 2 مساءً: 4:00 → 8:00
       (function applyDental2EveningWindow() {
-        // نتحقق أن العيادة هي "الأسنان" وبها الرقم 2 وأن الفترة مسائية
         const isDentalWordHere = /الأسنان|الاسنان/.test(baseClinicName);
         const hasNumber2 = /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
-        const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        const isEvening = (effectivePeriod2 === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
         if (isDentalWordHere && hasNumber2 && isEvening) {
           filtered = filtered.filter(x => {
             const m = timeToMinutes(x.time24);
-            return m >= 16 * 60 && m <= 20 * 60; // 16:00 → 20:00 شامل (منطقك القديم)
+            return m >= 16 * 60 && m <= 20 * 60;
           });
         }
       })();
 
-      // ===== [OVERRIDES: Evening-only windows for specific clinics] =====
-      // ملاحظة مهمة: هذا المقطع لا يلمس "الصباحي" إطلاقًا، ويأتي بعد منطقك الحالي
-      // ويستخدم "raw" لإعادة بناء التصفية عند الحاجة (لتجاوز قيد 8:00 م للأسنان 2).
+      // Overrides مسائية لعيادات محددة (التشقير/تنظيف البشرة ضمنها)
       (function applyClinicEveningOverrides() {
-        const isEveningNow = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
-        if (!isEveningNow) return; // لا نغيّر الصباحي بتاتًا
+        const isEveningNow = (effectivePeriod2 === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        if (!isEveningNow) return;
 
         const baseClinic = baseClinicName;
         const ascii = asciiClinic;
@@ -1208,41 +1203,35 @@ app.post('/api/times', async (req, res) => {
         };
 
         if (isDental1 || isDental2) {
-          // عيادة الأسنان 1 أو 2 (د. ريان): 4:00 م → 8:30 م
-            filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 20, 30)); // 4:00 → 8:30
+          filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 20, 30)); // 4:00 → 8:30
           return;
         }
         if (isDental4) {
-          // عيادة الأسنان 4: 2:00 م → 9:30 م
-          filtered = raw.filter(x => x.time24 && between(x.time24, 14, 0, 21, 30));
+          filtered = raw.filter(x => x.time24 && between(x.time24, 14, 0, 21, 30)); // 2:00 → 9:30
           return;
         }
         if (isDental5) {
-          // عيادة الأسنان 5 (د. معاذ): 12:00 م → 7:30 م
-          filtered = raw.filter(x => x.time24 && between(x.time24, 12, 0, 19, 30));
+          filtered = raw.filter(x => x.time24 && between(x.time24, 12, 0, 19, 30)); // 12:00 → 7:30
           return;
         }
         if (isDerm) {
-          // الجلدية والتجميل: 3:00 م → 9:30 م
-          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 0, 21, 30));
+          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 0, 21, 30)); // 3:00 → 9:30
           return;
         }
         if (isSkinClean) {
-          // التشقير/تنظيف البشرة/هايدرافيشل: 3:30 م → 9:30 م
-          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 30, 21, 30));
+          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 30, 21, 30)); // 3:30 → 9:30
           return;
         }
-        // غير ذلك: لا نلمس أي شيء
       })();
 
       if (shouldBlockFriSat) {
-        const isFriOrSat = (dateStr)=> {
+        const isFriOrSat2 = (dateStr)=> {
           const [Y,M,D] = (dateStr||'').split('-').map(n=>+n);
           if(!Y||!M||!D) return false;
           const wd = new Date(Date.UTC(Y, M-1, D)).getUTCDay();
           return wd === 5 || wd === 6;
         };
-        filtered = filtered.filter(x => !isFriOrSat(x.date));
+        filtered = filtered.filter(x => !isFriOrSat2(x.date));
       }
 
       const times = filtered.map(x => ({
@@ -1260,7 +1249,6 @@ app.post('/api/times', async (req, res) => {
     res.json({ times: [], error: e?.message||String(e) });
   }
 });
-
 /** ===== Booking queue ===== */
 const bookingQueue = [];
 let processingBooking=false;
@@ -1316,7 +1304,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
       page.select('#month1', monthValue)
     ]);
 
-    // ✅ اكتب "رقم الهوية" (إن وُجد) وإلا fallback للاسم القديم
+    // ✅ اكتب "رقم الهوية" (إن وُجد) وإلا fallback للاسم
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
     await typeSlow(page, '#SearchBox120', searchKey, 120);
@@ -1328,7 +1316,6 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
     while (!picked && Date.now() < deadline) {
       const items = await readApptSuggestions(page);
       const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
-      // الأفضلية: مطابقة برقم الجوال
       const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
       if (match) {
         await page.evaluate((idx)=>{
@@ -1338,7 +1325,6 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
         picked = true;
         break;
       }
-      // لو ما لقي الجوال، اختر أول نتيجة بعد تحفيز القائمة
       await page.evaluate(()=>{
         const el = document.querySelector('#SearchBox120');
         if (el) {
@@ -1381,7 +1367,9 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
     });
     if(!pressed) throw new Error('زر الحجز غير متاح!');
 
+    // إظهار نافذة النجاح داخل إمداد (ثم الواجهة عندك ترجع لصفحة المواعيد وتكمل)
     await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
+
     await browser.close();
     return '✅ تم الحجز بنجاح بالحساب: '+account.user;
   }catch(e){
