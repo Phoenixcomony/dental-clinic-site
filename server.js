@@ -583,7 +583,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   let pagePhone = '';
   try {
     pagePhone = await page.evaluate(()=>{
-      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
       const tds = Array.from(document.querySelectorAll('td[height="29"]'));
       for(const td of tds){
         const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
@@ -993,7 +993,7 @@ async function applyOneMonthView(page){
 /** ===== API: /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
-    // نستقبل identity و service دون استخدام قاعدة الهوية (لا تغيير عليها)
+    // نستقبل identity و service دون تغيير منطق الهوية
     const { clinic, month, period, identity, service } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
@@ -1007,7 +1007,7 @@ app.post('/api/times', async (req, res) => {
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
 
-    // Helpers (تاريخ)
+    // Helpers (تعرّف العيادات)
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic = toAsciiDigits(baseClinicName);
     const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
@@ -1084,8 +1084,8 @@ app.post('/api/times', async (req, res) => {
       (function applyDental2EveningWindow() {
         const isDentalWordHere = /الأسنان|الاسنان/.test(baseClinicName);
         const hasNumber2 = /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
-        const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
-        if (isDentalWordHere && hasNumber2 && isEvening) {
+        const isEveningNow = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        if (isDentalWordHere && hasNumber2 && isEveningNow) {
           filtered = filtered.filter(x => {
             const m = timeToMinutes(x.time24);
             return m >= 16 * 60 && m <= 20 * 60;
@@ -1147,35 +1147,29 @@ app.post('/api/times', async (req, res) => {
         filtered = filtered.filter(x => !isFriOrSat(x.date));
       }
 
-      // ===== خاص: عيادة "تقشير/تنظيف البشرة" — عرض فقط الأوقات التي يتوفر بعدها خانات متتالية =====
+      // خاص: عيادة "تشقير/تنظيف البشرة" — عرض فقط الأوقات التي يتوفر بعدها خانات متتالية
       const isSkinClinic = /(تنظيف.?البشرة|التشقير)/i.test(baseClinicName);
       const isEveningNow = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
 
-      // خريطة سريعة لكل يوم → مجموعة أوقات (دقائق 15)
       const byDateSet = raw.reduce((acc, x) => {
-        if (!acc[x.date]) acc[x.date] = new Set();
-        acc[x.date].add(x.time24);
+        (acc[x.date] ||= new Set()).add(x.time24);
         return acc;
       }, {});
-
       const addMin = (hhmm, mins=15)=>{
         let [H,M]=hhmm.split(':').map(Number);
         let total = H*60 + M + mins;
         let h = Math.floor(total/60), m = total%60;
         return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
       };
-
       const serviceSlotsMap = {
         'brows':2, 'face':2, 'brows+face':4,
         'clean_no_mask':4, 'carbon':2, 'clean_mask':5
       };
-      // يمكن تمرير service اختيارياً من الواجهة؛ إن لم يوجد نطلب 3 خانات متتالية كحد أدنى
-      let minSlots = 3;
+      let minSlots = 3; // افتراضي إن لم تُحدِّد الخدمة
       if (typeof service === 'string') {
         const key = service.trim().toLowerCase();
         if (serviceSlotsMap[key]) minSlots = serviceSlotsMap[key];
       }
-
       function hasConsecutive(date, start, slots){
         const set = byDateSet[date];
         if (!set) return false;
@@ -1185,7 +1179,6 @@ app.post('/api/times', async (req, res) => {
         }
         return true;
       }
-
       if (isSkinClinic && isEveningNow) {
         filtered = filtered.filter(x => hasConsecutive(x.date, x.time24, minSlots));
       }
@@ -1261,7 +1254,7 @@ function add15(hhmm, k=1){
 
 async function reopenPopupIfAny(page){
   try{
-    await page.waitForSelector('#popupContact', { visible:true, timeout:2000 }).catch(()=>{});
+    await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>{});
     await page.evaluate(()=>{
       const c = document.querySelector('#popupContact #popupContactClose') ||
                 document.querySelector('#popupContact input[type="button"]') ||
@@ -1273,19 +1266,17 @@ async function reopenPopupIfAny(page){
 }
 
 async function ensureOnClinicMonth(page, clinicValue, monthValue){
-  // نبقى على نفس الصفحة قدر الإمكان؛ إذا تغيّر شيء نعيد الاختيار بسرعة
-  const onApp = await page.url().includes('appoint_display.php');
-  if (!onApp) await gotoAppointments(page);
-  const selVal = await page.$eval('#clinic_id', el => el.value).catch(()=>null);
-  if (selVal !== clinicValue) {
+  if (!page.url().includes('appoint_display.php')) await gotoAppointments(page);
+  const curC = await page.$eval('#clinic_id', el=>el.value).catch(()=>null);
+  if (curC !== clinicValue){
     await Promise.all([
       page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
       page.select('#clinic_id', clinicValue)
     ]);
     await applyOneMonthView(page);
   }
-  const curMonth = await page.$eval('#month1', el => el.value).catch(()=>null);
-  if (curMonth !== monthValue) {
+  const curM = await page.$eval('#month1', el=>el.value).catch(()=>null);
+  if (curM !== monthValue){
     await Promise.all([
       page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
       page.select('#month1', monthValue)
@@ -1437,7 +1428,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
     }
 
     await browser.close();
-    return `✅ تم الحجز بنجاح (${slotsNeeded} خانة متتالية) بالحساب: ${account.user}`;
+    return `✅ تم الحجز (${slotsNeeded} خانة متتالية) بالحساب: ${account.user}`;
   }catch(e){
     try{ await browser.close(); }catch(_){}
     return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
@@ -1715,7 +1706,7 @@ app.post('/api/track-success', (req, res) => {
 
 /** Staff dashboard summary (protected) */
 app.get('/api/stats/summary', (req, res) => {
-  const key = req.headers['x-staff-key'] || req.query.key || '';
+  const key = req.headers['x-staff-key'] || req.query[key] || req.query.key || '';
   if (!STAFF_KEY || key !== STAFF_KEY) {
     return res.status(403).json({ ok: false, error: 'Forbidden' });
   }
