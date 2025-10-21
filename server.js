@@ -801,7 +801,7 @@ app.post('/api/login', async (req, res) => {
     if(!isLikelyIdentity(idDigits)) return res.status(200).json({ success:false, message:'اكتب رقم الهوية/الإقامة بشكل صحيح' });
     if(!isSaudi05(phone))  return res.status(200).json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
     if(!verifyOtpInline(phone, otp)) return res.status(200).json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
-
+    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     let account=null;
     try{
@@ -903,7 +903,7 @@ app.post('/api/update-identity', async (req, res) => {
     if(!fileId) return res.json({ success:false, message:'رقم الملف مفقود' });
     if(!nationalId) return res.json({ success:false, message:'رقم الهوية مطلوب' });
     if(!birthYear) return res.json({ success:false, message:'سنة الميلاد مطلوبة' });
-
+    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     let account=null;
     try{
@@ -961,6 +961,7 @@ app.post('/api/create-patient', async (req, res) => {
       if(!verifyOtpInline(phone, otp)) return res.json({ success:false, message:'OTP غير صحيح', reason:'otp' });
 
       const phone05 = toLocal05(phone);
+      const browser = await launchBrowserSafe();
       const page = await browser.newPage(); await prepPage(page);
       page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
@@ -1192,6 +1193,7 @@ app.post('/api/times', async (req, res) => {
       if (isDental124) return true;
       return false;
     })();
+    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     try{
       await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
@@ -1503,6 +1505,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     return { ok:false, message: 'فشل الحجز المتسلسل: ' + (e?.message||String(e)) };
   }
 }
+ const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
     await loginToImdad(page, account);
@@ -1667,14 +1670,6 @@ app.post('/api/book-multi', async (req, res) => {
   }
 });
 
-
-
-
-  const {
-    identity, phone, clinic, month,
-    firstTimeValue, slotsCount: slotsCountRaw,
-    note
-  } = req.body || {};
   const slotsCount = Math.max(1, Number(slotsCountRaw||1));
 
   if(!identity || !phone || !clinic || !month || !firstTimeValue){
@@ -1689,13 +1684,8 @@ app.post('/api/book-multi', async (req, res) => {
   const successes = [];
   try{
 
-
-    // اختر العيادة
-    const clinicValue = await page.evaluate((name) => {
-      const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-      const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
-      return f ? f.value : null;
-    }, clinic);
+    
+    
     if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
     await Promise.all([
       page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
@@ -1858,6 +1848,7 @@ app.post('/api/new-file', async (req, res) => {
       if (!verifyOtpInline(phone, otp)) {
         return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
       }
+      const browser = await launchBrowserSafe();
       const page = await browser.newPage(); await prepPage(page);
       page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
