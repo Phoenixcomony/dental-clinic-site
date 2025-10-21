@@ -965,11 +965,10 @@ async function applyOneMonthView(page){
 }
 
 /** ===== /api/times ===== */
-// الشهر اختياري الآن: إن لم يُرسل فلن نلمس السلكتور ونقرأ الأوقات مباشرة
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
-    if (!clinic) return res.status(400).json({ times: [], error: 'العيادة مفقودة' });
+    if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
     const clinicStr = String(clinic || '');
     const autoPeriod =
@@ -1026,39 +1025,38 @@ app.post('/api/times', async (req, res) => {
 
       await applyOneMonthView(page);
 
-      if (month) {
-        const pickedMonth = await page.evaluate((wanted) => {
-          const sel = document.querySelector('#month1');
-          if (!sel) return null;
-          const w = String(wanted).trim();
+      const pickedMonth = await page.evaluate((wanted) => {
+        const sel = document.querySelector('#month1');
+        if (!sel) return null;
+        const w = String(wanted).trim();
 
-          const opts = Array.from(sel.options || []).map(o => ({
-            value: o.value || '',
-            text: (o.textContent || '').trim()
-          }));
+        const opts = Array.from(sel.options || []).map(o => ({
+          value: o.value || '',
+          text: (o.textContent || '').trim()
+        }));
 
-          const hit =
-            opts.find(o => o.text === w) ||
-            opts.find(o => o.value.includes(`month=${w}`)) ||
-            opts.find(o => o.text.endsWith(w)) ||
-            null;
+        const hit =
+          opts.find(o => o.text === w) ||
+          opts.find(o => o.value.includes(`month=${w}`)) ||
+          opts.find(o => o.text.endsWith(w)) ||
+          null;
 
-          if (!hit) return null;
+        if (!hit) return null;
 
-          try {
-            sel.value = hit.value;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-          } catch (_) {}
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
 
-          try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+        try { if (hit.value) window.location.href = hit.value; } catch (_) {}
 
-          return hit.value;
-        }, month);
+        return hit.value;
+      }, month);
 
-        if (pickedMonth) {
-          await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-        }
-      }
+      if (!pickedMonth) throw new Error('month_not_found');
+
+      // انتظر تحميل صفحة الشهر
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
 
       const raw = await page.evaluate(()=>{
         const out=[];
@@ -1191,7 +1189,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // لا نغير الشهر – القيمة تحوي التاريخ
+    // (لا نحتاج اختيار شهر هنا لأن القيمة داخل time)
+
     // اكتب مفتاح البحث (الهوية أولوية)
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
@@ -1307,17 +1306,15 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // 1 month فقط، ولا نلمس #month1 نهائيًا إن لم يصل month
+    // 1 month ثم الشهر (نضبطها فقط لتحميل نفس اللوحة، لكن الاعتماد على قيمة الوقت)
     await applyOneMonthView(page);
-    if (month) {
-      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
-      const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
-      if(monthValue){
-        await Promise.all([
-          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-          page.select('#month1', monthValue)
-        ]);
-      }
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+    const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value || months?.[0]?.value || '';
+    if (monthValue) {
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#month1', monthValue)
+      ]);
     }
 
     // اكتب الهوية
@@ -1382,14 +1379,19 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
       successes.push(wanted);
 
-      // ارجع للمواعيد لنفس العيادة للجولة التالية، بدون اختيار شهر
+      // ارجع للمواعيد لنفس العيادة/الشهر للجولة التالية
       await gotoAppointments(page);
       await Promise.all([
         page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
         page.select('#clinic_id', clinicValue)
       ]);
       await applyOneMonthView(page);
-
+      if (monthValue) {
+        await Promise.all([
+          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+          page.select('#month1', monthValue)
+        ]);
+      }
       // إعادة تحديد المريض سريعًا بالجوال
       await typeSlow(page, '#SearchBox120', phone05, 80);
       await pickFirstSuggestionOnAppointments(page, 2500);
@@ -1439,8 +1441,8 @@ app.post('/api/book-multi', async (req, res) => {
       identity,
       phone,
       clinic,
-      month,                       // قد يكون undefined — وسنتجاوزه
-      firstTimeValue: first,
+      month,                 // لا نعتمد عليه للحساب، فقط لثبات اللوحة
+      firstTimeValue: first, // 👈 الأساس: 22-10-2025*15:30
       slotsCount: Math.max(1, Number(slotsCount || 1)),
       note,
       account
@@ -1452,181 +1454,6 @@ app.post('/api/book-multi', async (req, res) => {
   } finally {
     if (account) releaseAccount(account);
   }
-});
-
-/** ===== Verify OTP (optional) ===== */
-app.post('/verify-otp', (req,res)=>{
-  let { phone, otp } = req.body || {};
-  if(verifyOtpInline(phone, otp)){ delete otpStore[normalizePhoneIntl(phone)]; return res.json({ success:true }); }
-  return res.json({ success:false, message:'رمز التحقق غير صحيح!' });
-});
-
-/** ===== NEW: Create New Patient File ===== */
-app.post('/api/new-file', async (req, res) => {
-  const MASTER_TIMEOUT_MS = 90000;
-  const masterTimeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
-
-  const handler = (async () => {
-    try {
-      const {
-        fullName,
-        nationalId,
-        phone,
-        nationality,
-        gender,
-        birthYear,
-        birthMonth,
-        birthDay,
-        otp
-      } = req.body || {};
-
-      const nameNorm = normalizeArabic(fullName || '');
-      const nameParts = nameNorm.split(' ').filter(Boolean);
-      if (!nameParts.length || nameParts.length < 3) {
-        return res.json({ success:false, message:'اكتب الاسم ثلاثيًّا على الأقل', reason:'invalid_input' });
-      }
-      if (!isSaudi05(phone)) {
-        return res.json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx', reason:'invalid_input' });
-      }
-      if (!nationalId || /^0+$/.test(String(nationalId).replace(/\D/g,''))) {
-        return res.json({ success:false, message:'رقم الهوية غير صالح', reason:'invalid_input' });
-      }
-      if (!birthYear || !birthMonth || !birthDay) {
-        return res.json({ success:false, message:'حدد تاريخ الميلاد (اليوم/الشهر/السنة)', reason:'invalid_input' });
-      }
-      if (!verifyOtpInline(phone, otp)) {
-        return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
-      }
-      const browser = await launchBrowserSafe();
-      const page = await browser.newPage(); await prepPage(page);
-      page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
-
-      let account = null;
-      try {
-        account = await acquireAccountWithTimeout(20000);
-        await loginToImdad(page, account);
-
-        const phone05 = toLocal05(phone);
-
-        // فحص مسبق: هل الجوال موجود؟
-        if (await existsPatientByPhone(page, phone05)) {
-          await browser.close(); if (account) releaseAccount(account);
-          return res.json({ success:false, message:'رقم الجوال موجود مسبقًا', reason:'duplicate_phone' });
-        }
-
-        // افتح صفحة فتح ملف جديد
-        const okPage = await openNewFilePage(page);
-        if (!okPage) {
-          await browser.close(); if (account) releaseAccount(account);
-          return res.json({ success:false, message:'تعذّر فتح صفحة فتح ملف جديد', reason:'navigation' });
-        }
-
-        await page.waitForSelector('#fname', { timeout: 30000 });
-        await page.waitForSelector('#phone', { timeout: 30000 });
-
-        // املأ الحقول
-        await page.$eval('#fname', (el,v)=>{ el.value=v; }, nameNorm);
-        await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
-        await page.select('#day12',   String(birthDay));
-        await page.select('#month12', String(birthMonth));
-        await page.select('#year12',  String(birthYear));
-        await page.select('#gender', String(gender || '1'));
-
-        if (nationality) {
-          await page.evaluate((val)=>{
-            const sel = document.querySelector('#n');
-            if(!sel) return;
-            if ([...sel.options].some(o=>o.value===String(val))) {
-              sel.value = String(val);
-              sel.dispatchEvent(new Event('change', {bubbles:true}));
-            }
-          }, String(nationality));
-        }
-
-        async function typePhoneSlowAndEnsure(p){
-          await page.$eval('#phone', (el)=>{ el.value=''; });
-          for(let i=0;i<p.length;i++){
-            const ch = p[i];
-            const delay = i>=7 ? 160 : 120;
-            await page.type('#phone', ch, { delay });
-          }
-          await sleep(350);
-          const readBack = await page.$eval('#phone', el => (el.value||'').trim());
-          const digits = toAsciiDigits(readBack).replace(/\D/g,'');
-          if(!/^05\d{8}$/.test(digits)){
-            await page.$eval('#phone', (el)=>{ el.value=''; });
-            for(const ch of p){ await page.type('#phone', ch, { delay: 170 }); }
-            await sleep(450);
-          }
-        }
-        await typePhoneSlowAndEnsure(phone05);
-
-        await sleep(2000);
-        if (await isDuplicatePhoneWarning(page)) {
-          await browser.close(); if (account) releaseAccount(account);
-          return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
-        }
-
-        await page.waitForSelector('#submit', { timeout: 20000 });
-        await page.evaluate(() => {
-          const btn = document.querySelector('#submit');
-          if (btn) { btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); }
-        });
-
-        await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{});
-        await sleep(1200);
-
-        if (await isDuplicatePhoneWarning(page)) {
-          await browser.close(); if (account) releaseAccount(account);
-          return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
-        }
-
-        let fileId = '';
-        try {
-          const hrefId = await page.evaluate(()=>{
-            const a1 = document.querySelector('a[href^="stq_search2.php?id="]');
-            if (a1) return a1.getAttribute('href') || '';
-            const a2 = document.querySelector('a[href*="stq_edit.php?id="]');
-            if (a2) return a2.getAttribute('href') || '';
-            return location.href || '';
-          });
-          fileId = (hrefId.match(/id=(\d+)/) || [])[1] || extractFileId(hrefId) || '';
-        } catch(_) {}
-
-        await browser.close(); if (account) releaseAccount(account);
-
-        delete otpStore[normalizePhoneIntl(phone)];
-
-        if (!fileId) {
-          return res.json({ success:false, message:'تم الحفظ لكن تعذّر استخراج رقم الملف', reason:'unknown' });
-        }
-
-        return res.json({
-          success:true,
-          fileId,
-          fullName: nameNorm,
-          phoneLocal: phone05,
-          message:'تم فتح الملف بنجاح'
-        });
-
-      } catch (e) {
-        console.error('/api/new-file error', e?.message || e);
-        try { await browser.close(); } catch(_){}
-        if (account) releaseAccount(account);
-        if (String(e?.message||e)==='imdad_busy') {
-          return res.json({ success:false, message:'النظام مشغول حاليًا، حاول بعد قليل', reason:'imdad_busy' });
-        }
-        return res.json({ success:false, message:'فشل إنشاء الملف: ' + (e?.message || e), reason:'unknown' });
-      }
-    } catch (e) {
-      return res.json({ success:false, message:'خطأ غير متوقع', reason:'unknown' });
-    }
-  })();
-
-  Promise.race([handler, masterTimeout]).catch(async (_e)=>{
-    try { return res.json({ success:false, reason:'timeout', message:'المهلة انتهت' }); }
-    catch(_) { /* ignore */ }
-  });
 });
 
 /** =========================================================
