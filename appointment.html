@@ -320,7 +320,7 @@
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
-      const r = await fetch('http://127.0.0.1:3000/send-otp', {
+      const r = await fetch('/api/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ phone })
       });
