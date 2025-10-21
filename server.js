@@ -436,6 +436,7 @@ async function openNewFilePage(page){
 /** ===== (جديد) كتابة الهوية بهدوء مع تحقّق فوري ===== */
 async function typeIdentityAndVerify(page, selector, identityDigits, range = [140, 200], settleMs = 280) {
   const [minD, maxD] = range;
+  identityDigits = toAsciiDigits(identityDigits);
   const d = String(identityDigits || '').replace(/\D/g,'');
   if (!d) return false;
 
