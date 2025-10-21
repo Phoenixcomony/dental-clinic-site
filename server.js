@@ -1024,15 +1024,41 @@ app.post('/api/times', async (req, res) => {
       ]);
 
       await applyOneMonthView(page);
+      
 
-      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
-      const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
-      if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
+      const pickedMonth = await page.evaluate((wanted) => {
+  const sel = document.querySelector('#month1');
+  if (!sel) return null;
+  const w = String(wanted).trim();
 
-      await Promise.all([
-        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-        page.select('#month1', monthValue)
-      ]);
+  const opts = Array.from(sel.options || []).map(o => ({
+    value: o.value || '',
+    text: (o.textContent || '').trim()
+  }));
+
+  const hit =
+    opts.find(o => o.text === w) ||
+    opts.find(o => o.value.includes(`month=${w}`)) ||
+    opts.find(o => o.text.endsWith(w)) ||
+    null;
+
+  if (!hit) return null;
+
+  try {
+    sel.value = hit.value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  } catch (_) {}
+
+  try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+
+  return hit.value;
+}, month);
+
+if (!pickedMonth) throw new Error('month_not_found');
+
+// انتظر تحميل صفحة الشهر
+await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+
 
       const raw = await page.evaluate(()=>{
         const out=[];
