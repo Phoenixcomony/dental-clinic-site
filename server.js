@@ -802,7 +802,6 @@ app.post('/api/login', async (req, res) => {
     if(!isSaudi05(phone))  return res.status(200).json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
     if(!verifyOtpInline(phone, otp)) return res.status(200).json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
 
-    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     let account=null;
     try{
@@ -1630,26 +1629,38 @@ function buildChainTimes(firstValue, slotsCount){
  * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
  */
   /** ==== API: /api/book-multi ==== */
-app.post('/api/book-multi', async (req,res)=>{
-  let account=null;
-  try{
-    const { identity, phone, clinic, month, firstTimeValue, slotsCount, note } = req.body||{};
-    if(!identity || !phone || !clinic || !month || !firstTimeValue){
+/** ===== API: /api/book-multi =====
+ * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
+ */
+app.post('/api/book-multi', async (req, res) => {
+  let account = null;
+  try {
+    const { identity, phone, clinic, month, firstTimeValue, slotsCount, note } = req.body || {};
+    if (!identity || !phone || !clinic || !month || !firstTimeValue) {
       return res.json({ success:false, message:'حقول ناقصة' });
     }
+
     account = await acquireAccount();
+
     const result = await bookMultiChain({
-      identity, phone, clinic, month, firstTimeValue,
-      slotsCount: Math.max(1, +slotsCount||1),
-      note, account
+      identity,
+      phone,
+      clinic,
+      month,
+      firstTimeValue,
+      slotsCount: Math.max(1, Number(slotsCount || 1)),
+      note,
+      account,
     });
-    res.json({ success: !!result.ok, message: result.message });
-  }catch(e){
-    res.json({ success:false, message: 'خطأ: '+(e?.message||String(e)) });
-  }finally{
-    if(account) releaseAccount(account);
+
+    return res.json({ success: !!result.ok, message: result.message });
+  } catch (e) {
+    return res.json({ success:false, message:'خطأ: ' + (e?.message || String(e)) });
+  } finally {
+    if (account) releaseAccount(account);
   }
 });
+
 
 
   const {
@@ -1667,8 +1678,7 @@ app.post('/api/book-multi', async (req,res)=>{
   if(!chain.length){ return res.json({ success:false, message:'قيمة الوقت غير صالحة' }); }
 
   // سنحاول حجز أول خانة + الباقي تباعًا. في حالة فشل خانة نعيد ما تم بنجاح.
-  const page = await browser.newPage(); await prepPage(page);
-  let account = null;
+   let account = null;
   const successes = [];
   try{
     account = await acquireAccount();
