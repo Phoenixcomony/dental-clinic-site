@@ -499,7 +499,7 @@
     return monthSel.selectedOptions[0]?.text?.trim() || monthSel.value || '';
   }
 
-  // جلب الأوقات
+  // جلب الأوقات (السيرفر الآن يرجّع فقط البدايات القابلة للتسلسل عند needChainMin)
   fetchBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const month  = monthSel.value;
@@ -514,7 +514,6 @@
       return;
     }
 
-    // (حاليًا السيرفر يتجاهل needChainMin، لكن لا تضر)
     const needChainMin = isSkinClinicValue(clinic) ? getSvcMinutes() : 30;
 
     fetchBtn.disabled = true;
@@ -534,6 +533,9 @@
         timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         timeSel.disabled = false;
         bookNowBtn.disabled = false;
+        if (needChainMin > 30) {
+          bkMsg.textContent = `العرض يُظهر بدايات صالحة لسلسلة مقدارها ${Math.ceil(needChainMin/15)} × 15د`;
+        }
       } else {
         timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
         bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
@@ -549,7 +551,7 @@
     }
   });
 
-  // ===== الحجز → /api/book =====
+  // ===== الحجز (ذكي: single أو multi) =====
   bookNowBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const monthVal  = monthSel.value;
@@ -574,25 +576,47 @@
     showLoader(true);
     bkMsg.textContent = 'جاري تأكيد الحجز...';
 
-    const body = {
-      identity: identityVal,
-      name: '', // الخادم يعتمد على الهوية
-      phone,
-      clinic,
-      month: monthLabel || monthVal,
-      time,     // مثال "YYYY-MM-DD*HH:MM"
-      note
-    };
+    const svcMin = isSkinClinicValue(clinic) ? getSvcMinutes() : 30;
+    const slotsCount = Math.max(1, Math.ceil(svcMin / 15));
 
     try {
-      const res = await fetch('/api/book', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(body)
-      });
-      const data = await res.json().catch(()=>({}));
+      let data;
+      if (slotsCount > 1) {
+        // حجز متسلسل
+        const res = await fetch('/api/book-multi', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            identity: identityVal,
+            phone,
+            clinic,
+            month: monthLabel || monthVal,
+            firstTimeValue: time,   // بداية السلسلة
+            slotsCount,
+            note
+          })
+        });
+        data = await res.json().catch(()=>({ success:false, message:'فشل الحجز المتسلسل' }));
+      } else {
+        // حجز خانة واحدة
+        const res = await fetch('/api/book', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            identity: identityVal,
+            name: '',
+            phone,
+            clinic,
+            month: monthLabel || monthVal,
+            time,
+            note
+          })
+        });
+        const j = await res.json().catch(()=>({ msg:'فشل الحجز' }));
+        data = { success: /✅|تم الحجز|نجاح/i.test(String(j.msg||'')), message: j.msg || 'تم' };
+      }
 
-      const msg = (data && data.msg) ? String(data.msg) : 'تم الحجز بنجاح';
+      const msg = (data && data.message) ? String(data.message) : (data.success ? 'تم الحجز' : 'تعذر الحجز');
       localStorage.setItem('booking_result_msg', msg);
       window.location.href = 'success.html';
     } catch (e) {

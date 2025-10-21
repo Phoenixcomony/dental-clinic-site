@@ -47,26 +47,40 @@
   <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
 
   <script>
-    // تنسيق الوقت القادم مثل: 21-10-2025*15:30
+    // تنسيق الوقت (يدعم: YYYY-MM-DD*HH:MM و DD-MM-YYYY*HH:MM)
     function formatTimeValue(raw){
       try{
         if(!raw) return '';
         const [datePart, timePart=''] = raw.split('*');
-        const [day, month, year] = (datePart||'').split('-');
-        const [h='0', m='0'] = (timePart||'').split(':');
+        let Y, M, D;
+
+        // 1) YYYY-MM-DD
+        const m1 = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(datePart);
+        // 2) DD-MM-YYYY
+        const m2 = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(datePart);
+
+        if (m1) { Y = +m1[1]; M = +m1[2]; D = +m1[3]; }
+        else if (m2) { Y = +m2[3]; M = +m2[2]; D = +m2[1]; }
+        else {
+          return raw; // صيغة غير معروفة
+        }
+
+        const [h='0', m='0'] = timePart.split(':');
         const hour = parseInt(h,10), minute = parseInt(m,10);
+
+        // ملاحظة: سيستخدم المتصفح المنطقة الزمنية للجهاز
+        const dateObj = new Date(Y, M-1, D);
+        const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+        const dayName = weekDays[dateObj.getDay()];
+
         const ampm = hour < 12 ? 'صباحاً' : 'مساءً';
         let hour12 = hour % 12; if(hour12===0) hour12 = 12;
 
-        let displayDate = raw;
-        if(day && month && year){
-          const dateObj = new Date(`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
-          const weekDays = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-          const dayName = weekDays[dateObj.getDay()];
-          displayDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')} (${dayName})`;
-        }
+        const displayDate = `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')} (${dayName})`;
         return `${displayDate} ${hour12}:${String(minute).padStart(2,'0')} ${ampm}`;
-      }catch{ return raw; }
+      } catch {
+        return raw;
+      }
     }
 
     // إزالة أي رقم حساب/معرف طويل من رسالة الخادم
@@ -80,7 +94,7 @@
       return s;
     }
 
-    // قراءة البيانات من localStorage (تتوافق مع appointment.html المعدّل)
+    // قراءة البيانات من localStorage
     const nationalId = localStorage.getItem('pending_identity') || localStorage.getItem('auth_identity') || '';
     const phone      = localStorage.getItem('pending_phone')    || localStorage.getItem('auth_phone')    || '';
     const clinicLbl  = localStorage.getItem('pending_clinic_label') || localStorage.getItem('pending_clinic') || '';
@@ -98,10 +112,8 @@
       ['الشهر',              monthVal   || '—'],
       ['الوقت',              timeVal ? formatTimeValue(timeVal) : '—']
     ];
-
     if (note) rows.push(['الملاحظة', note]);
     if (!isNaN(slotsCount) && slotsCount > 1) rows.push(['عدد الخانات', String(slotsCount)]);
-
     detailsEl.innerHTML = rows.map(([k,v])=>`<div><strong>${k}:</strong> ${v}</div>`).join('');
 
     // رسالة الخادم
@@ -128,7 +140,10 @@
     })();
 
     // تنظيف القيم المؤقتة
-    ['booking_result_msg','pending_identity','pending_phone','pending_clinic','pending_clinic_label','pending_month','pending_time','pending_note','pending_slots'].forEach(k=>localStorage.removeItem(k));
+    [
+      'booking_result_msg','pending_identity','pending_phone','pending_clinic',
+      'pending_clinic_label','pending_month','pending_time','pending_note','pending_slots'
+    ].forEach(k=>localStorage.removeItem(k));
 
     // رجوع تلقائي
     setTimeout(()=>{ window.location.href='index.html'; }, 10000);

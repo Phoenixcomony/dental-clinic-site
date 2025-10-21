@@ -284,7 +284,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) Chrome/120 Safari/537.36');
   if (typeof page.waitForTimeout !== 'function') {
     page.waitForTimeout = (ms) => new Promise(res => setTimeout(res, ms));
   }
@@ -964,10 +964,10 @@ async function applyOneMonthView(page){
   return didSet;
 }
 
-/** ===== /api/times ===== */
+/** ===== /api/times (يحترم needChainMin) ===== */
 app.post('/api/times', async (req, res) => {
   try {
-    const { clinic, month, period } = req.body || {};
+    const { clinic, month, period, needChainMin } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
     const clinicStr = String(clinic || '');
@@ -1024,41 +1024,39 @@ app.post('/api/times', async (req, res) => {
       ]);
 
       await applyOneMonthView(page);
-      
 
       const pickedMonth = await page.evaluate((wanted) => {
-  const sel = document.querySelector('#month1');
-  if (!sel) return null;
-  const w = String(wanted).trim();
+        const sel = document.querySelector('#month1');
+        if (!sel) return null;
+        const w = String(wanted).trim();
 
-  const opts = Array.from(sel.options || []).map(o => ({
-    value: o.value || '',
-    text: (o.textContent || '').trim()
-  }));
+        const opts = Array.from(sel.options || []).map(o => ({
+          value: o.value || '',
+          text: (o.textContent || '').trim()
+        }));
 
-  const hit =
-    opts.find(o => o.text === w) ||
-    opts.find(o => o.value.includes(`month=${w}`)) ||
-    opts.find(o => o.text.endsWith(w)) ||
-    null;
+        const hit =
+          opts.find(o => o.text === w) ||
+          opts.find(o => o.value.includes(`month=${w}`)) ||
+          opts.find(o => o.text.endsWith(w)) ||
+          null;
 
-  if (!hit) return null;
+        if (!hit) return null;
 
-  try {
-    sel.value = hit.value;
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-  } catch (_) {}
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
 
-  try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+        try { if (hit.value) window.location.href = hit.value; } catch (_) {}
 
-  return hit.value;
-}, month);
+        return hit.value;
+      }, month);
 
-if (!pickedMonth) throw new Error('month_not_found');
+      if (!pickedMonth) throw new Error('month_not_found');
 
-// انتظر تحميل صفحة الشهر
-await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-
+      // انتظر تحميل صفحة الشهر
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
 
       const raw = await page.evaluate(()=>{
         const out=[];
@@ -1129,6 +1127,28 @@ await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 })
         filtered = filtered.filter(x => !isFriOrSat(x.date));
       }
 
+      // ===== NEW: تصفية البدايات المتسلسلة بناءً على needChainMin =====
+      const requestedMin = Math.max(15, Number(needChainMin || 30));
+      const slotsCount = Math.max(1, Math.ceil(requestedMin / 15));
+
+      if (slotsCount > 1) {
+        const allowedSet = new Set(filtered.map(x => x.value));
+        const next15 = (val)=>{
+          const [d,t] = String(val||'').split('*');
+          if(!d||!t) return '';
+          let [H,M] = t.split(':').map(Number);
+          M += 15; if (M >= 60) { H++; M -= 60; }
+          return `${d}*${String(H).padStart(2,'0')}:${String(M).padStart(2,'0')}`;
+        };
+        const hasChain = (start, n, set)=>{
+          let v = start;
+          for(let i=1;i<n;i++){ v = next15(v); if (!set.has(v)) return false; }
+          return true;
+        };
+
+        filtered = filtered.filter(x => hasChain(x.value, slotsCount, allowedSet));
+      }
+
       const times = filtered.map(x => ({
         value: x.value,
         label: `${x.date} - ${to12h(x.time24)}`
@@ -1193,8 +1213,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
 
     // 1 month ثم الشهر
     // 🔹 لا حاجة لاختيار الشهر لأن التاريخ مضمّن في firstTimeValue
-const first = parseTimeValue(firstTimeValue || time);
-
+    const first = parseTimeValue(time); // متروك احتياطًا
 
     // اكتب مفتاح البحث (الهوية أولوية)
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
@@ -1315,11 +1334,12 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     await applyOneMonthView(page);
     const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
     const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
-    if(!monthValue) throw new Error('لم يتم العثور على الشهر!');
-    await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-      page.select('#month1', monthValue)
-    ]);
+    if(monthValue){
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#month1', monthValue)
+      ]);
+    }
 
     // اكتب الهوية
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
@@ -1390,10 +1410,12 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
         page.select('#clinic_id', clinicValue)
       ]);
       await applyOneMonthView(page);
-      await Promise.all([
-        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-        page.select('#month1', monthValue)
-      ]);
+      if(monthValue){
+        await Promise.all([
+          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+          page.select('#month1', monthValue)
+        ]);
+      }
       // إعادة تحديد المريض سريعًا بالجوال
       await typeSlow(page, '#SearchBox120', phone05, 80);
       await pickFirstSuggestionOnAppointments(page, 2500);
@@ -1567,7 +1589,7 @@ app.post('/api/new-file', async (req, res) => {
         }
         await typePhoneSlowAndEnsure(phone05);
 
-        await sleep(2000);
+        await sleep(1200);
         if (await isDuplicatePhoneWarning(page)) {
           await browser.close(); if (account) releaseAccount(account);
           return res.json({ success:false, message:'رقم الجوال موجود لمريض آخر', reason:'duplicate_phone' });
