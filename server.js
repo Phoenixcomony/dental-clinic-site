@@ -434,40 +434,59 @@ async function openNewFilePage(page){
 
 /** ===== Search helpers ===== */
 /** ===== (جديد) كتابة الهوية بهدوء مع تحقّق فوري ===== */
+// كتابة الهوية + تحقق عنيد
 async function typeIdentityAndVerify(page, selector, identityDigits, range = [140, 200], settleMs = 280) {
   const [minD, maxD] = range;
-  identityDigits = toAsciiDigits(identityDigits);
-  const d = String(identityDigits || '').replace(/\D/g,'');
+  const d = String(toAsciiDigits(identityDigits) || '').replace(/\D/g,'');
   if (!d) return false;
 
   await page.waitForSelector(selector, { visible: true, timeout: 30000 });
   await page.focus(selector);
   await page.$eval(selector, el => { el.value = ''; });
 
+  // اكتب ببطء (أبطأ بعد الرقم 7)
   for (let i = 0; i < d.length; i++) {
     const ch = d[i];
-    // أبطأ قليلًا بعد الرقم 7 لتفادي “ازدواجية” الكتابة
     const delay = i >= 7 ? Math.min(maxD, minD + 60) : minD;
     await page.type(selector, ch, { delay });
   }
 
-  await page.waitForTimeout(settleMs);
-  const readBack = await page.$eval(selector, el => (el.value || '').trim());
-  const rbDigits = toAsciiDigits(readBack).replace(/\D/g,'');
-  return rbDigits.endsWith(d); // نقبل المطابقة بالنهاية (لو في بادئة)
+  // بديل waitForTimeout
+  await sleep(settleMs);
+
+  // تحقّق أولي
+  let rbDigits = await page.$eval(selector, el => (String(el.value||'').replace(/\D/g,'')));
+  if (rbDigits.endsWith(d)) return true;
+
+  // فرض القيمة وتحفيز الأحداث لو ما طابقت
+  await page.$eval(selector, (el,v)=>{
+    el.value = v;
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+    el.dispatchEvent(new KeyboardEvent('keyup',{bubbles:true,key:'0'}));
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  }, d);
+
+  await sleep(settleMs);
+  rbDigits = await page.$eval(selector, el => (String(el.value||'').replace(/\D/g,'')));
+  return rbDigits.endsWith(d);
 }
 
-/** ===== (جديد) تحفيز الاقتراحات بعد اكتمال الكتابة ===== */
+// تحفيز الاقتراحات بعد الكتابة
 async function triggerSuggestions(page, selector) {
   await page.evaluate((sel) => {
     const el = document.querySelector(sel);
     if (!el) return;
-    const evs = ['input', 'keyup', 'keydown', 'change'];
-    evs.forEach(ev => el.dispatchEvent(new Event(ev, { bubbles: true })));
+    ['input','keyup','keydown','change'].forEach(ev =>
+      el.dispatchEvent(new Event(ev, { bubbles: true })));
     el.blur(); el.focus();
-    try { if (typeof window.suggestme122 === 'function') window.suggestme122(el.value, new KeyboardEvent('keyup')); } catch (_){}
+    try {
+      if (typeof window.suggestme122 === 'function') {
+        window.suggestme122(el.value, new KeyboardEvent('keyup'));
+      }
+    } catch (_) {}
   }, selector);
 }
+
 
 /** ===== (جديد) انتظر واختر أول اقتراح بثبات ===== */
 async function waitAndPickFirstIdentitySuggestion(page, timeoutMs = 12000) {
@@ -794,9 +813,13 @@ app.post('/api/login', async (req, res) => {
 
       // البحث بالهوية أولاً (حسب طلبك)
       const searchRes = await searchAndOpenPatientByIdentity(page, {
+        
         identityDigits: idDigits,
         expectedPhone05: phone05
+        
       });
+      await triggerSuggestions(page, '#navbar-search-input, input[name="name122"]');
+
 
       if(!searchRes.ok){
         console.log('[IMDAD] login-by-id result:', searchRes);
