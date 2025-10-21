@@ -311,7 +311,24 @@ async function prepPage(page){
 /** ===== Login (hardened with retry) ===== */
 async function loginToImdad(page, {user, pass}){
   console.log('[IMDAD] opening login…');
-  await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'domcontentloaded' });
+  await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle0' });
+await new Promise(r => setTimeout(r, 2000)); // انتظار بسيط بعد التحميل
+
+try {
+  const allPages = await page.browser().pages();
+  if (allPages.length > 1) {
+    await allPages[0].close();
+    page = allPages[allPages.length - 1];
+  }
+  await page.bringToFront();
+} catch(e) {
+  console.warn('[IMDAD] no extra pages found');
+}
+
+await page.waitForSelector('input[name="username"]', { timeout: 30000 });
+await page.evaluate(() => window.stop());
+
+
 
   await page.waitForSelector('input[name="username"]', { timeout: 30000 });
   await page.$eval('input[name="username"]', (el,v)=>{el.value=v;}, user);
@@ -428,65 +445,6 @@ async function openNewFilePage(page){
 }
 
 /** ===== Search helpers ===== */
-/** ===== (جديد) كتابة الهوية بهدوء مع تحقّق فوري ===== */
-async function typeIdentityAndVerify(page, selector, identityDigits, range = [140, 200], settleMs = 280) {
-  const [minD, maxD] = range;
-  const d = String(identityDigits || '').replace(/\D/g,'');
-  if (!d) return false;
-
-  await page.waitForSelector(selector, { visible: true, timeout: 30000 });
-  await page.focus(selector);
-  await page.$eval(selector, el => { el.value = ''; });
-
-  for (let i = 0; i < d.length; i++) {
-    const ch = d[i];
-    // أبطأ قليلًا بعد الرقم 7 لتفادي “ازدواجية” الكتابة
-    const delay = i >= 7 ? Math.min(maxD, minD + 60) : minD;
-    await page.type(selector, ch, { delay });
-  }
-
-  await page.waitForTimeout(settleMs);
-  const readBack = await page.$eval(selector, el => (el.value || '').trim());
-  const rbDigits = toAsciiDigits(readBack).replace(/\D/g,'');
-  return rbDigits.endsWith(d); // نقبل المطابقة بالنهاية (لو في بادئة)
-}
-
-/** ===== (جديد) تحفيز الاقتراحات بعد اكتمال الكتابة ===== */
-async function triggerSuggestions(page, selector) {
-  await page.evaluate((sel) => {
-    const el = document.querySelector(sel);
-    if (!el) return;
-    const evs = ['input', 'keyup', 'keydown', 'change'];
-    evs.forEach(ev => el.dispatchEvent(new Event(ev, { bubbles: true })));
-    el.blur(); el.focus();
-    try { if (typeof window.suggestme122 === 'function') window.suggestme122(el.value, new KeyboardEvent('keyup')); } catch (_){}
-  }, selector);
-}
-
-/** ===== (جديد) انتظر واختر أول اقتراح بثبات ===== */
-async function waitAndPickFirstIdentitySuggestion(page, timeoutMs = 12000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeoutMs) {
-    // إذا ظهر عنصر واحد على الأقل — اختر الأول
-    const picked = await page.evaluate(() => {
-      const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
-      if (lis && lis.length) { lis[0].click(); return true; }
-      return false;
-    });
-    if (picked) return true;
-
-    // حفّز ثانية
-    await page.evaluate(() => {
-      const el = document.querySelector('#navbar-search-input, input[name="name122"]');
-      if (el) {
-        ['input','keyup','keydown','change'].forEach(ev=> el.dispatchEvent(new Event(ev, { bubbles: true })));
-      }
-    });
-    await sleep(250);
-  }
-  return false;
-}
-
 async function searchSuggestionsByName(page, fullName){
   const selector = '#navbar-search-input, input[name="name122"]';
   await page.evaluate(()=>{ const el = document.querySelector('#navbar-search-input, input[name="name122"]'); if (el) el.value = ''; });
@@ -626,25 +584,37 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
 }
 
 /** ===== New: Search + open by IDENTITY then verify phone ===== */
-/** ===== (معدّل) Search + open by IDENTITY ثم التحقق من الجوال ===== */
 async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPhone05 }) {
   const selector = '#navbar-search-input, input[name="name122"]';
   await page.evaluate(()=>{ const el = document.querySelector('#navbar-search-input, input[name="name122"]'); if (el) el.value = ''; });
+  await typeSlow(page, selector, identityDigits, 120);
 
-  const digi = toAsciiDigits(identityDigits||'').replace(/\D/g,'');
-  // 1) اكتب الهوية بهدوء وتحقق من تطابق القيمة بعد الإدخال
-  const typedOk = await typeIdentityAndVerify(page, selector, digi, [140, 200], 300);
-  if (!typedOk) {
-    console.warn('[IMDAD] identity typing mismatch – giving up.');
-    return { ok:false, reason:'id_type_mismatch' };
+  // التقط الاقتراحات
+  const deadline = Date.now() + 20000;
+  let items = [];
+  while (Date.now() < deadline) {
+    items = await readNameSuggestions(page);
+    if (items.length) break;
+    await page.evaluate((sel)=>{
+      const el = document.querySelector(sel);
+      if(!el) return;
+      ['input','keyup','keydown','change'].forEach(ev=> el.dispatchEvent(new Event(ev, { bubbles: true })));
+      el.blur(); el.focus();
+      try { if (typeof window.suggestme122 === 'function') window.suggestme122(el.value, new KeyboardEvent('keyup')); } catch(e){}
+    }, selector);
+    await sleep(300);
   }
+  if (!items.length) return { ok:false, reason:'no_suggestions' };
 
-  // 2) حرّك الاقتراحات بعد اكتمال الكتابة فقط
-  await triggerSuggestions(page, selector);
+  // حاول اختيار اقتراح يحتوي رقم الهوية نصًا، وإلا خذ الأول
+  const digi = identityDigits.replace(/\D/g,'');
+  let chosen = items.find(it => toAsciiDigits(it.text).replace(/\D/g,'').includes(digi)) || items[0];
 
-  // 3) انتظر القائمة ثم اختر أول عنصر بثبات
-  const pickedFirst = await waitAndPickFirstIdentitySuggestion(page, 12000);
-  if (!pickedFirst) return { ok:false, reason:'no_suggestions' };
+  // افتح بطاقة المريض
+  await page.evaluate((idx)=>{
+    const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
+    if(lis && lis[idx]) lis[idx].click();
+  }, chosen.idx);
 
   // استخرج رابط الملف واذهب إليه
   const patientHref = await page.evaluate(()=>{
@@ -654,7 +624,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
     if (icon && icon.closest('a')) return icon.closest('a').getAttribute('href');
     return '';
   });
-  if (!patientHref) return { ok:false, reason:'no_patient_link' };
+  if (!patientHref) return { ok:false, reason:'no_patient_link', pickedText: chosen.text };
 
   const fileId = ((patientHref.match(/id=(\d+)/) || [])[1] || '') || extractFileId(patientHref);
   await page.goto(`https://phoenix.imdad.cloud/medica13/${patientHref}`, { waitUntil: 'domcontentloaded' });
@@ -664,7 +634,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   let pagePhone = '';
   try {
     pagePhone = await page.evaluate(()=>{
-      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
       const tds = Array.from(document.querySelectorAll('td[height="29"]'));
       for(const td of tds){
         const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
@@ -681,17 +651,16 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   } catch {}
 
   const idDigitsPage = toAsciiDigits(idStatus?.ssnVal || '').replace(/\D/g,'');
-  const identityMatches = digi && idDigitsPage && idDigitsPage.endsWith(digi);
-  const phoneMatches = pagePhone ? phonesEqual05(pagePhone, expectedPhone05) : true;
+  const identityMatches = digi && idDigitsPage && idDigitsPage.endsWith(digi); // بعض الأنظمة تحفظ 10 أرقام كاملة، نقبل المطابقة التامة
+  const phoneMatches = pagePhone ? phonesEqual05(pagePhone, expectedPhone05) : true; // لو ما فيه جوال محفوظ ما نفشل المطابقة بالجوال
 
-  if (!identityMatches) return { ok:false, reason:'id_mismatch', fileId, foundId: idDigitsPage };
+  if (!identityMatches) return { ok:false, reason:'id_mismatch', fileId, foundId: idDigitsPage, pickedText: chosen.text };
   if (expectedPhone05 && pagePhone && !phoneMatches) {
-    return { ok:false, reason:'phone_mismatch', fileId, liPhone: pagePhone };
+    return { ok:false, reason:'phone_mismatch', fileId, liPhone: pagePhone, pickedText: chosen.text };
   }
 
-  return { ok:true, fileId, liPhone: pagePhone, hasIdentity: !!idDigitsPage };
+  return { ok:true, fileId, liPhone: pagePhone, hasIdentity: !!idDigitsPage, pickedText: chosen.text };
 }
-
 
 /** ===== Duplicate-phone detector (wider) ===== */
 async function isDuplicatePhoneWarning(page){
@@ -855,7 +824,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\s+/g,' ');
+      const ascii = toAscii(val).replace(/\س+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
