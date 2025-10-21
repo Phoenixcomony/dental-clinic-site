@@ -1805,7 +1805,6 @@ app.post('/api/book-multi', async (req,res)=>{
     if(account) releaseAccount(account);
     return res.json({ success:false, message:'فشل الحجز المتعدد: ' + (e?.message||String(e)) });
   }
-});
 
 
 /** ===== Verify OTP (optional) ===== */
