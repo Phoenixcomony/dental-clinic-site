@@ -1421,17 +1421,21 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
   }
 }
 
-/** ===== /api/book-multi ===== */
+
+// ===== API: /api/book-multi =====
 app.post('/api/book-multi', async (req, res) => {
   let account = null;
   try {
     const {
-      identity, phone, clinic, month,
-      firstTimeValue, slotsCount, note
+      identity, phone, clinic, month,      // month اختياري ومهمل
+      slotsCount, note
     } = req.body || {};
 
-    if (!identity || !phone || !clinic || !firstTimeValue) {
-      return res.json({ success:false, message:'حقول ناقصة' });
+    // 👈 اجمع الوقت من أي اسم محتمَل ترسله الواجهة:
+    const first = (req.body?.firstTimeValue || req.body?.time || req.body?.value || '').trim();
+
+    if (!identity || !phone || !clinic || !first) {
+      return res.json({ success:false, message:'حقول ناقصة (identity/phone/clinic/firstTimeValue)' });
     }
 
     account = await acquireAccount();
@@ -1440,8 +1444,8 @@ app.post('/api/book-multi', async (req, res) => {
       identity,
       phone,
       clinic,
-      month,
-      firstTimeValue,
+      month,                       // لن نستعمله داخل الدالة
+      firstTimeValue: first,       // 👈 مرِّر المتغيّر المعرَّف محلياً
       slotsCount: Math.max(1, Number(slotsCount || 1)),
       note,
       account
@@ -1454,6 +1458,7 @@ app.post('/api/book-multi', async (req, res) => {
     if (account) releaseAccount(account);
   }
 });
+
 
 /** ===== Verify OTP (optional) ===== */
 app.post('/verify-otp', (req,res)=>{
