@@ -316,11 +316,12 @@
   });
   updateLoginBtn();
 
+  // ===== إرسال كود واتساب → /send-otp =====
   async function sendOtp(phone){
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
-      const r = await fetch('/api/login', {
+      const r = await fetch('/send-otp', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ phone })
       });
@@ -330,9 +331,10 @@
         startOtpTimer(60);
         return true;
       } else {
-        if (data.retryAfter){
-          loginMsg.textContent = 'يرجى الانتظار ' + data.retryAfter + 'ث قبل إعادة الإرسال.';
-          startOtpTimer(Number(data.retryAfter)||60);
+        if (typeof data.retryAfter !== 'undefined'){
+          const secs = Number(data.retryAfter)||60;
+          loginMsg.textContent = 'يرجى الانتظار ' + secs + 'ث قبل إعادة الإرسال.';
+          startOtpTimer(secs);
         } else {
           loginMsg.textContent = data.message || 'تعذر الإرسال';
         }
@@ -370,7 +372,7 @@
     window.location.href = 'new-file.html';
   });
 
-  // ===== تسجيل الدخول =====
+  // ===== تسجيل الدخول (التحقق النهائي) → /api/login =====
   loginBtn.addEventListener('click', async ()=>{
     loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
@@ -492,11 +494,12 @@
 
   monthSel.addEventListener('change', ()=> resetTimes('month'));
 
-  // اسم الشهر (نص) للاستخدام في /api/book-multi إن احتاجه الخادم
+  // اسم الشهر (نص)
   function getSelectedMonthLabel(){
     return monthSel.selectedOptions[0]?.text?.trim() || monthSel.value || '';
   }
 
+  // جلب الأوقات
   fetchBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const month  = monthSel.value;
@@ -511,6 +514,7 @@
       return;
     }
 
+    // (حاليًا السيرفر يتجاهل needChainMin، لكن لا تضر)
     const needChainMin = isSkinClinicValue(clinic) ? getSvcMinutes() : 30;
 
     fetchBtn.disabled = true;
@@ -545,7 +549,7 @@
     }
   });
 
-  // ===== الحجز: يجرّب /api/book-multi ثم يسقط على /api/book =====
+  // ===== الحجز → /api/book =====
   bookNowBtn.addEventListener('click', async () => {
     const clinic = clinicSel.value;
     const monthVal  = monthSel.value;
@@ -560,9 +564,6 @@
       return;
     }
 
-    const needChainMin = isSkinClinicValue(clinic) ? getSvcMinutes() : 30;
-    const slotsCount = Math.max(1, Math.ceil(needChainMin / 15)); // كل خانة = 15 دقيقة
-
     snapshotPendingForSuccess();
 
     bookNowBtn.disabled = true;
@@ -573,80 +574,38 @@
     showLoader(true);
     bkMsg.textContent = 'جاري تأكيد الحجز...';
 
-    // جسم الطلب لـ /api/book-multi
-    const multiBody = {
+    const body = {
       identity: identityVal,
-      name: '',                 // (اختياري) الخادم يعتمد على الهوية
+      name: '', // الخادم يعتمد على الهوية
       phone,
       clinic,
       month: monthLabel || monthVal,
-      firstTimeValue: time,     // مثال: "2025-10-21*15:30"
-      slotsCount,
+      time,     // مثال "YYYY-MM-DD*HH:MM"
       note
     };
 
     try {
-      // 1) جرّب المتسلسل
-      const resMulti = await fetch('/api/book-multi', {
+      const res = await fetch('/api/book', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(multiBody)
+        body: JSON.stringify(body)
       });
+      const data = await res.json().catch(()=>({}));
 
-      // لو المسار غير موجود أو فشل واضح، ننتقل للاحتياطي
-      let useFallback = false;
-      if (!resMulti.ok) {
-        useFallback = true;
-      } else {
-        const data = await resMulti.json().catch(()=>({}));
-        if (!data || data.success === false) {
-          useFallback = true;
-        } else {
-          // نجاح: أول خانة للمستخدم، والبوت يكمل الباقي في السيرفر
-          localStorage.setItem('booking_result_msg', (data.message || 'تم تأكيد الحجز.'));
-          window.location.href = 'success.html';
-          return;
-        }
-      }
-
-      // 2) احتياطي: /api/book-multi (حجز عدة خانات متتالية)
-if (useFallback) {
- const monthText = monthSel.selectedOptions[0]?.text || monthVal;
-const payload = {
-  identity: identityVal,
-  phone,
-  clinic,
-  month: monthText,
-  firstTimeValue: time,
-  slotsCount: Math.ceil(needChainMin / 15),
-  note
-};
-
-
-  const res = await fetch('/api/book-multi', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+      const msg = (data && data.msg) ? String(data.msg) : 'تم الحجز بنجاح';
+      localStorage.setItem('booking_result_msg', msg);
+      window.location.href = 'success.html';
+    } catch (e) {
+      bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
+      bookNowBtn.disabled = false;
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      timeSel.disabled = false;
+    } finally {
+      showLoader(false);
+    }
   });
-
-  const data = await res.json();
-  const msg = (data && data.msg) ? String(data.msg) : 'تم الحجز بنجاح';
-
-  localStorage.setItem('booking_result_msg', msg);
-  window.location.href = 'success.html';
-}
-} catch (e) {
-  bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
-  bookNowBtn.disabled = false;
-  fetchBtn.disabled = false;
-  clinicSel.disabled = false;
-  monthSel.disabled = false;
-  timeSel.disabled = false;
-} finally {
-  showLoader(false);
-}
-});
-
 
   // ===== تبديل العرض =====
   const bookingSection = document.getElementById('bookingSection');
