@@ -1192,14 +1192,9 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
     ]);
 
     // 1 month ثم الشهر
-    await applyOneMonthView(page);
-    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
-    const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
-    if(!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
-    await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-      page.select('#month1', monthValue)
-    ]);
+    // 🔹 لا حاجة لاختيار الشهر لأن التاريخ مضمّن في firstTimeValue
+const first = parseTimeValue(firstTimeValue || time);
+
 
     // اكتب مفتاح البحث (الهوية أولوية)
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
@@ -1435,7 +1430,7 @@ app.post('/api/book-multi', async (req, res) => {
       firstTimeValue, slotsCount, note
     } = req.body || {};
 
-    if (!identity || !phone || !clinic || !month || !firstTimeValue) {
+    if (!identity || !phone || !clinic || !firstTimeValue) {
       return res.json({ success:false, message:'حقول ناقصة' });
     }
 
