@@ -1124,9 +1124,13 @@ async function applyOneMonthView(page){
 
 /** ===== API: /api/times ===== */
 app.post('/api/times', async (req, res) => {
+  
   try {
     const { clinic, month, period } = req.body || {};
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+
+
+    // const raw = await page.evaluate(...);
 
     // استنتاج الفترة تلقائيًا من نص/قيمة العيادة إن وُجد
     const clinicStr = String(clinic || '');
@@ -1466,6 +1470,179 @@ async function bookNow({ identity, name, phone, clinic, month, time, note, accou
     return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
   }
 }
+/** ===== Helper: parse "YYYY-MM-DD*HH:MM" to minutes and build chain ===== */
+function parseTimeValue(v){
+  // مثال v: "2025-10-21*15:30"
+  const [date, t] = String(v||'').split('*');
+  if (!date || !t) return null;
+  const [H, M='0'] = t.split(':');
+  return { date, H: +H, M: +M, mm: (+H)*60 + (+M) };
+}
+function buildChainTimes(firstValue, slotsCount){
+  const p = parseTimeValue(firstValue);
+  if (!p) return [];
+  const out = [];
+  for(let i=0;i<slotsCount;i++){
+    const mm = p.mm + 15*i;
+    const H = Math.floor(mm/60), M = mm%60;
+    const t = String(H).padStart(2,'0') + ':' + String(M).padStart(2,'0');
+    out.push(`${p.date}*${t}`);
+  }
+  return out;
+}
+
+/** ===== API: /api/book-multi =====
+ * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
+ */
+app.post('/api/book-multi', async (req,res)=>{
+  const {
+    identity, phone, clinic, month,
+    firstTimeValue, slotsCount: slotsCountRaw,
+    note
+  } = req.body || {};
+  const slotsCount = Math.max(1, Number(slotsCountRaw||1));
+
+  if(!identity || !phone || !clinic || !month || !firstTimeValue){
+    return res.json({ success:false, message:'بيانات ناقصة للحجز المتعدد' });
+  }
+
+  const chain = buildChainTimes(firstTimeValue, slotsCount);
+  if(!chain.length){ return res.json({ success:false, message:'قيمة الوقت غير صالحة' }); }
+
+  // سنحاول حجز أول خانة + الباقي تباعًا. في حالة فشل خانة نعيد ما تم بنجاح.
+  const browser = await launchBrowserSafe();
+  const page = await browser.newPage(); await prepPage(page);
+  let account = null;
+  const successes = [];
+  try{
+    account = await acquireAccount();
+    await loginToImdad(page, account);
+    await gotoAppointments(page);
+
+    // اختر العيادة
+    const clinicValue = await page.evaluate((name) => {
+      const opts = Array.from(document.querySelectorAll('#clinic_id option'));
+      const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
+      return f ? f.value : null;
+    }, clinic);
+    if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.select('#clinic_id', clinicValue)
+    ]);
+
+    // شهر واحد
+    await applyOneMonthView(page);
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+    const monthValue = months.find(m => m.text === month || m.value === month)?.value;
+    if(!monthValue) throw new Error('لم يتم العثور على الشهر!');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.select('#month1', monthValue)
+    ]);
+
+    // اكتب الهوية/ fallback لو لزم
+    const searchKey = String(identity||'').trim();
+    await typeSlow(page, '#SearchBox120', searchKey, 120);
+
+    // اختر المريض من الاقتراحات (الأولوية للجوال)
+    const phone05 = toLocal05(phone||'');
+    let picked = false;
+    const deadline = Date.now() + 12000;
+    while (!picked && Date.now() < deadline) {
+      const items = await readApptSuggestions(page);
+      const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+      const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
+      if (match) {
+        await page.evaluate((idx)=>{
+          const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
+          if(lis && lis[idx]) lis[idx].click();
+        }, match.idx);
+        picked = true; break;
+      }
+      await page.evaluate(()=>{ const el=document.querySelector('#SearchBox120'); if(el){['input','keyup','keydown','change'].forEach(ev=>el.dispatchEvent(new Event(ev,{bubbles:true})));} });
+      await sleep(200);
+    }
+    if (!picked) {
+      const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
+      if (!fallback) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+    }
+
+    // ثبّت الهاتف والملاحظة (ملاحظة المستخدم فقط)
+    await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
+    if (typeof note === 'string' && note.trim()) {
+      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
+    } else {
+      await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
+    }
+    await page.select('select[name="gender"]', '1');
+    await page.select('select[name="nation_id"]', '1');
+
+    // حجز كل خانة في السلسلة
+    for (const wanted of chain) {
+      const selected = await page.evaluate((val)=>{
+        const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
+        for(const r of radios){
+          if(r.value===val && !r.disabled){ r.click(); return true; }
+        }
+        return false;
+      }, wanted);
+
+      if(!selected){
+        // لو خانة غير متاحة، نوقف ونرجع ما حجزناه
+        break;
+      }
+
+      const pressed = await page.evaluate(()=>{
+        const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
+          .find(el=>el.value && el.value.trim()==='حجز : Reserve');
+        if(!btn) return false;
+        btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
+      });
+      if(!pressed) break;
+
+      // انتظر البوب أب (نجاح)
+      await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
+      successes.push(wanted);
+
+      // بعد كل حجز نعود لنفس شاشة العيادة/الشهر لاستكمال التالية
+      await gotoAppointments(page);
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#clinic_id', clinicValue)
+      ]);
+      await applyOneMonthView(page);
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#month1', monthValue)
+      ]);
+      // إعادة تحديد نفس المريض سريعًا (بالجوال)
+      await typeSlow(page, '#SearchBox120', phone05, 80);
+      await pickFirstSuggestionOnAppointments(page, 2500);
+      await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
+      if (typeof note === 'string' && note.trim()) {
+        await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
+      } else {
+        await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
+      }
+    }
+
+    await browser.close(); if(account) releaseAccount(account);
+
+    if (successes.length === chain.length) {
+      return res.json({ success:true, message:`تم حجز ${successes.length} خانة متتالية بنجاح` });
+    } else if (successes.length > 0) {
+      return res.json({ success:true, partial:true, message:`تم حجز ${successes.length} خانة، وبعض الخانات غير متاحة` });
+    } else {
+      return res.json({ success:false, message:'تعذر حجز أي خانة' });
+    }
+  } catch(e){
+    try{ await browser.close(); }catch(_){}
+    if(account) releaseAccount(account);
+    return res.json({ success:false, message:'فشل الحجز المتعدد: ' + (e?.message||String(e)) });
+  }
+});
+
 
 /** ===== Verify OTP (optional) ===== */
 app.post('/verify-otp', (req,res)=>{
