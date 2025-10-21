@@ -1369,6 +1369,148 @@ async function processQueue(){
 
 /** ===== Booking flow (USES IDENTITY + USER NOTE IF PROVIDED) ===== */
 async function bookNow({ identity, name, phone, clinic, month, time, note, account }){
+  /** ==== Helper: parse & build chained times ==== */
+function parseTimeValue(v){              // "2025-10-22*13:30"
+  const [date,t] = String(v||'').split('*');
+  if(!date || !t) return null;
+  const [H,M='0'] = t.split(':');
+  return { date, H:+H, M:+M, mm: (+H)*60 + (+M) };
+}
+function buildChainTimes(firstValue, slotsCount){
+  const base = parseTimeValue(firstValue);
+  if(!base) return [];
+  const out = [];
+  for(let i=0;i<slotsCount;i++){
+    const mm = base.mm + i*15;                   // كل خانة 15 دقيقة
+    const H  = Math.floor(mm/60), M = mm%60;
+    const HH = String(H).padStart(2,'0');
+    const MM = String(M).padStart(2,'0');
+    out.push(`${base.date}*${HH}:${MM}`);
+  }
+  return out;
+}
+
+/** ==== bookMultiChain: يحجز N خانات متتالية ويعود للمواعيد بعد كل حجز ==== */
+async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, slotsCount, note, account }){
+  const browser = await launchBrowserSafe();
+  const page = await browser.newPage(); await prepPage(page);
+  try{
+    await loginToImdad(page, account);
+    await gotoAppointments(page);
+
+    // اختر العيادة
+    const clinicValue = await page.evaluate((name) => {
+      const opts = [...document.querySelectorAll('#clinic_id option')];
+      const f = opts.find(o => (o.textContent||'').trim()===name || (o.value||'')===name);
+      return f ? f.value : null;
+    }, clinic);
+    if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.select('#clinic_id', clinicValue)
+    ]);
+
+    // 1 month ثم الشهر
+    await applyOneMonthView(page);
+    const monthValue = await page.evaluate((wanted) => {
+      const opts = [...document.querySelectorAll('#month1 option')];
+      // يقبل رقم الشهر أو نصه
+      const m = opts.find(o => (o.textContent||'').trim()===String(wanted) || (o.value||'').endsWith(`month=${wanted}`));
+      return m ? m.value : null;
+    }, String(month));
+    if(!monthValue) throw new Error('الشهر غير متاح!');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.select('#month1', monthValue)
+    ]);
+
+    // جهّز أوقات السلسلة
+    const chain = buildChainTimes(firstTimeValue, Math.max(1, +slotsCount||1));
+
+    // دالة تساعدنا على الرجوع لشاشة المواعيد بعد كل حجز
+    async function backToAppointments(){
+      const clicked = await page.evaluate(()=>{
+        const a = document.querySelector('a[href*="appoint_display.php"]');
+        if(a){ a.click(); return true; }
+        return false;
+      });
+      if(!clicked){
+        await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', {waitUntil:'domcontentloaded'}).catch(()=>{});
+      }else{
+        await page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{});
+      }
+      // تأكيد بقاء نفس العيادة والشهر:
+      await applyOneMonthView(page);
+      if (monthValue){
+        await Promise.all([
+          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{}),
+          page.select('#month1', monthValue)
+        ]);
+      }
+    }
+
+    // نفّذ الحجز للخانات المتتالية
+    const phone05 = toLocal05(phone||'');
+    for (let i=0;i<chain.length;i++){
+      const timeValue = chain[i];
+
+      // اكتب الهوية/ابحث واختر المريض (أفضلية مطابقة الجوال)
+      await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
+      let picked = false;
+      const deadline = Date.now() + 12000;
+      while (!picked && Date.now() < deadline) {
+        const items = await readApptSuggestions(page);
+        const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+        const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05)) || enriched[0];
+        if (match) {
+          await page.evaluate((idx)=>{
+            const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
+            if(lis && lis[idx]) lis[idx].click();
+          }, match.idx);
+          picked = true;
+          break;
+        }
+        await page.evaluate(()=>{ const el = document.querySelector('#SearchBox120'); if(el){ ['input','keyup','keydown','change'].forEach(ev=> el.dispatchEvent(new Event(ev,{bubbles:true}))); }});
+        await sleep(220);
+      }
+      if(!picked) throw new Error('تعذر اختيار المريض من القائمة');
+
+      // جوال + ملاحظة المستخدم فقط
+      await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, phone05);
+      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, (note||'').trim());
+      await page.select('select[name="gender"]', '1');
+      await page.select('select[name="nation_id"]', '1');
+
+      // اختر الوقت الحالي في السلسلة
+      const selected = await page.evaluate((val)=>{
+        const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
+        for(const r of radios){ if(r.value===val && !r.disabled){ r.click(); return true; } }
+        return false;
+      }, timeValue);
+      if(!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
+
+      // حجز
+      const pressed = await page.evaluate(()=>{
+        const btn=[...document.querySelectorAll('input[type="submit"][name="submit"]')]
+          .find(el=>el.value && el.value.trim()==='حجز : Reserve');
+        if(!btn) return false;
+        btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
+      });
+      if(!pressed) throw new Error('زر الحجز غير متاح!');
+
+      // انتظر نافذة النجاح ثم ارجع للمواعيد للجولة التالية
+      await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>{});
+      if (i < chain.length-1) { await backToAppointments(); }
+    }
+
+    await browser.close();
+    return { ok:true, message:`تم حجز ${chain.length} خانة متتالية` };
+  }catch(e){
+    try{ await browser.close(); }catch(_){}
+    return { ok:false, message: 'فشل الحجز المتسلسل: ' + (e?.message||String(e)) };
+  }
+}
+
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
@@ -1494,7 +1636,29 @@ function buildChainTimes(firstValue, slotsCount){
 /** ===== API: /api/book-multi =====
  * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
  */
+  /** ==== API: /api/book-multi ==== */
 app.post('/api/book-multi', async (req,res)=>{
+  let account=null;
+  try{
+    const { identity, phone, clinic, month, firstTimeValue, slotsCount, note } = req.body||{};
+    if(!identity || !phone || !clinic || !month || !firstTimeValue){
+      return res.json({ success:false, message:'حقول ناقصة' });
+    }
+    account = await acquireAccount();
+    const result = await bookMultiChain({
+      identity, phone, clinic, month, firstTimeValue,
+      slotsCount: Math.max(1, +slotsCount||1),
+      note, account
+    });
+    res.json({ success: !!result.ok, message: result.message });
+  }catch(e){
+    res.json({ success:false, message: 'خطأ: '+(e?.message||String(e)) });
+  }finally{
+    if(account) releaseAccount(account);
+  }
+});
+
+
   const {
     identity, phone, clinic, month,
     firstTimeValue, slotsCount: slotsCountRaw,
