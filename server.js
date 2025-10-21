@@ -905,7 +905,6 @@ app.post('/api/update-identity', async (req, res) => {
     if(!nationalId) return res.json({ success:false, message:'رقم الهوية مطلوب' });
     if(!birthYear) return res.json({ success:false, message:'سنة الميلاد مطلوبة' });
 
-    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     let account=null;
     try{
@@ -963,8 +962,6 @@ app.post('/api/create-patient', async (req, res) => {
       if(!verifyOtpInline(phone, otp)) return res.json({ success:false, message:'OTP غير صحيح', reason:'otp' });
 
       const phone05 = toLocal05(phone);
-
-      const browser = await launchBrowserSafe();
       const page = await browser.newPage(); await prepPage(page);
       page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
@@ -1196,8 +1193,6 @@ app.post('/api/times', async (req, res) => {
       if (isDental124) return true;
       return false;
     })();
-
-    const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
     try{
       await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
@@ -1510,8 +1505,6 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     return { ok:false, message: 'فشل الحجز المتسلسل: ' + (e?.message||String(e)) };
   }
 }
-
-  const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
     await loginToImdad(page, account);
@@ -1674,7 +1667,6 @@ app.post('/api/book-multi', async (req,res)=>{
   if(!chain.length){ return res.json({ success:false, message:'قيمة الوقت غير صالحة' }); }
 
   // سنحاول حجز أول خانة + الباقي تباعًا. في حالة فشل خانة نعيد ما تم بنجاح.
-  const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   let account = null;
   const successes = [];
@@ -1807,6 +1799,7 @@ app.post('/api/book-multi', async (req,res)=>{
   }
 
 
+
 /** ===== Verify OTP (optional) ===== */
 app.post('/verify-otp', (req,res)=>{
   let { phone, otp } = req.body || {};
@@ -1850,8 +1843,6 @@ app.post('/api/new-file', async (req, res) => {
       if (!verifyOtpInline(phone, otp)) {
         return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
       }
-
-      const browser = await launchBrowserSafe();
       const page = await browser.newPage(); await prepPage(page);
       page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
