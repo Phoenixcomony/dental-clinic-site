@@ -1257,14 +1257,11 @@ const first = parseTimeValue(firstTimeValue || time);
       const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
         .find(el=>el.value && el.value.trim()==='حجز : Reserve');
       if(!btn) return false;
-      console.log('[BOOK] يضغط زر الحجز الآن...');
       btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
     });
     if(!pressed) throw new Error('زر الحجز غير متاح!');
 
     await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
-    console.log('[BOOK] ✅ ظهر إشعار نجاح الحجز!');
-
 
     await browser.close(); if(account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: '+account.user;
@@ -1272,8 +1269,6 @@ const first = parseTimeValue(firstTimeValue || time);
     try{ await browser.close(); }catch(_){}
     if(account) releaseAccount(account);
     return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
-    console.error('[BOOK ❌ خطأ أثناء الحجز]', e?.message || e);
-
   }
 }
 
