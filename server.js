@@ -306,6 +306,11 @@ async function prepPage(page){
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
   await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  // 🔧 بوليفيل لـ waitForTimeout إذا غير متوفرة في نسخة Puppeteer داخل Railway
+if (typeof page.waitForTimeout !== 'function') {
+  page.waitForTimeout = (ms) => new Promise(res => setTimeout(res, ms));
+}
+
 }
 
 /** ===== Login (hardened with retry) ===== */
