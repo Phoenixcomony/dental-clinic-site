@@ -1349,7 +1349,6 @@ async function processQueue(){
   const { req, res } = bookingQueue.shift();
   let account=null;
   try{
-    account = await acquireAccount();
     const msg = await bookNow({ ...req.body, account }); // ← يمرر note إن وجد
     res.json({ msg });
   }catch(e){
@@ -1632,10 +1631,17 @@ function buildChainTimes(firstValue, slotsCount){
 /** ===== API: /api/book-multi =====
  * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
  */
+/** ===== API: /api/book-multi =====
+ * body: { identity, phone, clinic, month, firstTimeValue, slotsCount, note }
+ */
 app.post('/api/book-multi', async (req, res) => {
   let account = null;
   try {
-    const { identity, phone, clinic, month, firstTimeValue, slotsCount, note } = req.body || {};
+    const {
+      identity, phone, clinic, month,
+      firstTimeValue, slotsCount, note
+    } = req.body || {};
+
     if (!identity || !phone || !clinic || !month || !firstTimeValue) {
       return res.json({ success:false, message:'حقول ناقصة' });
     }
@@ -1650,16 +1656,17 @@ app.post('/api/book-multi', async (req, res) => {
       firstTimeValue,
       slotsCount: Math.max(1, Number(slotsCount || 1)),
       note,
-      account,
+      account
     });
 
     return res.json({ success: !!result.ok, message: result.message });
   } catch (e) {
-    return res.json({ success:false, message:'خطأ: ' + (e?.message || String(e)) });
+    return res.json({ success:false, message:'فشل الحجز المتعدد: ' + (e?.message || String(e)) });
   } finally {
     if (account) releaseAccount(account);
   }
 });
+
 
 
 
@@ -1681,9 +1688,7 @@ app.post('/api/book-multi', async (req, res) => {
    let account = null;
   const successes = [];
   try{
-    account = await acquireAccount();
-    await loginToImdad(page, account);
-    await gotoAppointments(page);
+
 
     // اختر العيادة
     const clinicValue = await page.evaluate((name) => {
