@@ -965,10 +965,11 @@ async function applyOneMonthView(page){
 }
 
 /** ===== /api/times ===== */
+// الشهر اختياري الآن: إن لم يُرسل فلن نلمس السلكتور ونقرأ الأوقات مباشرة
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
-    if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+    if (!clinic) return res.status(400).json({ times: [], error: 'العيادة مفقودة' });
 
     const clinicStr = String(clinic || '');
     const autoPeriod =
@@ -1024,41 +1025,40 @@ app.post('/api/times', async (req, res) => {
       ]);
 
       await applyOneMonthView(page);
-      
 
-      const pickedMonth = await page.evaluate((wanted) => {
-  const sel = document.querySelector('#month1');
-  if (!sel) return null;
-  const w = String(wanted).trim();
+      if (month) {
+        const pickedMonth = await page.evaluate((wanted) => {
+          const sel = document.querySelector('#month1');
+          if (!sel) return null;
+          const w = String(wanted).trim();
 
-  const opts = Array.from(sel.options || []).map(o => ({
-    value: o.value || '',
-    text: (o.textContent || '').trim()
-  }));
+          const opts = Array.from(sel.options || []).map(o => ({
+            value: o.value || '',
+            text: (o.textContent || '').trim()
+          }));
 
-  const hit =
-    opts.find(o => o.text === w) ||
-    opts.find(o => o.value.includes(`month=${w}`)) ||
-    opts.find(o => o.text.endsWith(w)) ||
-    null;
+          const hit =
+            opts.find(o => o.text === w) ||
+            opts.find(o => o.value.includes(`month=${w}`)) ||
+            opts.find(o => o.text.endsWith(w)) ||
+            null;
 
-  if (!hit) return null;
+          if (!hit) return null;
 
-  try {
-    sel.value = hit.value;
-    sel.dispatchEvent(new Event('change', { bubbles: true }));
-  } catch (_) {}
+          try {
+            sel.value = hit.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          } catch (_) {}
 
-  try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+          try { if (hit.value) window.location.href = hit.value; } catch (_) {}
 
-  return hit.value;
-}, month);
+          return hit.value;
+        }, month);
 
-if (!pickedMonth) throw new Error('month_not_found');
-
-// انتظر تحميل صفحة الشهر
-await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-
+        if (pickedMonth) {
+          await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+        }
+      }
 
       const raw = await page.evaluate(()=>{
         const out=[];
@@ -1191,11 +1191,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // 1 month ثم الشهر
-    // 🔹 لا حاجة لاختيار الشهر لأن التاريخ مضمّن في firstTimeValue
-const first = parseTimeValue(firstTimeValue || time);
-
-
+    // لا نغير الشهر – القيمة تحوي التاريخ
     // اكتب مفتاح البحث (الهوية أولوية)
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
@@ -1311,15 +1307,18 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // 1 month ثم الشهر
+    // 1 month فقط، ولا نلمس #month1 نهائيًا إن لم يصل month
     await applyOneMonthView(page);
-    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
-    const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
-    if(!monthValue) throw new Error('لم يتم العثور على الشهر!');
-    await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-      page.select('#month1', monthValue)
-    ]);
+    if (month) {
+      const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+      const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
+      if(monthValue){
+        await Promise.all([
+          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+          page.select('#month1', monthValue)
+        ]);
+      }
+    }
 
     // اكتب الهوية
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
@@ -1383,17 +1382,14 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
       successes.push(wanted);
 
-      // ارجع للمواعيد لنفس العيادة/الشهر للجولة التالية
+      // ارجع للمواعيد لنفس العيادة للجولة التالية، بدون اختيار شهر
       await gotoAppointments(page);
       await Promise.all([
         page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
         page.select('#clinic_id', clinicValue)
       ]);
       await applyOneMonthView(page);
-      await Promise.all([
-        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
-        page.select('#month1', monthValue)
-      ]);
+
       // إعادة تحديد المريض سريعًا بالجوال
       await typeSlow(page, '#SearchBox120', phone05, 80);
       await pickFirstSuggestionOnAppointments(page, 2500);
@@ -1421,13 +1417,12 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
   }
 }
 
-
 // ===== API: /api/book-multi =====
 app.post('/api/book-multi', async (req, res) => {
   let account = null;
   try {
     const {
-      identity, phone, clinic, month,      // month اختياري ومهمل
+      identity, phone, clinic, month,      // month اختياري
       slotsCount, note
     } = req.body || {};
 
@@ -1444,8 +1439,8 @@ app.post('/api/book-multi', async (req, res) => {
       identity,
       phone,
       clinic,
-      month,                       // لن نستعمله داخل الدالة
-      firstTimeValue: first,       // 👈 مرِّر المتغيّر المعرَّف محلياً
+      month,                       // قد يكون undefined — وسنتجاوزه
+      firstTimeValue: first,
       slotsCount: Math.max(1, Number(slotsCount || 1)),
       note,
       account
@@ -1458,7 +1453,6 @@ app.post('/api/book-multi', async (req, res) => {
     if (account) releaseAccount(account);
   }
 });
-
 
 /** ===== Verify OTP (optional) ===== */
 app.post('/verify-otp', (req,res)=>{
