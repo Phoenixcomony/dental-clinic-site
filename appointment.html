@@ -496,8 +496,11 @@
 
   // اسم الشهر (نص)
   function getSelectedMonthLabel(){
-    return monthSel.selectedOptions[0]?.text?.trim() || monthSel.value || '';
-  }
+  const val = monthSel.value;
+  const year = new Date().getFullYear();
+  return val ? `${year}-${String(val).padStart(2,'0')}` : '';
+}
+
 
   // جلب الأوقات (السيرفر الآن يرجّع فقط البدايات القابلة للتسلسل عند needChainMin)
   fetchBtn.addEventListener('click', async () => {
