@@ -666,6 +666,8 @@ app.post('/api/login', async (req, res) => {
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
+    console.log('[BOOK] بدأ تنفيذ الحجز...', { clinic, month, time, identity, phone });
+
 
     let account=null;
     try{
@@ -1197,6 +1199,7 @@ const first = parseTimeValue(firstTimeValue || time);
 
 
     // اكتب مفتاح البحث (الهوية أولوية)
+    console.log('[BOOK] يبحث عن المريض برقم الهوية أو الجوال...');
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
     await typeSlow(page, '#SearchBox120', searchKey, 120);
@@ -1254,11 +1257,14 @@ const first = parseTimeValue(firstTimeValue || time);
       const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
         .find(el=>el.value && el.value.trim()==='حجز : Reserve');
       if(!btn) return false;
+      console.log('[BOOK] يضغط زر الحجز الآن...');
       btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
     });
     if(!pressed) throw new Error('زر الحجز غير متاح!');
 
     await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
+    console.log('[BOOK] ✅ ظهر إشعار نجاح الحجز!');
+
 
     await browser.close(); if(account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: '+account.user;
@@ -1266,6 +1272,8 @@ const first = parseTimeValue(firstTimeValue || time);
     try{ await browser.close(); }catch(_){}
     if(account) releaseAccount(account);
     return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
+    console.error('[BOOK ❌ خطأ أثناء الحجز]', e?.message || e);
+
   }
 }
 
@@ -1300,6 +1308,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     await gotoAppointments(page);
 
     // اختر العيادة
+    console.log('[BOOK] يختار العيادة...', clinic);
     const clinicValue = await page.evaluate((name) => {
       const opts = Array.from(document.querySelectorAll('#clinic_id option'));
       const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
@@ -1313,6 +1322,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 
     // 1 month ثم الشهر
     await applyOneMonthView(page);
+    console.log('[BOOK] يحاول اختيار الشهر...', month);
     const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
     const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value;
     if(!monthValue) throw new Error('لم يتم العثور على الشهر!');
@@ -1320,6 +1330,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
       page.select('#month1', monthValue)
     ]);
+    console.log('[BOOK] تم تحديد الشهر بنجاح:', monthValue);
 
     // اكتب الهوية
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);

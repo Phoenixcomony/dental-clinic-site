@@ -1,534 +1,92 @@
-// server.js
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
-const axios = require('axios');
-const fs = require('fs');
-
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static(__dirname));
-
-// ===== متغيرات حسّاسة من البيئة (لا تضعها صريحة في الكود) =====
-const INSTANCE_ID = process.env.INSTANCE_ID || 'CHANGE_ME';
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN || 'CHANGE_ME';
-
-// ===== اكتشاف تلقائي لمسار المتصفح داخل الحاوية =====
-// ملاحظة: نتجاهل '/usr/bin/chromium-browser' لأنه wrapper يطلب snap داخل Ubuntu 24.04
-const CANDIDATE_PATHS = [
-  process.env.PUPPETEER_EXECUTABLE_PATH, // إن تم تحديده من Variables (اختياري)
-  '/usr/bin/chromium',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable'
-].filter(Boolean);
-
-function resolveChromePath() {
-  for (const p of CANDIDATE_PATHS) {
-    try {
-      if (p && fs.existsSync(p)) return p;
-    } catch {}
-  }
-  // null يعني: خَلِّ Puppeteer يستخدم المتصفح المدمج الذي نزّله أثناء npm ci
-  return null;
-}
-
-const CHROMIUM_PATH = resolveChromePath();
-console.log('Using Chromium path:', CHROMIUM_PATH || '(bundled by puppeteer)');
-
-// ===== حسابات الدخول للنظام الخارجي =====
-const ACCOUNTS = [
-  { user: "1111111111", pass: "1111111111", busy: false },
-  { user: "2222222222", pass: "2222222222", busy: false },
-  { user: "3333333333", pass: "3333333333", busy: false },
-  { user: "5555555555", pass: "5555555555", busy: false }
-];
-
-const bookingQueue = [];
-
-// ===== أدوات مساعدة =====
-function normalizePhone(phone) {
-  phone = (phone || '').replace(/[^0-9]/g, '');
-  if (phone.startsWith('05') && phone.length === 10) return '966' + phone.slice(1);
-  if (phone.startsWith('5') && phone.length === 9) return '966' + phone;
-  if (phone.startsWith('9665') && phone.length === 12) return phone;
-  return phone;
-}
-
-async function acquireAccount() {
-  while (true) {
-    const idx = ACCOUNTS.findIndex(acc => !acc.busy);
-    if (idx !== -1) { ACCOUNTS[idx].busy = true; return ACCOUNTS[idx]; }
-    await new Promise(res => setTimeout(res, 1000));
-  }
-}
-function releaseAccount(account) {
-  const idx = ACCOUNTS.findIndex(acc => acc.user === account.user);
-  if (idx !== -1) ACCOUNTS[idx].busy = false;
-}
-
-// ===== إعدادات إطلاق المتصفح + تهيئة الصفحة =====
-function getLaunchOptions() {
-  return {
-    executablePath: CHROMIUM_PATH || undefined, // undefined => استخدم المدمج
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-background-networking',
-      '--window-size=1200,900',
-      '--window-position=0,0'
-    ]
-  };
-}
-
-async function prepPage(page) {
-  await page.setViewport({ width: 1200, height: 900 });
-  page.setDefaultNavigationTimeout(30000);
-  page.setDefaultTimeout(30000);
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36'
-  );
-}
-
-// ===== OTP عبر mywhats.cloud =====
-const otpStore = {};
-app.post('/send-otp', async (req, res) => {
-  try {
-    let { phone } = req.body || {};
-    phone = normalizePhone(phone);
-
-    if (!/^9665\d{8}$/.test(phone)) {
-      return res.status(400).json({ success: false, message: "رقم الجوال غير صحيح" });
-    }
-
-    const otp = Math.floor(100000 + Math.random() * 900000);
-    otpStore[phone] = otp;
-    console.log("OTP to:", phone, "| code:", otp);
-
-    if (!INSTANCE_ID || !ACCESS_TOKEN || INSTANCE_ID === 'CHANGE_ME' || ACCESS_TOKEN === 'CHANGE_ME') {
-      return res.status(500).json({ success: false, message: "إعدادات الإرسال غير مهيأة (ENV)" });
-    }
-
-    const msg = `رمز التحقق الخاص بك في مجمع فينكس الطبي: ${otp}`;
-    const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-
-    await axios.get(url, { timeout: 15000 });
-    return res.json({ success: true });
-  } catch (err) {
-    console.error('/send-otp error:', err?.message || err);
-    return res.status(500).json({ success: false, message: "فشل إرسال الرسالة", error: err?.message });
-  }
-});
-
-// ===== جلب الأوقات =====
-app.post('/api/times', async (req, res) => {
-  try {
-    const { clinic, month } = req.body || {};
-    if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
-
-    const times = await getAvailableTimes({ clinic, month });
-    res.json({ times });
-  } catch (err) {
-    console.error("خطأ في /api/times:", err);
-    res.json({ times: [], error: err.message || String(err) });
-  }
-});
-
-async function getAvailableTimes({ clinic, month }) {
-  const browser = await puppeteer.launch(getLaunchOptions());
-  const page = await browser.newPage();
-  await prepPage(page);
-
-  try {
-    await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', el => { el.value = '1111111111'; });
-    await page.$eval('input[name="password"]', el => { el.value = '1111111111'; });
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.click('#submit')
-    ]);
-
-    await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
-
-    const clinicValue = await page.evaluate((name) => {
-      const options = Array.from(document.querySelectorAll('#clinic_id option'));
-      const found = options.find(opt => opt.textContent.trim() === name);
-      return found ? found.value : null;
-    }, clinic);
-    if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.select('#clinic_id', clinicValue)
-    ]);
-
-    const months = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }))
-    );
-    const monthValue = months.find(m => m.text === month || m.value === month)?.value;
-    if (!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.select('#month1', monthValue)
-    ]);
-
-    const times = await page.evaluate(() => {
-      function period24(timeStr) {
-        if (!timeStr) return '';
-        const h = parseInt(timeStr.split(':')[0], 10);
-        return h < 12 ? 'ص' : 'م';
-      }
-      const result = [];
-      const radios = document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
-      for (const radio of radios) {
-        const value = radio.value || "";
-        const parts = value.split('*');
-        const date = parts[0];
-        const time24 = parts[1];
-        const label = time24 ? `${date} - ${time24} ${period24(time24)}` : `${date}`;
-        result.push({ label, value });
-      }
-      return result;
-    });
-
-    await browser.close();
-    return times;
-  } catch (err) {
-    await browser.close();
-    throw err;
-  }
-}
-
-// ===== الحجز (بطابور) =====
-app.post('/api/book', async (req, res) => {
-  bookingQueue.push({ req, res });
-  processBookingQueue();
-});
-
-let processingBooking = false;
-async function processBookingQueue() {
-  if (processingBooking || bookingQueue.length === 0) return;
-  processingBooking = true;
-
-  const { req, res } = bookingQueue.shift();
-  let account = null;
-
-  try {
-    account = await acquireAccount();
-    const result = await bookAppointment({ ...req.body, account });
-    res.json({ msg: result });
-  } catch (err) {
-    res.json({ msg: '❌ فشل الحجز! ' + (err?.message || String(err)) });
-  } finally {
-    if (account) releaseAccount(account);
-    processingBooking = false;
-    processBookingQueue();
-  }
-}
-
-async function bookAppointment({ name, phone, clinic, month, time, account }) {
-  const browser = await puppeteer.launch(getLaunchOptions());
-  const page = await browser.newPage();
-  await prepPage(page);
-
-  try {
-    await page.goto('https://phoenix.imdad.cloud/medica13/login.php?a=1', { waitUntil: 'networkidle2' });
-    await page.$eval('input[name="username"]', (el, value) => { el.value = value; }, account.user);
-    await page.$eval('input[name="password"]', (el, value) => { el.value = value; }, account.pass);
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.click('#submit')
-    ]);
-
-    await page.goto('https://phoenix.imdad.cloud/medica13/appoint_display.php', { waitUntil: 'networkidle2' });
-
-    const clinicValue = await page.evaluate((name) => {
-      const options = Array.from(document.querySelectorAll('#clinic_id option'));
-      const found = options.find(opt => opt.textContent.trim() === name);
-      return found ? found.value : null;
-    }, clinic);
-    if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.select('#clinic_id', clinicValue)
-    ]);
-
-    const months = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('#month1 option')).map(opt => ({ value: opt.value, text: opt.textContent }))
-    );
-    const monthValue = months.find(m => m.text === month || m.value === month)?.value;
-    if (!monthValue) throw new Error('لم يتم العثور على الشهر المطلوب!');
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }),
-      page.select('#month1', monthValue)
-    ]);
-
-    await page.$eval('#SearchBox120', (el, v) => { el.value = v; }, name);
-    await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, phone);
-    await page.$eval('input[name="notes"]', (el, v) => { el.value = v; }, 'حجز أوتوماتيكي');
-    await page.select('select[name="gender"]', '1');
-    await page.select('select[name="nation_id"]', '1');
-
-    const found = await page.evaluate((wantedValue) => {
-      const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
-      for (const radio of radios) {
-        if (radio.value === wantedValue && !radio.disabled) {
-          radio.click();
-          return true;
-        }
-      }
-      return false;
-    }, time);
-    if (!found) throw new Error('لم يتم العثور على الموعد المطلوب!');
-
-    const btnResult = await page.evaluate(() => {
-      const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]')).find(
-        el => el.value && el.value.trim() === "حجز : Reserve"
-      );
-      if (btn) {
-        btn.disabled = false;
-        btn.removeAttribute('disabled');
-        btn.focus();
-        btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-        btn.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-        btn.click();
-        btn.form && btn.form.dispatchEvent(new Event('submit', { bubbles: true }));
-        return true;
-      }
-      return false;
-    });
-
-    if (!btnResult) throw new Error("لم يتم العثور على زر الحجز أو لم يُضغط!");
-
-    await page.waitForSelector('#popupContact', { visible: true, timeout: 15000 });
-
-    const popupVisible = await page.$eval('#popupContact', el => el.style.display !== 'none');
-    if (!popupVisible) throw new Error('لم تظهر نافذة تأكيد الحجز!');
-
-    await browser.close();
-    return "✅ تم الحجز بنجاح بالحساب: " + account.user;
-  } catch (err) {
-    await browser.close();
-    return "❌ فشل الحجز: " + (err?.message || "حدث خطأ غير متوقع");
-  }
-}
-
-// ===== تحقق رمز OTP =====
-app.post('/verify-otp', async (req, res) => {
-  let { phone, otp } = req.body || {};
-  phone = normalizePhone(phone);
-
-  if (otpStore[phone] && otpStore[phone].toString() === String(otp)) {
-    delete otpStore[phone];
-    res.json({ success: true });
-  } else {
-    res.json({ success: false, message: "رمز التحقق غير صحيح!" });
-  }
-});
-
-// ===== Healthcheck =====
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, time: new Date().toISOString(), chrome: CHROMIUM_PATH || 'bundled' });
-});
-
-// ===== تشغيل السيرفر =====
-const PORT = process.env.PORT || 3000; // Railway يمرر PORT تلقائيًا
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
-});
-
-
-
-
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <!-- Verification -->
-  <meta name="google-site-verification" content="pg_dpEayZdmu0Lii4uszuurqQZ2tkyPUmOIla4U9jMw" />
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- SEO basics -->
-  <title>حجز موعد | مجمع فينكس الطبي (Phoenix Clinic)</title>
-  <meta name="description" content="احجز موعدك بسهولة لدى مجمع فينكس الطبي. اختر العيادة والشهر وشاهد المواعيد المتاحة مباشرة. خدمات طب الأسنان، الجلدية، الليزر، وتنظيف البشرة.">
-  <meta name="robots" content="index,follow">
-  <link rel="canonical" href="https://www.phoenixclinic.net/appointment.html">
-
-  <!-- Open Graph / Social -->
-  <meta property="og:title" content="حجز موعد | مجمع فينكس الطبي">
-  <meta property="og:description" content="احجز موعدك مباشرة لدى مجمع فينكس الطبي وشاهد المواعيد المتاحة حسب العيادة والشهر.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://www.phoenixclinic.net/appointment.html">
-  <meta property="og:image" content="https://www.phoenixclinic.net/images/og/clinic-cover.jpg">
-  <meta property="og:locale" content="ar_SA">
-  <meta name="twitter:card" content="summary_large_image">
-
-  <!-- Theme color for mobile UI -->
-  <meta name="theme-color" content="#e2be6d">
-
-  <!-- CSS -->
+  <title>حجز موعد | مجمع فينكس الطبي</title>
+  <meta name="description" content="سجّل دخولك برقم الهوية/الإقامة والجوال مع تحقق واتساب، ثم احجز موعدك.">
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-  <!-- Structured Data (MedicalClinic) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "MedicalClinic",
-    "name": "مجمع فينكس الطبي",
-    "url": "https://www.phoenixclinic.net/",
-    "logo": "https://www.phoenixclinic.net/images/logo%20phoenix-Photoroom.png",
-    "sameAs": [
-      "https://wa.me/966531422555",
-      "https://www.instagram.com/phoenix.shq/",
-      "https://www.snapchat.com/add/phoenix.shq"
-    ],
-    "areaServed": "SA",
-    "inLanguage": "ar"
-  }
-  </script>
-
   <style>
-    :root {
-      --gold-main: #e2be6d;
-      --gold-light: #fff8e6;
-      --gold-gradient: linear-gradient(90deg, #e8ca7c 10%, #fff8e6 100%);
-      --gold-shadow: 0 4px 32px 0 #e2be6d26, 0 1.5px 6px #ffdfa215;
+    :root{
+      --gold-main:#e2be6d;
+      --gold-shadow:0 4px 32px 0 #e2be6d26, 0 1.5px 6px #ffdfa215;
+      --gold-light:#fff8e6;
+      --gold-gradient:linear-gradient(90deg,#e8ca7c 10%, #fff8e6 100%);
+      --green-main:#2e7d32;
+      --green-dark:#1b5e20;
+      --green-shadow:0 6px 16px rgba(46,125,50,.35);
+      --green-grad:linear-gradient(135deg,#2e7d32,#1b5e20);
     }
-    body {
-      font-family: 'Cairo', Tahoma, Arial, sans-serif;
-      background: transparent !important;
-      min-height: 100vh;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .blur-bg-appointment {
-      position: fixed;
-      top: 0; right: 0; bottom: 0; left: 0;
-      background: url('images/حجز الموعد.png') center center/cover no-repeat;
-      filter: blur(16px) brightness(0.97);
-      opacity: 1;
-      z-index: 0;
-      pointer-events: none;
-    }
-    body > *:not(.blur-bg-appointment) { position: relative; z-index: 1; }
-    .container.header-flex {
-      display: flex; justify-content: space-between; align-items: center;
-      max-width: 1200px; margin: 0 auto; padding: 0 15px;
-    }
-    .logo-container { display: flex; align-items: center; }
-    .logo-img { height: 46px; margin-left: 9px;}
-    nav ul {
-      list-style: none; display: flex; flex-direction: row; align-items: center;
-      gap: 18px; margin: 0; padding: 0; background: transparent;
-    }
-    nav ul li { display: flex; align-items: center; margin: 0; padding: 0; }
-    nav ul li a {
-      color: #181818; text-decoration: none; padding: 7px 14px; font-weight: 700;
-      border-radius: 899px; font-size: 1.05em; transition: 0.3s; background: transparent;
-      display: inline-block; white-space: nowrap;
-    }
-    nav ul li a.active, nav ul li a:hover {
-      background-color: #fffbe7; color: #a8861c; box-shadow: 0 2px 10px #e2be6d23;
-    }
-    .social-icons { display: flex !important; align-items: center; gap: 7px; margin: 0 0 0 6px; }
-    .social-icons .social-icon {
-      font-size: 1.13em; padding: 0 2px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-      width: 30px; height: 30px; background: #fff3ce; transition: background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 6px #e2be6d26; text-decoration: none; color: #b89023; border: 1.2px solid #f9e9c8;
-    }
-    .social-icon:hover { background: #fffbe7; color: #84610f; }
-    @media (max-width: 900px) {
-      .container.header-flex { flex-direction: column; gap: 4px; padding: 2vw 2vw; }
-      nav ul { gap: 6vw !important; justify-content: center; }
-      .logo-img { height: 42px;}
-    }
-    @media (max-width: 650px) {
-      .container.header-flex { flex-direction: column; align-items: stretch; padding: 3vw 0 1vw; max-width: 100vw; min-width: 0; gap: 0; }
-      .logo-container { justify-content: center; margin-bottom: 4px; }
-      nav ul { flex-direction: row !important; justify-content: center; align-items: center; gap: 4vw !important; padding: 0; margin-bottom: 4px; flex-wrap: wrap; }
-      nav ul li { margin: 0; padding: 0; }
-      nav ul li a { font-size: 0.99em; padding: 6px 8px; border-radius: 12px; }
-      .social-icons { gap: 4px !important; margin: 0 0 3px 0; }
-      .social-icons .social-icon { width: 28px; height: 28px; font-size: 1em; padding: 0; }
-    }
-    .appointments-title {
-      text-align: center; margin-top: 30px; color: #a67c0e; font-size: 1.8em; font-weight: bold; letter-spacing: 1.2px;
-      text-shadow: 0 2px 10px #ffe5c699; margin-bottom: 13px; display: flex; align-items: center; justify-content: center; gap: 12px;
-      background: rgba(255, 255, 255, 0.25); border-radius: 18px; width: fit-content; margin-left: auto; margin-right: auto;
-      padding: 8px 20px; box-shadow: 0 2px 12px #e2be6d3a; border: 1.2px solid #e8ca7c99; animation: fadeDown 1s;
-    }
-    .appointments-title .fa-calendar-check { font-size: 1.13em; color: var(--gold-main); filter: drop-shadow(0 1px 10px #e2be6d2b); }
-    .tr-hint {
-      font-size: 1em; color: #a5946b; text-align: center; margin: 8px 0 -7px 0; letter-spacing: 0.4px; display: block; font-style: italic; background: transparent;
-    }
-    .appointments-table-container {
-      width: 100%; max-width: 520px; margin: 28px auto 20px; background: var(--gold-light);
-      border-radius: 21px; box-shadow: var(--gold-shadow); padding: 25px 16px 29px; overflow-x: auto; min-height: 150px;
-      border: 1.3px solid #e8ca7c60; position: relative; animation: fadeUp 1.1s;
-    }
-    #bookingForm label {
-      font-weight: bold; margin-bottom: 6px; margin-top: 13px; display: block; color: #b18836; letter-spacing: 1px; font-size: 1.12em; transition: color 0.25s; user-select: none;
-    }
-    #bookingForm input[type="text"], #bookingForm select {
-      width: 100%; padding: 13px 11px; border-radius: 14px; border: 1.4px solid #e2be6d99; background: #fffdfa; font-size: 1.09em;
-      margin-bottom: 6px; margin-top: 3px; box-sizing: border-box; color: #523d1f; box-shadow: 0 2px 13px #e2be6d0c inset; transition: border 0.23s, box-shadow 0.23s; outline: none;
-    }
-    #bookingForm input[type="text"]:focus, #bookingForm select:focus {
-      border: 1.7px solid #e2be6d; background: #fff9e0; box-shadow: 0 2px 18px #e2be6d24;
-    }
-    #bookingForm select {
-      appearance: none; -webkit-appearance: none; -moz-appearance: none;
-      background: var(--gold-gradient); color: #805500; font-weight: bold; border: 2px solid #e2be6d;
-      box-shadow: 0 3px 13px #e2be6d18 inset; padding-right: 35px !important; background-position: left 1.3em center; background-repeat: no-repeat;
-      position: relative; cursor: pointer; margin-bottom: 13px;
-    }
-    #bookingForm select:disabled { background: #ececec; color: #b5a97a; font-weight: normal; cursor: not-allowed; }
-    #fetchTimesBtn, #bookBtn {
-      padding: 13px 0; background: var(--gold-gradient); color: #fff; border: none; border-radius: 17px; font-weight: bold; font-size: 1.18em;
-      margin-top: 10px; cursor: pointer; box-shadow: 0 1px 15px #e2be6d1c; transition: background 0.18s, transform 0.15s, box-shadow 0.18s; margin-bottom: 7px; display: block; width: 100%; letter-spacing: 1.1px;
-    }
-    #fetchTimesBtn:hover, #bookBtn:hover {
-      background: linear-gradient(90deg, #f9dc8c 0%, #e8ca7c 100%); color: #805500; box-shadow: 0 2px 23px #e2be6d39; transform: translateY(-1px) scale(1.01);
-    }
-    #fetchTimesBtn:active, #bookBtn:active { transform: scale(0.98);}
-    #fetchTimesBtn:disabled, #bookBtn:disabled { opacity: 0.7; cursor: not-allowed; }
-    #result { margin: 22px 0 7px; font-size: 1.13em; color: #8a7c54; text-align: center; min-height: 28px; }
-    @media (max-width: 650px) {
-      .appointments-table-container { padding: 7px 1vw 13px 1vw; border-radius: 13px; max-width: 99vw;}
-      .appointments-title { font-size: 1.13em !important; padding: 5px 4vw !important;}
-      #bookingForm input[type="text"], #bookingForm select { font-size: 0.98em; }
-    }
-    footer {
-      background: rgba(255,255,255,0.219) !important; color: #8c6d1c !important; text-align: center; font-size: 1em; font-weight: bold;
-      border-top: 1.5px solid #eee; letter-spacing: 0.6px; padding: 12px 0 9px; margin-top: auto; box-shadow: 0 -2px 12px #e2be6d54;
-    }
+    body{ font-family:'Cairo', Tahoma, Arial, sans-serif; margin:0; min-height:100vh; display:flex; flex-direction:column; background:#fffdfa; }
+    .wrap{ max-width:540px; margin:26px auto; background:#fff; border:1px solid #e8ca7c80; border-radius:18px; box-shadow:var(--gold-shadow); padding:18px; }
+    .title{ display:flex; align-items:center; gap:10px; justify-content:center; font-weight:800; color:#a67c0e; margin:6px 0 14px; }
+    label{ display:block; font-weight:700; color:#b18836; margin:.5rem 0 .3rem; }
+    input, select, textarea{ width:100%; padding:12px 11px; border-radius:14px; border:1.4px solid #e2be6d99; background:#fffdfa; font-size:1rem; }
+    textarea{ min-height:88px; resize:vertical; }
+    input:focus, select:focus, textarea:focus{ border:1.7px solid #e2be6d; background:#fff9e0; outline:none; }
+    .btn{ width:100%; padding:13px 0; border:none; border-radius:16px; font-weight:800; background:var(--gold-gradient); color:#6b4b00; cursor:pointer; box-shadow:0 6px 16px #e2be6d33; transition:.2s ease; }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+    .muted{ color:#7a6d4e; font-size:.95rem; text-align:center; min-height:22px; margin-top:8px; }
+    .row{ display:flex; gap:8px; } .row > *{ flex:1; }
+    footer{ margin-top:auto; text-align:center; padding:10px; color:#8c6d1c; font-weight:700; background:rgba(255,255,255,0.219); border-top:1.5px solid #eee; letter-spacing:.6px; box-shadow:0 -2px 12px #e2be6d54; }
 
-    /* بسيطة للأنيميشن المذكورة */
-    @keyframes fadeDown { from {opacity: 0; transform: translateY(-8px)} to {opacity:1; transform: translateY(0)} }
-    @keyframes fadeUp { from {opacity: 0; transform: translateY(8px)} to {opacity:1; transform: translateY(0)} }
+    .blur-bg-appointment{ position: fixed; inset: 0; background: url('images/حجز الموعد.png') center/cover no-repeat; filter: blur(16px) brightness(0.97); opacity: 1; z-index: 0; pointer-events: none; }
+    body > *:not(.blur-bg-appointment){ position: relative; z-index: 1; }
+
+    header{ backdrop-filter: blur(6px); background: rgba(255,255,255,0.7); border-bottom: 1px solid #f1e4c5; box-shadow: 0 6px 24px #e2be6d26; position: sticky; top: 0; z-index: 5; }
+    .container.header-flex{ display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:0 auto; padding:10px 16px; }
+    .logo-container{ display:flex; align-items:center; gap:10px; }
+    .logo-img{ height:46px; margin-left:9px; }
+    header nav ul{ list-style:none; display:flex !important; flex-direction:row !important; align-items:center; gap:18px; margin:0; padding:0; background:transparent; flex-wrap:wrap; justify-content:center; }
+    header nav ul li{ display:flex; align-items:center; margin:0; padding:0; }
+    header nav ul li a{ color:#181818; text-decoration:none; padding:7px 14px; font-weight:700; border-radius:999px; font-size:1.05em; transition:.25s; background:transparent; display:inline-block; white-space:nowrap; }
+    header nav ul li a.active, header nav ul li a:hover{ background-color:#fffbe7; color:#a8861c; box-shadow:0 2px 10px #e2be6d23; }
+
+    .social-icons{ display:flex !important; align-items:center; gap:8px; margin-inline-start:8px; flex-wrap:nowrap; }
+    .social-icons .social-icon{ font-size:1.1em; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#fff3ce; color:#b89023; text-decoration:none; border:1.2px solid #f9e9c8; box-shadow:0 1px 6px #e2be6d26; transition:.2s; }
+    .social-icons .social-icon:hover{ background:#fffbe7; color:#84610f; transform: translateY(-1px); }
+
+    .screen-loader{ position: fixed; inset:0; display:none; align-items:center; justify-content:center; background: rgba(255,255,255,0.55); backdrop-filter: blur(3px); z-index: 9999; transition: opacity .2s ease; }
+    .screen-loader.show{ display:flex; }
+    .spinner{ width: 70px; height: 70px; border-radius: 50%; border: 4px solid #e9d9ac; border-top-color: var(--gold-main); animation: spin 0.9s linear infinite; box-shadow: 0 8px 28px #e2be6d55; }
+    @keyframes spin { to { transform: rotate(360deg);} }
+
+    .btn-hours{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:14px; border:none; font-weight:800; cursor:pointer; background: var(--green-grad); color:#fff; box-shadow: var(--green-shadow); animation: breathe 1.8s ease-in-out infinite; }
+    .btn-hours i{ font-size:1.05em; }
+    @keyframes breathe{ 0%{ transform:scale(1); box-shadow:var(--green-shadow); } 50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(27,94,32,.55); } 100%{ transform:scale(1); box-shadow:var(--green-shadow); } }
+
+    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease; }
+    .btn-glass:hover{ background:#cb9816; color:#ffffff; border-color:#111111; transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.12); }
+    .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); }
+
+    .clinic-note{ display:none; margin:8px 0 0; color:#7a5d16; background:#fff9e8; border:1px dashed #e8ca7c; border-radius:12px; padding:10px 12px; font-weight:700; text-align:right; }
+
+    .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
+    .hours-table th,  .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
+    .hours-table th{ background:#2e7d32; color:#fff; }
+
+    .note-wrap{ display:none; margin-top:10px; }
+
+    .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+    .chip{
+      border:1.5px solid #d4b05f; background:#fff; color:#7a5d16; padding:8px 12px; border-radius:999px;
+      font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.06);
+      transition:.15s ease; user-select:none;
+    }
+    .chip small{ font-weight:700; opacity:.8; margin-inline-start:6px; }
+    .chip:hover{ transform:translateY(-1px); }
+    .chip.selected{ background:#1b1b1b; color:#fff; border-color:#111; }
+    .chip.selected::after{ content:"✔"; margin-inline-start:6px; font-weight:900; }
   </style>
 </head>
 <body>
+
   <div class="blur-bg-appointment" aria-hidden="true"></div>
+
+  <div id="screenLoader" class="screen-loader" aria-live="polite" aria-busy="true">
+    <div class="spinner" role="status" aria-label="جاري التحميل"></div>
+  </div>
 
   <header>
     <div class="container header-flex">
@@ -544,9 +102,9 @@ app.listen(PORT, '0.0.0.0', () => {
           <li><a href="contact.html">اتصل بنا</a></li>
           <li>
             <div class="social-icons">
-              <a href="https://wa.me/966531422555" target="_blank" rel="noopener" title="واتساب" class="social-icon wa" aria-label="واتساب"><i class="fab fa-whatsapp"></i></a>
-              <a href="https://www.instagram.com/phoenix.shq/" target="_blank" rel="noopener" title="انستقرام" class="social-icon insta" aria-label="إنستقرام"><i class="fab fa-instagram"></i></a>
-              <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" rel="noopener" title="سناب شات" class="social-icon snap" aria-label="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+              <a href="https://wa.me/966531422555" target="_blank" rel="noopener" title="واتساب" class="social-icon" aria-label="واتساب"><i class="fab fa-whatsapp"></i></a>
+              <a href="https://www.instagram.com/phoenix.shq/" target="_blank" rel="noopener" title="إنستقرام" class="social-icon" aria-label="إنستقرام"><i class="fab fa-instagram"></i></a>
+              <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" rel="noopener" title="سناب شات" class="social-icon" aria-label="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
             </div>
           </li>
         </ul>
@@ -554,153 +112,544 @@ app.listen(PORT, '0.0.0.0', () => {
     </div>
   </header>
 
-  <div class="appointments-title">
-    <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>
-    حجز موعد مباشر
-  </div>
-  <span class="tr-hint">املأ بياناتك واختر العيادة والشهر ثم اضغط بحث لجلب المواعيد المتاحة.</span>
+  <section id="loginSection" class="wrap">
+    <div class="title"><i class="fa fa-user-check"></i> تسجيل الدخول</div>
 
-  <div class="appointments-table-container" id="appointmentsTableWrap">
-    <form id="bookingForm" style="max-width: 420px; margin:0 auto;" novalidate>
-      <label for="name">اسم المريض:</label>
-      <input type="text" id="name" name="name" required placeholder="اكتب الاسم الثلاثي" autocomplete="name" inputmode="text" />
+    <label for="identity">رقم الهوية / الإقامة</label>
+    <input id="identity" type="text" placeholder="مثال: 1234567890" inputmode="numeric" maxlength="10" autocomplete="off">
 
-      <label for="phone">رقم الجوال:</label>
-      <input type="text" id="phone" name="phone" required placeholder="مثال: 05xxxxxxxx" autocomplete="tel" inputmode="numeric" />
+    <label for="mobile">رقم الجوال</label>
+    <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
 
-      <label for="clinic">اختر العيادة:</label>
-      <select id="clinic" name="clinic" required>
-        <option value="">اختر العيادة</option>
-        <option value="عيادة اسنان 5**الفترة الاولى">عيادة اسنان 5 الفترة الصباحية</option>
-        <option value="عيادة اسنان 5**الفترة الثانية">عيادة اسنان 5 الفترة المسائية</option>
-        <option value="عيادة الاسنان 1**الفترة الاولى">عيادة الاسنان 1 الفترة الصباحية</option>
-        <option value="عيادة الاسنان 1**الفترة الثانية">عيادة الاسنان 1 الفترة المسائية</option>
-        <option value="عيادة الاسنان 2**الفترة الاولى">عيادة الاسنان 2 الفترة الصباحية</option>
-        <option value="عيادة الاسنان 2**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية</option>
-        <option value="عيادة الاسنان 3**الفترة الاولى">عيادة الاسنان 3 الفترة الصباحية</option>
-        <option value="عيادة الاسنان 3**الفترة الثانية">عيادة الاسنان 3 الفترة المسائية</option>
-        <option value="عيادة الاسنان 4**الفترة الاولى">عيادة الاسنان 4 الفترة الصباحية</option>
-        <option value="عيادة الاسنان 4**الفترة الثانية">عيادة الاسنان 4 الفترة المسائية</option>
-        <option value="عيادة التشقير**الفترة الاولى">عيادة التشقير الفترة الصباحية</option>
-        <option value="عيادة التشقير**الفترة الثانية">عيادة التشقير الفترة المسائية</option>
-        <option value="عيادة الجلدية والتجميل**الفترة الاولى">عيادة الجلدية والتجميل الفترة الصباحية</option>
-        <option value="عيادة الجلدية والتجميل**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
-        <option value="عيادة الليزر (1)**الفترة الاولى">عيادة الليزر (1) الفترة الصباحية</option>
-        <option value="عيادة الليزر (1)**الفترة الثانية">عيادة الليزر (1) الفترة المسائية</option>
-        <option value="عيادة الليزر (2)**الفترة الاولى">عيادة الليزر (2) الفترة الصباحية</option>
-        <option value="عيادة الليزر (2)**الفترة الثانية">عيادة الليزر (2) الفترة المسائية</option>
-        <option value="عيادة تنظيف البشرة**الفترة الاولى">عيادة تنظيف البشرة الفترة الصباحية</option>
-        <option value="عيادة تنظيف البشرة**الفترة الثانية">عيادة تنظيف البشرة الفترة المسائية</option>
-        <option value="النساء و الولادة**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
-        <option value="النساء و الولادة**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
-      </select>
+    <p style="color:#b00020; font-weight:bold; margin:12px 0; text-align:center;">
+      🔔تنبيه: عيادة الليزر متاحة فقط للحجز في المجمع.
+    </p>
 
-      <label for="month">اختر الشهر:</label>
-      <select id="month" name="month" required>
-        <option value="">اختر الشهر</option>
-        <option value="8">أغسطس</option>
-        <option value="9">سبتمبر</option>
-        <option value="10">أكتوبر</option>
-        <option value="11">نوفمبر</option>
-        <option value="12">ديسمبر</option>
-      </select>
+    <div id="otpGroup" style="display:none;">
+      <label for="otp">رمز التحقق (واتساب)</label>
+      <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+      <div class="row" style="margin-top:8px;">
+        <button id="resendOtp" class="btn btn-glass" type="button" style="display:none;">إعادة الإرسال</button>
+      </div>
+      <div id="otpTimer" class="muted"></div>
+    </div>
 
-      <button type="button" id="fetchTimesBtn" aria-live="polite">بحث عن المواعيد</button>
+    <div class="row" style="margin-top:8px;">
+      <button id="sendOtp" class="btn btn-glass" type="button" style="display:none;">إرسال كود واتساب</button>
+      <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
+    </div>
 
-      <label for="time" style="margin-top:15px;">اختر الوقت:</label>
-      <select id="time" name="time" required disabled>
-        <option value="">يرجى اختيار العيادة والشهر ثم الضغط بحث</option>
-      </select>
+    <div id="loginMsg" class="muted"></div>
 
-      <button type="submit" style="margin-top:20px;" id="bookBtn" disabled>احجز الآن</button>
-      <div id="result" role="status" aria-live="polite"></div>
-    </form>
-  </div>
+    <p class="muted" style="margin-top:10px;">
+      لا تملك ملفًا؟
+      <button class="btn btn-glass" id="openNewFileBtn" type="button" style="padding:9px 12px;width:auto;">افتح ملف جديد</button>
+    </p>
+  </section>
 
-  <footer>
-    جميع الحقوق محفوظة © مجمع فينكس الطبي 2025
-  </footer>
+  <section id="bookingSection" class="wrap" style="display:none;">
+    <div class="title"><i class="fa-solid fa-calendar-check"></i> الحجز</div>
 
-  <script>
-    const resultEl = document.getElementById('result');
-    const fetchBtn = document.getElementById('fetchTimesBtn');
-    const timeSelect = document.getElementById('time');
-    const bookBtn = document.getElementById('bookBtn');
+    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
+      <button id="toggleHours" type="button" class="btn-hours">
+        <i class="fa-solid fa-clock"></i> عرض ساعات العمل
+      </button>
+    </div>
 
-    document.getElementById('fetchTimesBtn').addEventListener('click', updateTimes);
+    <label for="clinic">اختر العيادة</label>
+    <select id="clinic">
+      <option value="">اختر العيادة</option>
+      <option value="عيادة الاسنان 5 (NO.103)**الفترة الثانية">عيادة اسنان 5 الفترة المسائية(د.معاذ)</option>
+      <option value="عيادة الاسنان 1 (NO.100)**الفترة الاولى">عيادة الاسنان 1 الفترة الصباحية(د.عبير)</option>
+      <option value="عيادة الاسنان 1 (NO.100)**الفترة الثانية">عيادة الاسنان 1 الفترة المسائية(د.عبير)</option>
+      <option value="عيادة الاسنان 2 (NO.101)**الفترة الاولى">عيادة الاسنان 2 الفترة الصباحية(د.ريان)</option>
+      <option value="عيادة الاسنان 2 (NO.101)**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية(د.ريان)</option>
 
-    function validSaudi(phone) {
-      const digits = (phone || '').replace(/[^0-9]/g,'');
-      return /^05\d{8}$/.test(digits) || /^5\d{8}$/.test(digits) || /^9665\d{8}$/.test(digits);
-    }
+      <option value="عيادة الاسنان 4 (NO.102)**الفترة الثانية">عيادة الاسنان 4 الفترة المسائية(د.رونالدو)</option>
+      <option value="عيادة الجلدية والتجميل (NO.200)**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
+      <option value="تشقير وتنظيف البشرة**الفترة الثانية">عيادة التشقير و تنظيف البشرة الفترة المسائية</option>
+      <option value="النساء و الولادة (NO.400)**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
+      <option value="النساء و الولادة (NO.400)**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
+    </select>
 
-    async function updateTimes() {
-      const clinic = document.getElementById('clinic').value;
-      const month  = document.getElementById('month').value;
+    <div id="dermNote" class="clinic-note">
+      تتضمن الخدمة تقشير وجه نصف ساعة + تشقير حواجب نصف ساعة + تنظيف البشرة نصف ساعة — المدة ساعة
+    </div>
 
-      timeSelect.disabled = true;
-      bookBtn.disabled = true;
-      resultEl.textContent = '';
+    <div id="skinServices" style="display:none;margin-top:8px;">
+      <label>الخدمة المختارة</label>
+      <div class="chips" id="chipsWrap">
+        <button type="button" class="chip" data-key="brows"  data-min="30">تشقير حواجب <small>30د</small></button>
+        <button type="button" class="chip" data-key="face"   data-min="30">تشقير وجه <small>30د</small></button>
+        <button type="button" class="chip" data-key="clean"  data-min="60">تنظيف البشرة بدون ماسك <small>60د</small></button>
+        <button type="button" class="chip" data-key="carbon" data-min="30">ليزر كربوني <small>30د</small></button>
+        <button type="button" class="chip" data-key="mask"   data-min="75">تنظيف البشرة مع ماسك <small>75د</small></button>
+      </div>
+      <div id="svcHint" class="muted" style="text-align:right;margin-top:6px"></div>
+    </div>
 
-      if (clinic && month) {
-        timeSelect.innerHTML = "<option>...يتم جلب الأوقات الآن...</option>";
-        try {
-          const res = await fetch('/api/times', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ clinic, month })
-          });
-          const data = await res.json();
-          if (data.times && data.times.length) {
-            timeSelect.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
-            timeSelect.disabled = false;
-            bookBtn.disabled = false;
-          } else {
-            timeSelect.innerHTML = "<option value=''>لا توجد أوقات متاحة</option>";
-            timeSelect.disabled = true;
-            bookBtn.disabled = true;
-            resultEl.textContent = 'لا توجد أوقات متاحة حالياً.';
-          }
-        } catch (e) {
-          timeSelect.innerHTML = "<option value=''>حدث خطأ أثناء جلب الأوقات</option>";
-          timeSelect.disabled = true;
-          bookBtn.disabled = true;
-          resultEl.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
-        }
-      } else {
-        timeSelect.innerHTML = "<option value=''>يرجى اختيار العيادة والشهر أولاً</option>";
-        timeSelect.disabled = true;
-        bookBtn.disabled = true;
+    <div id="noteWrap" class="note-wrap">
+      <label for="note">نوع الخدمة / ملاحظة</label>
+      <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
+    </div>
+
+    <label for="month" style="margin-top:10px;">اختر الشهر</label>
+    <select id="month">
+      <option value="">اختر الشهر</option>
+      <option value="10">أكتوبر</option>
+      <option value="11">نوفمبر</option>
+      <option value="12">ديسمبر</option>
+    </select>
+
+    <button id="fetchBtn" class="btn btn-glass" style="margin-top:10px;">عرض المواعيد</button>
+
+    <label for="time" style="margin-top:14px;">اختر الوقت</label>
+    <select id="time" disabled>
+      <option value="">يرجى البحث أولاً</option>
+    </select>
+
+    <button id="bookNowBtn" class="btn btn-glass" style="margin-top:12px;" disabled>تأكيد الحجز</button>
+
+    <div id="bkMsg" class="muted"></div>
+  </section>
+
+  <section id="hoursSection" class="wrap" style="display:none;">
+    <div class="title"><i class="fa-solid fa-clock"></i> ساعات العمل</div>
+
+    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
+      <button id="toggleBooking" type="button" class="btn-hours">
+        <i class="fa-solid fa-calendar-check"></i> عرض الحجز
+      </button>
+    </div>
+
+    <div class="hours-table-wrap">
+      <table class="hours-table">
+        <thead>
+          <tr>
+            <th>القسم / الطبيب</th>
+            <th>الأيام</th>
+            <th>الفترة الصباحية</th>
+            <th>الفترة المسائية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>عيادة الأسنان 1 (د. عبير)</td><td>السبت - الخميس</td><td>9:00 ص – 12:00 م</td><td>4:00 م – 9:00 م</td></tr>
+          <tr><td>عيادة الأسنان 2 (د. ريان)</td><td>السبت - الخميس</td><td>8:00 ص – 11:00 ص</td><td>4:00 م – 9:00 م</td></tr>
+          <tr><td>عيادة الأسنان 3 (د. معاذ)</td><td>السبت - الخميس</td><td>12:00 م – 8:00 م</td><td>-</td></tr>
+          <tr><td>عيادة الأسنان 4 (د. رونالدو)</td><td>السبت - الخميس</td><td>2:00 م – 10:00 م</td><td>-</td></tr>
+          <tr><td>عيادة الجلدية والتجميل (د. ولاء)</td><td>الأحد - الخميس</td><td>-</td><td>3:30 م – 10:30 م</td></tr>
+          <tr><td>التشقير وتنظيف البشرة (أخصائية هدى)</td><td>السبت - الخميس</td><td>-</td><td>2:00 م – 10:00 م</td></tr>
+          <tr><td>عيادة الطب العام والطوارئ (د. هنادي)</td><td>السبت - الخميس</td><td>10:00 ص – 12:00 م</td><td>4:00 م – 10:00 م</td></tr>
+          <tr><td>عيادة النساء والولادة (د. حسناء)</td><td>السبت - الخميس</td><td>10:00 ص – 12:00 م</td><td>4:00 م – 10:00 م</td></tr>
+          <tr><td>عيادة الليزر (نساء) 1</td><td>السبت - الخميس</td><td>8:00 ص – 11:00 م</td><td>-</td></tr>
+          <tr><td>عيادة الليزر (نساء) 2</td><td>السبت - الخميس</td><td>8:00 ص – 11:00 م</td><td>-</td></tr>
+          <tr><td>عيادة الليزر (رجال)</td><td>السبت - الخميس</td><td>9:00 ص – 2:00 م</td><td></td></tr>
+          <tr><td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
+            يوم الجمعة: طبيب أسنان مناوب، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة حسب التوفر 2:00 م – 10:00 م.
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
+
+<script>
+  // ===== Helpers =====
+  const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
+
+  // ===== عناصر تسجيل الدخول =====
+  const sendOtpBtn = document.getElementById('sendOtp');
+  const resendOtpBtn = document.getElementById('resendOtp');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginMsg = document.getElementById('loginMsg');
+  const identity = document.getElementById('identity');
+  const mobile = document.getElementById('mobile');
+  const otpInput = document.getElementById('otp');
+  const otpGroup = document.getElementById('otpGroup');
+  const otpTimerEl = document.getElementById('otpTimer');
+  const screenLoader = document.getElementById('screenLoader');
+
+  const showLoader = (on)=> {
+    if(on){ screenLoader.classList.add('show'); document.body.style.pointerEvents='none'; }
+    else { screenLoader.classList.remove('show'); document.body.style.pointerEvents='auto'; }
+  };
+
+  let otpCooldown = 0, otpTimer = null;
+  function formatSecs(s){ return s + 'ث'; }
+
+  function startOtpTimer(startFrom=60){
+    otpCooldown = startFrom;
+    resendOtpBtn.style.display = 'none';
+    otpTimerEl.textContent = 'سيصل الكود خلال لحظات — يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
+    otpTimer && clearInterval(otpTimer);
+    otpTimer = setInterval(()=>{
+      otpCooldown--;
+      if(otpCooldown<=0){
+        clearInterval(otpTimer); otpTimer=null;
+        otpTimerEl.textContent = 'انتهى الوقت. يمكنك إعادة الإرسال.';
+        resendOtpBtn.style.display = '';
+        resendOtpBtn.disabled = false;
+      }else{
+        otpTimerEl.textContent = 'يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
       }
+    },1000);
+  }
+
+  function updateLoginBtn(){
+    const phoneOK = isSaudi05(mobile.value);
+    sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
+
+    const idDigits = (identity.value||'').replace(/\D/g,'');
+    const okId = idDigits.length >= 9;
+    const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
+    const ok = okId && phoneOK && okOtp;
+
+    loginBtn.disabled = !ok;
+    loginMsg.textContent = ok ? '' : 'أدخل رقم الهوية/الإقامة، رقم 05xxxxxxxx، وكود 6 أرقام.';
+  }
+
+  ['input','change','keyup'].forEach(ev=>{
+    identity.addEventListener(ev, updateLoginBtn);
+    mobile.addEventListener(ev, updateLoginBtn);
+    otpInput.addEventListener(ev, updateLoginBtn);
+  });
+  updateLoginBtn();
+
+  // ===== إرسال كود واتساب → /send-otp =====
+  async function sendOtp(phone){
+    loginMsg.textContent = 'جاري إرسال الكود...';
+    showLoader(true);
+    try{
+      const r = await fetch('/send-otp', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phone })
+      });
+      const data = await r.json();
+      if (data.success) {
+        loginMsg.textContent = 'تم إرسال الكود على الواتساب';
+        startOtpTimer(60);
+        return true;
+      } else {
+        if (typeof data.retryAfter !== 'undefined'){
+          const secs = Number(data.retryAfter)||60;
+          loginMsg.textContent = 'يرجى الانتظار ' + secs + 'ث قبل إعادة الإرسال.';
+          startOtpTimer(secs);
+        } else {
+          loginMsg.textContent = data.message || 'تعذر الإرسال';
+        }
+        return false;
+      }
+    }catch{
+      loginMsg.textContent = 'تعذر الاتصال بالخادم';
+      return false;
+    }finally{
+      showLoader(false);
+    }
+  }
+
+  sendOtpBtn.addEventListener('click', async ()=>{
+    const phone = mobile.value.trim();
+    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
+    sendOtpBtn.style.display = 'none';
+    otpGroup.style.display = '';
+    otpInput.value = '';
+    updateLoginBtn();
+    await sendOtp(phone);
+  });
+
+  resendOtpBtn.addEventListener('click', async ()=>{
+    const phone = mobile.value.trim();
+    if(!isSaudi05(phone)) return;
+    resendOtpBtn.disabled = true;
+    const ok = await sendOtp(phone);
+    if(!ok) resendOtpBtn.disabled = false;
+  });
+
+  document.getElementById('openNewFileBtn').addEventListener('click', ()=>{
+    if ((identity.value||'').trim()) localStorage.setItem('auth_identity', (identity.value||'').trim());
+    if (isSaudi05(mobile.value))     localStorage.setItem('auth_phone', mobile.value.trim());
+    window.location.href = 'new-file.html';
+  });
+
+  // ===== تسجيل الدخول (التحقق النهائي) → /api/login =====
+  loginBtn.addEventListener('click', async ()=>{
+    loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
+    loginMsg.textContent = 'جارِ التحقق...';
+    const payload = {
+      identity: (identity.value||'').trim(),
+      phone: (mobile.value||'').trim(),
+      otp: (otpInput.value||'').trim()
+    };
+    showLoader(true);
+    try{
+      const r = await fetch('/api/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await r.json();
+
+      if(!data.success){
+        loginMsg.textContent = data.message || 'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).';
+        loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
+        return;
+      }
+
+      localStorage.setItem('auth_identity', payload.identity);
+      localStorage.setItem('auth_phone', payload.phone);
+      localStorage.setItem('auth_fileId', data.fileId || '');
+
+      if (data.hasIdentity === false) {
+        loginMsg.textContent = 'نحتاج استكمال الهوية قبل الحجز...';
+        setTimeout(()=>{ window.location.href = 'identity.html'; }, 500);
+        return;
+      }
+
+      loginMsg.textContent = '';
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('bookingSection').style.display = '';
+      window.scrollTo({top:0, behavior:'smooth'});
+      applyClinicFilter();
+    }catch(e){
+      loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
+      loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
+    }finally{
+      showLoader(false);
+    }
+  });
+
+  // ===== عناصر الحجز =====
+  const fetchBtn   = document.getElementById('fetchBtn');
+  const timeSel    = document.getElementById('time');
+  const bookNowBtn = document.getElementById('bookNowBtn');
+  const bkMsg      = document.getElementById('bkMsg');
+  const clinicSel  = document.getElementById('clinic');
+  const monthSel   = document.getElementById('month');
+  const dermNote   = document.getElementById('dermNote');
+  const noteWrap   = document.getElementById('noteWrap');
+  const noteInput  = document.getElementById('note');
+
+  const skinServices = document.getElementById('skinServices');
+  const svcHint      = document.getElementById('svcHint');
+  const chipsWrap    = document.getElementById('chipsWrap');
+
+  function getSvcMinutes(){
+    const sel = Array.from(chipsWrap.querySelectorAll('.chip.selected')).map(b=>+b.dataset.min);
+    if (!sel.length) return 30;
+    if (sel.includes(75)) return 75;
+    if (sel.includes(60)) return 60;
+    const sum30 = sel.filter(v=>v===30).reduce((a,b)=>a+b,0);
+    return Math.max(sum30, 30);
+  }
+  function isSkinClinicValue(v){
+    return /تشقير|تنظيف.?البشرة/i.test(String(v||''));
+  }
+
+  chipsWrap.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.chip'); if(!btn) return;
+    const key = btn.dataset.key;
+
+    if (key==='brows' || key==='face') {
+      btn.classList.toggle('selected');
+      const anyLong = chipsWrap.querySelector('.chip[data-key="clean"].selected, .chip[data-key="carbon"].selected, .chip[data-key="mask"].selected');
+      if (anyLong) {
+        chipsWrap.querySelectorAll('.chip[data-key="brows"], .chip[data-key="face"]').forEach(c=>c.classList.remove('selected'));
+      }
+    } else {
+      chipsWrap.querySelectorAll('.chip').forEach(c=>c.classList.remove('selected'));
+      btn.classList.add('selected');
     }
 
-    document.getElementById('bookingForm').addEventListener('submit', function(e){
-      e.preventDefault();
+    const m = getSvcMinutes();
+    svcHint.textContent = `المدة المطلوبة: ${m} دقيقة`;
+  });
 
-      const name   = document.getElementById('name').value.trim();
-      const phone  = document.getElementById('phone').value.trim();
-      const clinic = document.getElementById('clinic').value;
-      const month  = document.getElementById('month').value;
-      const time   = document.getElementById('time').value;
+  function snapshotPendingForSuccess(){
+    localStorage.setItem('pending_identity', localStorage.getItem('auth_identity') || '');
+    localStorage.setItem('pending_phone',    localStorage.getItem('auth_phone')    || '');
+    localStorage.setItem('pending_clinic', clinicSel.value);
+    localStorage.setItem('pending_clinic_label', clinicSel.selectedOptions[0]?.text || clinicSel.value || '');
+    localStorage.setItem('pending_month', monthSel.value);
+    localStorage.setItem('pending_time', timeSel.value);
+    localStorage.setItem('pending_note', (noteInput.value || '').trim());
+  }
 
-      if (!name) { resultEl.textContent = 'يرجى كتابة الاسم.'; return; }
-      if (!validSaudi(phone)) { resultEl.textContent = 'يرجى إدخال رقم جوال سعودي صحيح.'; return; }
-      if (!clinic || !month || !time) { resultEl.textContent = 'يرجى اختيار العيادة والشهر والوقت.'; return; }
+  function resetTimes(trigger=''){
+    timeSel.innerHTML = `<option value="">يرجى الضغط على "عرض المواعيد" بعد التغيير</option>`;
+    timeSel.disabled = true;
+    bookNowBtn.disabled = true;
+    bkMsg.textContent = trigger === 'clinic'
+      ? 'تم تغيير العيادة — اعرض المواعيد من جديد.'
+      : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
+  }
 
-      // حفظ نص العيادة الظاهر
-      const clinicSelect = document.getElementById('clinic');
-      const clinicLabel  = clinicSelect.options[clinicSelect.selectedIndex].text;
-      localStorage.setItem('pending_clinic_label', clinicLabel);
+  clinicSel.addEventListener('change', ()=>{
+    const v = clinicSel.value || '';
+    const isSkin = isSkinClinicValue(v);
+    dermNote.style.display   = isSkin ? 'block' : 'none';
+    skinServices.style.display = isSkin ? 'block' : 'none';
+    noteWrap.style.display   = v ? 'block' : 'none';
+    resetTimes('clinic');
+  });
 
-      // حفظ البيانات إلى confirm.html
-      localStorage.setItem('pending_name', name);
-      localStorage.setItem('pending_phone', phone);
-      localStorage.setItem('pending_clinic', clinic);
-      localStorage.setItem('pending_month', month);
-      localStorage.setItem('pending_time', time);
+  monthSel.addEventListener('change', ()=> resetTimes('month'));
 
-      window.location.href = "confirm.html";
-    });
-  </script>
+  // اسم الشهر (نص)
+  function getSelectedMonthLabel(){
+    return monthSel.selectedOptions[0]?.text?.trim() || monthSel.value || '';
+  }
+
+  // جلب الأوقات
+  fetchBtn.addEventListener('click', async () => {
+    const clinic = clinicSel.value;
+    const month  = monthSel.value;
+
+    bkMsg.textContent = '';
+    timeSel.disabled = true;
+    bookNowBtn.disabled = true;
+    timeSel.innerHTML = `<option>...جاري جلب الأوقات...</option>`;
+
+    if (!clinic || !month) {
+      timeSel.innerHTML = `<option value="">يرجى اختيار العيادة والشهر</option>`;
+      return;
+    }
+
+    // (حاليًا السيرفر يتجاهل needChainMin، لكن لا تضر)
+    const needChainMin = isSkinClinicValue(clinic) ? getSvcMinutes() : 30;
+
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    showLoader(true);
+
+    try {
+      const r = await fetch('/api/times', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ clinic, month, needChainMin })
+      });
+      const data = await r.json();
+
+      if (data.times && data.times.length) {
+        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+        timeSel.disabled = false;
+        bookNowBtn.disabled = false;
+      } else {
+        timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
+        bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
+      }
+    } catch {
+      timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
+      bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
+    } finally {
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      showLoader(false);
+    }
+  });
+
+  // ===== الحجز → /api/book =====
+  bookNowBtn.addEventListener('click', async () => {
+    const clinic = clinicSel.value;
+    const monthVal  = monthSel.value;
+    const monthLabel = getSelectedMonthLabel();
+    const time   = timeSel.value;
+    const identityVal = localStorage.getItem('auth_identity') || '';
+    const phone  = localStorage.getItem('auth_phone') || '';
+    const note   = (noteInput.value || '').trim();
+
+    if (!clinic || !monthVal || !time || !identityVal || !phone) {
+      bkMsg.textContent = 'الرجاء استكمال العيادة والشهر والوقت وتسجيل الدخول.';
+      return;
+    }
+
+    snapshotPendingForSuccess();
+
+    bookNowBtn.disabled = true;
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    timeSel.disabled = true;
+    showLoader(true);
+    bkMsg.textContent = 'جاري تأكيد الحجز...';
+
+    const body = {
+      identity: identityVal,
+      name: '', // الخادم يعتمد على الهوية
+      phone,
+      clinic,
+      month: monthLabel || monthVal,
+      time,     // مثال "YYYY-MM-DD*HH:MM"
+      note
+    };
+
+    try {
+      const res = await fetch('/api/book', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      const data = await res.json().catch(()=>({}));
+
+      const msg = (data && data.msg) ? String(data.msg) : 'تم الحجز بنجاح';
+      localStorage.setItem('booking_result_msg', msg);
+      window.location.href = 'success.html';
+    } catch (e) {
+      bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
+      bookNowBtn.disabled = false;
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      timeSel.disabled = false;
+    } finally {
+      showLoader(false);
+    }
+  });
+
+  // ===== تبديل العرض =====
+  const bookingSection = document.getElementById('bookingSection');
+  const hoursSection = document.getElementById('hoursSection');
+  const toggleHoursBtn = document.getElementById('toggleHours');
+  const toggleBookingBtn = document.getElementById('toggleBooking');
+
+  function showHours(){
+    bookingSection.style.display = 'none';
+    hoursSection.style.display = '';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  function showBooking(){
+    hoursSection.style.display = 'none';
+    bookingSection.style.display = '';
+    window.scrollTo({top:0, behavior:'smooth'});
+    applyClinicFilter();
+  }
+
+  toggleHoursBtn.addEventListener('click', showHours);
+  toggleBookingBtn.addEventListener('click', showBooking);
+</script>
+
+<!-- فلترة العيادات المسائية للمقيم (هوية تبدأ بـ 2) -->
+<script>
+  const clinicSelect = document.getElementById("clinic");
+  const identityEl   = document.getElementById("identity");
+
+  function applyClinicFilter(){
+    const id = (identityEl?.value || localStorage.getItem('auth_identity') || '').replace(/\D/g,'');
+    const isIqama = id.startsWith('2');
+
+    for (const option of clinicSelect.options) {
+      const isEvening = option.value.includes("الفترة الثانية");
+      option.hidden   = isIqama && isEvening;
+      option.disabled = isIqama && isEvening;
+    }
+    if (isIqama && clinicSelect.value.includes("الفترة الثانية")) {
+      clinicSelect.value = "";
+    }
+  }
+
+  identityEl?.addEventListener('input', applyClinicFilter);
+  document.addEventListener('DOMContentLoaded', applyClinicFilter);
+</script>
 </body>
 </html>
