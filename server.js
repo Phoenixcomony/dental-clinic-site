@@ -1242,12 +1242,12 @@ async function processQueue(){
 }
 
 /** ===== Booking flow (single) ===== */
-async function bookNow({ identity, name, phone, clinic, month, time, note }){
+async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
 
   let account = null;
-  try{
+  try {
     account = await acquireAccount();
     await loginToImdad(page, account);
     await gotoAppointments(page);
@@ -1258,95 +1258,105 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
       const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
       return f ? f.value : null;
     }, clinic);
-    if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+    if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
 
     await Promise.all([
-      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }),
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // (لا نحتاج اختيار شهر هنا لأن القيمة داخل time)
+    // --- اكتب الهوية فقط ثم اختر أول اقتراح ---
+    const idText = (identity && String(identity).trim()) || '';
+    if (!idText) throw new Error('لا يوجد رقم هوية!');
 
-    // اكتب مفتاح البحث (الهوية أولوية)
-    const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
-    if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
-    await typeSlow(page, '#SearchBox120', searchKey, 120);
-     await pickPatientByIdentityOrPhone(page, { identity, phone });
-    // اختر المريض من الاقتراحات (الأولوية للجوال)
-    const phone05 = toLocal05(phone || '');
-    let picked = false;
+    await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+    await typeSlow(page, '#SearchBox120', idText, 120);
+
+    let pickedOk = false;
     const deadline = Date.now() + 12000;
-    while (!picked && Date.now() < deadline) {
-      const items = await readApptSuggestions(page);
-      const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
-      const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
-      if (match) {
-        await page.evaluate((idx)=>{
-          const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
-          if(lis && lis[idx]) lis[idx].click();
-        }, match.idx);
-        picked = true;
-        break;
-      }
-      await page.evaluate(()=> {
-        const el = document.querySelector('#SearchBox120');
-        if (el) ['input','keyup','keydown','change'].forEach(ev=> el.dispatchEvent(new Event(ev,{bubbles:true})));
+
+    while (!pickedOk && Date.now() < deadline) {
+      // حفّز بناء القائمة
+      await page.evaluate(() => {
+        const box = document.querySelector('#SearchBox120');
+        if (!box) return;
+        ['input','keyup','keydown','change'].forEach(ev =>
+          box.dispatchEvent(new Event(ev, { bubbles: true }))
+        );
+        try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
       });
-      await sleep(250);
-    }
-    if (!picked) {
-      const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
-      if (!fallback) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
+
+      // حاول اضغط أول عنصر مباشرة
+      const clicked = await page.evaluate(() => {
+        const li = document.querySelector('li[onclick^="fillSearch120"]');
+        if (li) { li.click(); return true; }
+        return false;
+      });
+      if (clicked) { pickedOk = true; break; }
+
+      // جرّب داخل أي iframe كاحتياط
+      for (const f of page.frames()) {
+        const li = await f.$('li[onclick^="fillSearch120"]');
+        if (li) { await li.click(); pickedOk = true; break; }
+      }
+
+      if (!pickedOk) await page.waitForTimeout(300);
     }
 
-    // ثبّت الهاتف + ملاحظة المستخدم فقط
-    await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
-if (typeof note === 'string' && note.trim()) {
-  await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
-} else {
-  await page.$eval('input[name="notes"]', (el)=>{ el.value='' });
-}
+    if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
 
+    // مهلة قصيرة بعد الاختيار
+    await page.waitForTimeout(300);
+
+    // ثبّت الهاتف + الملاحظة (إن وُجدت)
+    await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, toLocal05(phone || ''));
+    if (typeof note === 'string' && note.trim()) {
+      await page.$eval('input[name="notes"]', (el, v) => { el.value = v; }, note.trim());
+    } else {
+      await page.$eval('input[name="notes"]', (el) => { el.value = ''; });
+    }
+
+    // قيم افتراضية مطلوبة بالحجز
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
 
     // اختر الوقت
-    const selected = await page.evaluate((wanted)=>{
-      const radios=document.querySelectorAll('input[type="radio"][name="ss"]');
-      for(const r of radios){
-        if(r.value===wanted && !r.disabled){ r.click(); return true; }
+    const selected = await page.evaluate((wanted) => {
+      const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
+      for (const r of radios) {
+        if (r.value === wanted && !r.disabled) { r.click(); return true; }
       }
       return false;
     }, time);
-    if(!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
+    if (!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
     // احجز
-    const pressed = await page.evaluate(()=>{
-      const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
-        .find(el=>el.value && el.value.trim()==='حجز : Reserve');
-      if(!btn) return false;
-      btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
+    const pressed = await page.evaluate(() => {
+      const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
+        .find(el => el.value && el.value.trim() === 'حجز : Reserve');
+      if (!btn) return false;
+      btn.disabled = false; btn.removeAttribute('disabled'); btn.click(); return true;
     });
-    if(!pressed) throw new Error('زر الحجز غير متاح!');
+    if (!pressed) throw new Error('زر الحجز غير متاح!');
 
-    // ✅ انتظر تأكيد حقيقي من الصفحة بعد الضغط على "حجز : Reserve"
-const confirmed = await Promise.race([
-  page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).then(()=>true).catch(()=>false),
-  page.waitForFunction(() => /تم الحجز|Reserve Done|حجز ناجح/i.test(document.body.innerText), { timeout:15000 })
-       .then(()=>true).catch(()=>false)
-]);
+    // انتظر تأكيد حقيقي
+    const confirmed = await Promise.race([
+      page.waitForSelector('#popupContact', { visible: true, timeout: 15000 }).then(() => true).catch(() => false),
+      page.waitForFunction(() => /تم الحجز|Reserve Done|حجز ناجح/i.test(document.body.innerText), { timeout: 15000 })
+           .then(() => true).catch(() => false)
+    ]);
+    if (!confirmed) throw new Error('لم تصل شاشة التأكيد من إمداد');
 
-if (!confirmed) throw new Error('لم تصل شاشة التأكيد من إمداد');
+    await browser.close(); if (account) releaseAccount(account);
+    return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
-
-    await browser.close(); if(account) releaseAccount(account);
-    return '✅ تم الحجز بنجاح بالحساب: '+account.user;
-  }catch(e){
-    try{ await browser.close(); }catch(_){}
-    if(account) releaseAccount(account);
-    return '❌ فشل الحجز: '+(e?.message||'حدث خطأ غير متوقع');
+  } catch (e) {
+    try { await browser.close(); } catch (_) {}
+    if (account) releaseAccount(account);
+    return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
 }
+
 
 /** ===== build chain utils ===== */
 function parseTimeValue(v){
