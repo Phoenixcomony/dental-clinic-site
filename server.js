@@ -1319,7 +1319,14 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 
     // اكتب الهوية
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
-    await sleep(6000); // تأخير بسيط لظهور الاقتراحات
+    await sleep(4000);
+
+// 🔹 اضغط أول اقتراح يدويًا لو وُجد
+await page.evaluate(() => {
+  const firstLi = document.querySelector('li[onclick^="fillSearch120"]');
+  if (firstLi) firstLi.click();
+});
+
 
 
     // اختر المريض (أولوية للجوال)
