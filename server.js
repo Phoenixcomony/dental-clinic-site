@@ -1253,7 +1253,15 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
     });
     if(!pressed) throw new Error('زر الحجز غير متاح!');
 
-    await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
+    // ✅ انتظر تأكيد حقيقي من الصفحة بعد الضغط على "حجز : Reserve"
+const confirmed = await Promise.race([
+  page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).then(()=>true).catch(()=>false),
+  page.waitForFunction(() => /تم الحجز|Reserve Done|حجز ناجح/i.test(document.body.innerText), { timeout:15000 })
+       .then(()=>true).catch(()=>false)
+]);
+
+if (!confirmed) throw new Error('لم تصل شاشة التأكيد من إمداد');
+
 
     await browser.close(); if(account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: '+account.user;
@@ -1319,6 +1327,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 
 // اكتب الهوية
 await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+await page.waitForTimeout(4000); // ⏳ انتظار تحميل الصفحة بعد الرجوع
 await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
 // المحاولة الأولى: اضغط أول اقتراح (داخل الصفحة أو iframe)
@@ -1338,7 +1347,7 @@ let pickedOk = await (async () => {
       const li = await f.$('li[onclick^="fillSearch120"]');
       if (li) { await li.click(); return true; }
     }
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(2500);
   }
   return false;
 })();
@@ -1373,7 +1382,7 @@ if (!pickedOk) {
   }
 }
 
-await page.waitForTimeout(400);
+await page.waitForTimeout(4000);
 
 
 
