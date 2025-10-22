@@ -284,7 +284,7 @@ async function prepPage(page){
   page.setDefaultTimeout(120000);
   await page.setExtraHTTPHeaders({ 'Accept-Language':'ar-SA,ar;q=0.9,en;q=0.8' });
   await page.emulateTimezone('Asia/Riyadh').catch(()=>{});
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36');
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit(537.36) (KHTML, like Gecko) Chrome/120 Safari/537.36');
   if (typeof page.waitForTimeout !== 'function') {
     page.waitForTimeout = (ms) => new Promise(res => setTimeout(res, ms));
   }
@@ -666,7 +666,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
 async function isDuplicatePhoneWarning(page){
   try {
     const found = await page.evaluate(()=>{
-      const txt = (document.body.innerText||'').replace(/\s+/g,' ');
+      const txt = (document.body.innerText||'').replace(/\s+/g, ' ');
       return /رقم هاتف موجود يخص المريض\s*:|رقم الجوال موجود|Existing phone number|Phone number already exists/i.test(txt);
     });
     return !!found;
@@ -1265,6 +1265,38 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
+    // [FIX] set month for single-book — نفس منطق /api/book-multi
+    await applyOneMonthView(page);
+    if (month) {
+      const wantedMonth = String(month).match(/(\d{1,2})$/)?.[1] || String(month).trim();
+      const monthSet = await page.evaluate((w) => {
+        const sel = document.querySelector('#month1');
+        if (!sel) return false;
+        const opts = Array.from(sel.options || []).map(o => ({
+          value: o.value || '',
+          text: (o.textContent || '').trim()
+        }));
+        const hit =
+          opts.find(o => o.text === w) ||
+          opts.find(o => o.value.includes(`month=${w}`)) ||
+          opts.find(o => o.text.endsWith(w)) ||
+          null;
+        if (!hit) return false;
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
+        try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+        return true;
+      }, wantedMonth);
+
+      if (monthSet) {
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(()=>{});
+      } else {
+        console.warn('[IMDAD] month option not found for', month);
+      }
+    }
+
     // --- اكتب الهوية فقط ثم اختر أول اقتراح ---
     const idText = (identity && String(identity).trim()) || '';
     if (!idText) throw new Error('لا يوجد رقم هوية!');
@@ -1411,128 +1443,66 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       ]);
     }
 
-// --- اكتب الهوية ثم اختر من الاقتراحات ---
-await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
-await page.waitForTimeout(1200);
-await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
+    // --- اكتب الهوية ثم اختر من الاقتراحات ---
+    await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+    await page.waitForTimeout(1200);
+    await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
-// ✅ إظهار قائمة الاقتراحات ثم الضغط على عنصرها (الأفضل مطابقة الجوال)
-const wantedPhone05 = toLocal05(phone||'');
-let pickedOk = false;
-const until = Date.now() + 12000;
+    // ✅ إظهار قائمة الاقتراحات ثم الضغط على عنصرها (الأفضل مطابقة الجوال)
+    const wantedPhone05 = toLocal05(phone||'');
+    let pickedOk = false;
+    const until = Date.now() + 12000;
 
-while (!pickedOk && Date.now() < until) {
-  // حفّز بناء القائمة
-  await page.evaluate(() => {
-    const box = document.querySelector('#SearchBox120');
-    if (!box) return;
-    ['input','keyup','keydown','change'].forEach(ev =>
-      box.dispatchEvent(new Event(ev, { bubbles:true }))
-    );
-    try {
-      if (typeof window.suggestme120 === 'function') {
-        window.suggestme120(box.value, new KeyboardEvent('keyup'));
+    while (!pickedOk && Date.now() < until) {
+      // حفّز بناء القائمة
+      await page.evaluate(() => {
+        const box = document.querySelector('#SearchBox120');
+        if (!box) return;
+        ['input','keyup','keydown','change'].forEach(ev =>
+          box.dispatchEvent(new Event(ev, { bubbles:true }))
+        );
+        try {
+          if (typeof window.suggestme120 === 'function') {
+            window.suggestme120(box.value, new KeyboardEvent('keyup'));
+          }
+        } catch (_) {}
+      });
+
+      // حاول المطابقة بالجوال أولاً، ثم أول عنصر كبديل
+      const clicked = await page.evaluate((phone05) => {
+        const $ = (sel) => Array.from(document.querySelectorAll(sel));
+        const lis = $('li[onclick^="fillSearch120"]');
+
+        const get05 = (txt) => {
+          const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+          const ascii = String(txt||'').replace(/[٠-٩]/g, d => map[d]||d);
+          const d = ascii.replace(/\D/g,'');
+          if (/^9665\d{8}$/.test(d)) return '0' + d.slice(3);
+          if (/^5\d{8}$/.test(d))   return '0' + d;
+          if (/^05\d{8}$/.test(d))  return d;
+          return '';
+        };
+
+        let li = lis.find(x => get05(x.innerText) === phone05);
+        if (!li) li = lis[0];
+        if (li) { li.click(); return true; }
+        return false;
+      }, wantedPhone05);
+
+      if (clicked) { pickedOk = true; break; }
+
+      for (const f of page.frames()) {
+        const li = await f.$('li[onclick^="fillSearch120"]');
+        if (li) { await li.click(); pickedOk = true; break; }
       }
-    } catch (_) {}
-  });
 
-  // حاول المطابقة بالجوال أولاً، ثم أول عنصر كبديل
-  const clicked = await page.evaluate((phone05) => {
-    const $ = (sel) => Array.from(document.querySelectorAll(sel));
-    const lis = $('li[onclick^="fillSearch120"]');
-
-    const get05 = (txt) => {
-      const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
-      const ascii = String(txt||'').replace(/[٠-٩]/g, d => map[d]||d);
-      const d = ascii.replace(/\D/g,'');
-      if (/^9665\d{8}$/.test(d)) return '0' + d.slice(3);
-      if (/^5\d{8}$/.test(d))   return '0' + d;
-      if (/^05\d{8}$/.test(d))  return d;
-      return '';
-    };
-
-    let li = lis.find(x => get05(x.innerText) === phone05);
-    if (!li) li = lis[0];
-    if (li) { li.click(); return true; }
-    return false;
-  }, wantedPhone05);
-
-  if (clicked) { pickedOk = true; break; }
-
-  for (const f of page.frames()) {
-    const li = await f.$('li[onclick^="fillSearch120"]');
-    if (li) { await li.click(); pickedOk = true; break; }
-  }
-
-  if (!pickedOk) await page.waitForTimeout(300);
-}
-
-if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
-
-
-// 1) جرّب الضغط مباشرة إذا ظهرت القائمة سريعاً
-try {
-  await page.waitForSelector('li[onclick^="fillSearch120"]', { visible: true, timeout: 8000 });
-  pickedOk = await page.evaluate(() => {
-    const li = document.querySelector('li[onclick^="fillSearch120"]');
-    if (li) { li.click(); return true; }
-    return false;
-  });
-  if (pickedOk) console.log('[IMDAD] ✅ تم اختيار المريض من القائمة تلقائياً');
-} catch (_) {
-  // نكمل للمحاولات اللاحقة
-}
-
-// 2) حفّز ظهور القائمة وحاول مرة ثانية
-if (!pickedOk) {
-  console.log('[IMDAD] ⚠️ لم تظهر القائمة فوراً — سنحفّزها ونعيد المحاولة');
-  await page.evaluate(() => {
-    const box = document.querySelector('#SearchBox120');
-    if (box) ['input','keyup','keydown','change'].forEach(ev =>
-      box.dispatchEvent(new Event(ev, { bubbles: true })));
-  });
-  await page.waitForTimeout(1500);
-  pickedOk = await page.evaluate(() => {
-    const li = document.querySelector('li[onclick^="fillSearch120"]');
-    if (li) { li.click(); return true; }
-    return false;
-  });
-}
-
-// 3) fallback: طابق بالجوال داخل القائمة
-if (!pickedOk) {
-  const phone05 = toLocal05(phone || '');
-  const deadline = Date.now() + 12000;
-  while (!pickedOk && Date.now() < deadline) {
-    const items = await readApptSuggestions(page);
-    const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
-    const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
-    if (match) {
-      await page.evaluate((idx) => {
-        const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
-        if (lis && lis[idx]) lis[idx].click();
-      }, match.idx);
-      pickedOk = true;
-      break;
+      if (!pickedOk) await page.waitForTimeout(300);
     }
-    await page.evaluate(() => {
-      const el = document.querySelector('#SearchBox120');
-      if (el) ['input','keyup','keydown','change'].forEach(ev =>
-        el.dispatchEvent(new Event(ev, { bubbles: true })));
-    });
-    await sleep(250);
-  }
-}
 
-// 4) آخر محاولة: اضغط أول عنصر إن وُجد
-if (!pickedOk) {
-  pickedOk = await pickFirstSuggestionOnAppointments(page, 3000);
-}
+    if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
 
-if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
-
-// مهلة صغيرة بعد الاختيار
-await page.waitForTimeout(400);
+    // مهلة صغيرة بعد الاختيار
+    await page.waitForTimeout(400);
 
     // ثبّت الهاتف والملاحظة
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
