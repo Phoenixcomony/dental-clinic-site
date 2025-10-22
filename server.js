@@ -1318,19 +1318,31 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     }
 
     // اكتب الهوية
-    await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
-    await sleep(4000);
+    await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
+await sleep(4000);
 
-// 🔹 جرّب تنفيذ الضغط داخل أي إطار أيضاً
-const frames = page.frames();
-for (const frame of frames) {
-  const li = await frame.$('li[onclick^="fillSearch120"]');
-  if (li) {
-    await li.click();
-    console.log('[IMDAD] suggestion clicked inside frame');
-    break;
+// 🔹 جرّب أولاً النقر المباشر في الصفحة نفسها
+let clicked = await page.evaluate(() => {
+  const li = document.querySelector('li[onclick^="fillSearch120"]');
+  if (li) { li.click(); return true; }
+  return false;
+});
+
+if (!clicked) {
+  // 🔹 جرّب تنفيذ الضغط داخل أي إطار أيضاً
+  for (const frame of page.frames()) {
+    const li = await frame.$('li[onclick^="fillSearch120"]');
+    if (li) {
+      await li.click();
+      console.log('[IMDAD] suggestion clicked inside frame');
+      clicked = true;
+      break;
+    }
   }
 }
+
+if (!clicked) console.log('[IMDAD] no suggestion found after waiting');
+
 
 // 🔹 كود احتياطي للصفحة الرئيسية إن وُجدت القائمة فيها
 await page.evaluate(() => {
