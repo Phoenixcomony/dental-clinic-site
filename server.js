@@ -1331,6 +1331,8 @@ await page.waitForTimeout(4000); // ⏳ انتظار تحميل الصفحة ب�
 // ✳️ اكتب رقم الهوية
 await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
+let pickedOk = false; // 🟢 أضف هذا قبل try
+
 // ✳️ انتظر ظهور الاقتراحات (القائمة المنسدلة)
 try {
   await page.waitForSelector('li[onclick^="fillSearch120"]', { visible: true, timeout: 8000 });
@@ -1339,6 +1341,7 @@ try {
     if (li) li.click();
   });
   console.log('[IMDAD] ✅ تم اختيار المريض من القائمة تلقائياً');
+  pickedOk = true; // ✅ عدّل هذا بدل let
 } catch (err) {
   console.log('[IMDAD] ⚠️ لم تظهر قائمة المرضى، سيُعاد المحاولة');
   // تحفيز القائمة مرة إضافية
@@ -1350,6 +1353,7 @@ try {
       );
     }
   });
+
   await page.waitForTimeout(2000);
   const li2 = await page.$('li[onclick^="fillSearch120"]');
   if (li2) {
