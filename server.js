@@ -1319,7 +1319,7 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 
     // اكتب الهوية
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
-    await sleep(2000); // تأخير بسيط لظهور الاقتراحات
+    await sleep(6000); // تأخير بسيط لظهور الاقتراحات
 
 
     // اختر المريض (أولوية للجوال)
