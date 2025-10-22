@@ -1100,6 +1100,40 @@ app.post('/api/times', async (req, res) => {
       ]);
 
       await applyOneMonthView(page);
+      // [FIX] اضبط الشهر حسب قيمة الوقت المختار (DD-MM-YYYY*HH:MM أو YYYY-MM-DD*HH:MM)
+try {
+  const wantedMonth = (() => {
+    const raw = String(time || '').split('*')[0] || '';
+    // YYYY-MM-DD
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+    if (m) return parseInt(m[2], 10);
+    // DD-MM-YYYY
+    m = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(raw);
+    if (m) return parseInt(m[2], 10);
+    return NaN;
+  })();
+
+  if (!isNaN(wantedMonth)) {
+    const monthValue = await page.evaluate((mNum) => {
+      const sel = document.querySelector('#month1');
+      if (!sel) return null;
+      const opts = Array.from(sel.options || []);
+      const hit =
+        opts.find(o => (o.textContent || '').trim() === String(mNum)) ||
+        opts.find(o => String(o.value || '').includes('month=' + mNum));
+      if (!hit) return null;
+      try { sel.value = hit.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } catch(_){}
+      try { if (hit.value) window.location.href = hit.value; } catch(_){}
+      return hit.value || null;
+    }, wantedMonth);
+
+    if (monthValue) {
+      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(()=>{});
+      await page.waitForTimeout(500);
+    }
+  }
+} catch {}
+
 
       const pickedMonth = await page.evaluate((wanted) => {
         const sel = document.querySelector('#month1');
@@ -1267,6 +1301,10 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
 
     // [FIX] set month for single-book — نفس منطق /api/book-multi
     await applyOneMonthView(page);
+    // [FIX] انتظر تغيّر الشهر فعليًا قبل المتابعة
+await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(()=>{});
+await page.waitForTimeout(500);
+
     if (month) {
       const wantedMonth = String(month).match(/(\d{1,2})$/)?.[1] || String(month).trim();
       const monthSet = await page.evaluate((w) => {
@@ -1354,12 +1392,15 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
 
     // اختر الوقت
     const selected = await page.evaluate((wanted) => {
-      const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
-      for (const r of radios) {
-        if (r.value === wanted && !r.disabled) { r.click(); return true; }
-      }
-      return false;
-    }, time);
+  const normalize = (t) => String(t || '').replace(/:0(\b|$)/g, ':00'); // 20:0 ⇔ 20:00
+  const W = normalize(wanted);
+  const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
+  for (const r of radios) {
+    if (!r.disabled && normalize(r.value) === W) { r.click(); return true; }
+  }
+  return false;
+}, time);
+
     if (!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
     // احجز
