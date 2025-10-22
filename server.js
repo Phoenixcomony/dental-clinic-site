@@ -747,7 +747,6 @@ app.post('/api/login', async (req, res) => {
     try{
       account = await acquireAccount();
       await loginToImdad(page, account);
-      await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
       const phone05 = toLocal05(phone);
       const searchRes = await searchAndOpenPatientByIdentity(page, {
@@ -846,7 +845,6 @@ app.post('/api/update-identity', async (req, res) => {
     try{
       account = await acquireAccount();
       await loginToImdad(page, account);
-      await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
       await page.goto(`https://phoenix.imdad.cloud/medica13/stq_edit.php?id=${fileId}`, { waitUntil:'domcontentloaded' });
 
@@ -903,7 +901,6 @@ app.post('/api/create-patient', async (req, res) => {
       try{
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
-        await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
         if (await existsPatientByPhone(page, phone05)) {
           await browser.close(); if(account) releaseAccount(account);
@@ -1253,7 +1250,6 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
   try{
     account = await acquireAccount();
     await loginToImdad(page, account);
-    await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
     await gotoAppointments(page);
 
     // اختر العيادة
@@ -1275,8 +1271,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
     await typeSlow(page, '#SearchBox120', searchKey, 120);
-    await pickPatientByIdentityOrPhone(page, { identity, phone });
-    await page.screenshot({ path: 'logs/step4_patient_selected.png', fullPage: true });
+     await pickPatientByIdentityOrPhone(page, { identity, phone });
     // اختر المريض من الاقتراحات (الأولوية للجوال)
     const phone05 = toLocal05(phone || '');
     let picked = false;
@@ -1411,7 +1406,59 @@ await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
 await page.waitForTimeout(1200);
 await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
+// ✅ إظهار قائمة الاقتراحات ثم الضغط على عنصرها (الأفضل مطابقة الجوال)
+const wantedPhone05 = toLocal05(phone||'');
 let pickedOk = false;
+const until = Date.now() + 12000;
+
+while (!pickedOk && Date.now() < until) {
+  // حفّز بناء القائمة
+  await page.evaluate(() => {
+    const box = document.querySelector('#SearchBox120');
+    if (!box) return;
+    ['input','keyup','keydown','change'].forEach(ev =>
+      box.dispatchEvent(new Event(ev, { bubbles:true }))
+    );
+    try {
+      if (typeof window.suggestme120 === 'function') {
+        window.suggestme120(box.value, new KeyboardEvent('keyup'));
+      }
+    } catch (_) {}
+  });
+
+  // حاول المطابقة بالجوال أولاً، ثم أول عنصر كبديل
+  const clicked = await page.evaluate((phone05) => {
+    const $ = (sel) => Array.from(document.querySelectorAll(sel));
+    const lis = $('li[onclick^="fillSearch120"]');
+
+    const get05 = (txt) => {
+      const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+      const ascii = String(txt||'').replace(/[٠-٩]/g, d => map[d]||d);
+      const d = ascii.replace(/\D/g,'');
+      if (/^9665\d{8}$/.test(d)) return '0' + d.slice(3);
+      if (/^5\d{8}$/.test(d))   return '0' + d;
+      if (/^05\d{8}$/.test(d))  return d;
+      return '';
+    };
+
+    let li = lis.find(x => get05(x.innerText) === phone05);
+    if (!li) li = lis[0];
+    if (li) { li.click(); return true; }
+    return false;
+  }, wantedPhone05);
+
+  if (clicked) { pickedOk = true; break; }
+
+  for (const f of page.frames()) {
+    const li = await f.$('li[onclick^="fillSearch120"]');
+    if (li) { await li.click(); pickedOk = true; break; }
+  }
+
+  if (!pickedOk) await page.waitForTimeout(300);
+}
+
+if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+
 
 // 1) جرّب الضغط مباشرة إذا ظهرت القائمة سريعاً
 try {
