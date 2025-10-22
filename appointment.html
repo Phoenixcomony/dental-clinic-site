@@ -321,7 +321,7 @@
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
-      const r = await fetch('/send-otp', {
+      const r = await fetch('http://localhost:3000/send-otp', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ phone })
       });
@@ -383,7 +383,7 @@
     };
     showLoader(true);
     try{
-      const r = await fetch('/api/login', {
+      await fetch('http://localhost:3000/api/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
@@ -525,7 +525,7 @@
     showLoader(true);
 
     try {
-      const r = await fetch('/api/times', {
+      await fetch('http://localhost:3000/api/times', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ clinic, month, needChainMin })
@@ -586,7 +586,7 @@
       let data;
       if (slotsCount > 1) {
         // حجز متسلسل
-        const res = await fetch('/api/book-multi', {
+        await fetch('http://localhost:3000/api/book-multi', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
@@ -602,7 +602,7 @@
         data = await res.json().catch(()=>({ success:false, message:'فشل الحجز المتسلسل' }));
       } else {
         // حجز خانة واحدة
-        const res = await fetch('/api/book', {
+        const res = await fetch('http://localhost:3000/api/book', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
