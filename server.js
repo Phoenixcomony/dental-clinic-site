@@ -373,6 +373,82 @@ async function pickFirstSuggestionOnAppointments(page, timeoutMs = 10000) {
     await sleep(300);
   }
   return false;
+  async function pickPatientByIdentityOrPhone(page, { identity, phone }) {
+  const idDigits = String(identity||'').replace(/\D/g,'');
+  const phone05  = toLocal05(phone||'');
+
+  // 1) ثبّت أن لوحة المواعيد جاهزة ثم صندوق البحث
+  await page.waitForFunction(() => !!document.querySelectorAll('input[type="radio"][name="ss"]').length, {timeout:30000}).catch(()=>{});
+  await page.waitForSelector('#SearchBox120', { visible:true, timeout:30000 });
+
+  // 2) اكتب الهوية
+  await typeSlow(page, '#SearchBox120', idDigits, 100);
+
+  // 3) حفّز الاقتراحات
+  await page.evaluate(() => {
+    const el = document.querySelector('#SearchBox120');
+    if (el) {
+      ['input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev, {bubbles:true})));
+      try { if (typeof window.suggestme120 === 'function') window.suggestme120(el.value, new KeyboardEvent('keyup')); } catch(_) {}
+    }
+  });
+
+  // 4) جرّب الكيبورد
+  await page.focus('#SearchBox120');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+
+  // 5) نقر مباشر لأول عنصر (إن وُجد)
+  const clickedDirect = await page.evaluate(() => {
+    const li = document.querySelector('li[onclick^="fillSearch120"], .searchsugg120 li');
+    if (li) { li.click(); return true; }
+    return false;
+  });
+  if (clickedDirect) return true;
+
+  // 6) مطابقة حسب الجوال داخل العناصر
+  const deadline = Date.now() + 12000;
+  while (Date.now() < deadline) {
+    const list = await readApptSuggestions(page);
+    const enriched = list.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+    const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
+    if (match) {
+      await page.evaluate((idx) => {
+        const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
+        if (lis && lis[idx]) lis[idx].click();
+      }, match.idx);
+      return true;
+    }
+
+    // إعادة التحفيز
+    await page.evaluate(() => {
+      const el = document.querySelector('#SearchBox120');
+      if (el) ['input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev, {bubbles:true})));
+      try { if (typeof window.suggestme120 === 'function') window.suggestme120(el.value, new KeyboardEvent('keyup')); } catch(_) {}
+    });
+
+    // 7) جرّب داخل أي iframe
+    const pickedInFrame = await (async () => {
+      for (const f of page.frames()) {
+        const li = await f.$('li[onclick^="fillSearch120"], .searchsugg120 li');
+        if (li) { await li.click(); return true; }
+      }
+      return false;
+    })();
+    if (pickedInFrame) return true;
+
+    // Down + Enter مرة أخرى
+    await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+    await page.waitForTimeout(250);
+  }
+
+  // 8) آخر حل: أول عنصر
+  const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
+  if (fallback) return true;
+
+  throw new Error('تعذّر اختيار المريض من الاقتراحات');
+}
+
 }
 
 /** ===== New-File page ===== */
@@ -1195,7 +1271,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
     const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
     await typeSlow(page, '#SearchBox120', searchKey, 120);
-
+    await pickPatientByIdentityOrPhone(page, { identity, phone });
     // اختر المريض من الاقتراحات (الأولوية للجوال)
     const phone05 = toLocal05(phone || '');
     let picked = false;
@@ -1225,11 +1301,11 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
 
     // ثبّت الهاتف + ملاحظة المستخدم فقط
     await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
-    if (typeof note === 'string' && note.trim()) {
-      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
-    } else {
-      await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
-    }
+if (typeof note === 'string' && note.trim()) {
+  await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
+} else {
+  await page.$eval('input[name="notes"]', (el)=>{ el.value='' });
+}
 
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
