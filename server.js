@@ -1328,29 +1328,38 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 // اكتب الهوية
 await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
 await page.waitForTimeout(4000); // ⏳ انتظار تحميل الصفحة بعد الرجوع
+// ✳️ اكتب رقم الهوية
 await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
-// المحاولة الأولى: اضغط أول اقتراح (داخل الصفحة أو iframe)
-let pickedOk = await (async () => {
-  const deadline = Date.now() + 12000;
-  while (Date.now() < deadline) {
-    const ok = await page.evaluate(() => {
-      const li = document.querySelector('li[onclick^="fillSearch120"], .searchsugg120 li');
-      if (li) { li.click(); return true; }
-      const box = document.querySelector('#SearchBox120');
-      if (box) ['input','keyup','keydown','change'].forEach(ev => box.dispatchEvent(new Event(ev,{bubbles:true})));
-      return false;
-    });
-    if (ok) return true;
-
-    for (const f of page.frames()) {
-      const li = await f.$('li[onclick^="fillSearch120"]');
-      if (li) { await li.click(); return true; }
+// ✳️ انتظر ظهور الاقتراحات (القائمة المنسدلة)
+try {
+  await page.waitForSelector('li[onclick^="fillSearch120"]', { visible: true, timeout: 8000 });
+  await page.evaluate(() => {
+    const li = document.querySelector('li[onclick^="fillSearch120"]');
+    if (li) li.click();
+  });
+  console.log('[IMDAD] ✅ تم اختيار المريض من القائمة تلقائياً');
+} catch (err) {
+  console.log('[IMDAD] ⚠️ لم تظهر قائمة المرضى، سيُعاد المحاولة');
+  // تحفيز القائمة مرة إضافية
+  await page.evaluate(() => {
+    const box = document.querySelector('#SearchBox120');
+    if (box) {
+      ['input', 'keyup', 'keydown', 'change'].forEach(ev =>
+        box.dispatchEvent(new Event(ev, { bubbles: true }))
+      );
     }
-    await page.waitForTimeout(2500);
+  });
+  await page.waitForTimeout(2000);
+  const li2 = await page.$('li[onclick^="fillSearch120"]');
+  if (li2) {
+    await li2.click();
+    console.log('[IMDAD] ✅ تم اختيار المريض بعد التحفيز');
+  } else {
+    throw new Error('تعذّر اختيار المريض من الاقتراحات!');
   }
-  return false;
-})();
+}
+
 
 // fallback: البحث بالهاتف إذا ما انضغط أي اقتراح
 if (!pickedOk) {
