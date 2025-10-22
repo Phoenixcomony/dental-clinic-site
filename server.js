@@ -1317,41 +1317,64 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       ]);
     }
 
-// 1) اكتب الهوية بعد ما تضمن إن الصفحة استقرت بعد اختيار العيادة/الشهر
-await page.waitForSelector('#SearchBox120', {visible:true, timeout:30000});
-await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
+// اكتب الهوية
+await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
-// 2) انتظر الاقتراحات ثم اضغط أول عنصر مع إعادة تحفيز إن لزم
- picked = await (async () => {
+// المحاولة الأولى: اضغط أول اقتراح (داخل الصفحة أو iframe)
+let pickedOk = await (async () => {
   const deadline = Date.now() + 12000;
   while (Date.now() < deadline) {
     const ok = await page.evaluate(() => {
-      // أحياناً تبنى داخل نفس الصفحة بدون إطار
-      const li = document.querySelector('li[onclick^="fillSearch120"]');
+      const li = document.querySelector('li[onclick^="fillSearch120"], .searchsugg120 li');
       if (li) { li.click(); return true; }
-      // حرّك الأحداث لإظهار القائمة إن كانت مختفية
       const box = document.querySelector('#SearchBox120');
-      if (box) {
-        ['input','keyup','keydown','change'].forEach(ev =>
-          box.dispatchEvent(new Event(ev, {bubbles:true}))
-        );
-      }
+      if (box) ['input','keyup','keydown','change'].forEach(ev => box.dispatchEvent(new Event(ev,{bubbles:true})));
       return false;
     });
     if (ok) return true;
 
-    // جرّب داخل أي iframe (بعض القوالب تضع القائمة في iframe خفيف)
     for (const f of page.frames()) {
       const li = await f.$('li[onclick^="fillSearch120"]');
       if (li) { await li.click(); return true; }
     }
-
     await page.waitForTimeout(250);
   }
   return false;
 })();
 
-if (!picked) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+// fallback: البحث بالهاتف إذا ما انضغط أي اقتراح
+if (!pickedOk) {
+  const phone05 = toLocal05(phone || '');
+  let pickedByPhone = false;
+  const deadline = Date.now() + 12000;
+
+  while (!pickedByPhone && Date.now() < deadline) {
+    const items = await readApptSuggestions(page);
+    const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+    const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
+    if (match) {
+      await page.evaluate((idx) => {
+        const lis = document.querySelectorAll('li[onclick^="fillSearch120"], .searchsugg120 li');
+        if (lis && lis[idx]) lis[idx].click();
+      }, match.idx);
+      pickedByPhone = true; break;
+    }
+    await page.evaluate(() => {
+      const el = document.querySelector('#SearchBox120');
+      if (el) ['input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev,{bubbles:true})));
+    });
+    await sleep(200);
+  }
+
+  if (!pickedByPhone) {
+    const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
+    if (!fallback) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+  }
+}
+
+await page.waitForTimeout(400);
+
 
 
 // 🔹 كود احتياطي للصفحة الرئيسية إن وُجدت القائمة فيها
