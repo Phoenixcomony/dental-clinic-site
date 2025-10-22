@@ -1321,7 +1321,18 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
     await sleep(4000);
 
-// 🔹 اضغط أول اقتراح يدويًا لو وُجد
+// 🔹 جرّب تنفيذ الضغط داخل أي إطار أيضاً
+const frames = page.frames();
+for (const frame of frames) {
+  const li = await frame.$('li[onclick^="fillSearch120"]');
+  if (li) {
+    await li.click();
+    console.log('[IMDAD] suggestion clicked inside frame');
+    break;
+  }
+}
+
+// 🔹 كود احتياطي للصفحة الرئيسية إن وُجدت القائمة فيها
 await page.evaluate(() => {
   const firstLi = document.querySelector('li[onclick^="fillSearch120"]');
   if (firstLi) firstLi.click();
