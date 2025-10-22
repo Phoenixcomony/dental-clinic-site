@@ -1317,31 +1317,41 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
       ]);
     }
 
-    // اكتب الهوية
-    await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
-await sleep(4000);
+// 1) اكتب الهوية بعد ما تضمن إن الصفحة استقرت بعد اختيار العيادة/الشهر
+await page.waitForSelector('#SearchBox120', {visible:true, timeout:30000});
+await typeSlow(page, '#SearchBox120', String(identity||'').trim(), 120);
 
-// 🔹 جرّب أولاً النقر المباشر في الصفحة نفسها
-let clicked = await page.evaluate(() => {
-  const li = document.querySelector('li[onclick^="fillSearch120"]');
-  if (li) { li.click(); return true; }
-  return false;
-});
+// 2) انتظر الاقتراحات ثم اضغط أول عنصر مع إعادة تحفيز إن لزم
+ picked = await (async () => {
+  const deadline = Date.now() + 12000;
+  while (Date.now() < deadline) {
+    const ok = await page.evaluate(() => {
+      // أحياناً تبنى داخل نفس الصفحة بدون إطار
+      const li = document.querySelector('li[onclick^="fillSearch120"]');
+      if (li) { li.click(); return true; }
+      // حرّك الأحداث لإظهار القائمة إن كانت مختفية
+      const box = document.querySelector('#SearchBox120');
+      if (box) {
+        ['input','keyup','keydown','change'].forEach(ev =>
+          box.dispatchEvent(new Event(ev, {bubbles:true}))
+        );
+      }
+      return false;
+    });
+    if (ok) return true;
 
-if (!clicked) {
-  // 🔹 جرّب تنفيذ الضغط داخل أي إطار أيضاً
-  for (const frame of page.frames()) {
-    const li = await frame.$('li[onclick^="fillSearch120"]');
-    if (li) {
-      await li.click();
-      console.log('[IMDAD] suggestion clicked inside frame');
-      clicked = true;
-      break;
+    // جرّب داخل أي iframe (بعض القوالب تضع القائمة في iframe خفيف)
+    for (const f of page.frames()) {
+      const li = await f.$('li[onclick^="fillSearch120"]');
+      if (li) { await li.click(); return true; }
     }
-  }
-}
 
-if (!clicked) console.log('[IMDAD] no suggestion found after waiting');
+    await page.waitForTimeout(250);
+  }
+  return false;
+})();
+
+if (!picked) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
 
 
 // 🔹 كود احتياطي للصفحة الرئيسية إن وُجدت القائمة فيها
