@@ -747,6 +747,7 @@ app.post('/api/login', async (req, res) => {
     try{
       account = await acquireAccount();
       await loginToImdad(page, account);
+      await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
       const phone05 = toLocal05(phone);
       const searchRes = await searchAndOpenPatientByIdentity(page, {
@@ -845,6 +846,7 @@ app.post('/api/update-identity', async (req, res) => {
     try{
       account = await acquireAccount();
       await loginToImdad(page, account);
+      await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
       await page.goto(`https://phoenix.imdad.cloud/medica13/stq_edit.php?id=${fileId}`, { waitUntil:'domcontentloaded' });
 
@@ -901,6 +903,7 @@ app.post('/api/create-patient', async (req, res) => {
       try{
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
+        await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
 
         if (await existsPatientByPhone(page, phone05)) {
           await browser.close(); if(account) releaseAccount(account);
@@ -1250,6 +1253,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
   try{
     account = await acquireAccount();
     await loginToImdad(page, account);
+    await page.screenshot({ path: 'logs/step1_loggedin.png', fullPage: true });
     await gotoAppointments(page);
 
     // اختر العيادة
@@ -1272,6 +1276,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }){
     if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
     await typeSlow(page, '#SearchBox120', searchKey, 120);
     await pickPatientByIdentityOrPhone(page, { identity, phone });
+    await page.screenshot({ path: 'logs/step4_patient_selected.png', fullPage: true });
     // اختر المريض من الاقتراحات (الأولوية للجوال)
     const phone05 = toLocal05(phone || '');
     let picked = false;
