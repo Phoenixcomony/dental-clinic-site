@@ -688,7 +688,7 @@ async function existsPatientByPhone(page, phone05){
 const otpStore = {};
 const otpThrottle = {};
 
-app.post('/send-otp', async (req, res) => {
+app.post('', async (req, res) => {
   try {
     let { phone } = req.body || {};
     const orig = phone;
@@ -715,7 +715,7 @@ app.post('/send-otp', async (req, res) => {
     }
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
-    const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
+    const url = ``;
     await axios.get(url, { timeout: 15015 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
@@ -732,7 +732,7 @@ function verifyOtpInline(phone, otp){
 }
 
 /** ===== /api/login ===== */
-app.post('/api/login', async (req, res) => {
+app.post('', async (req, res) => {
   try {
     const { identity, phone, otp } = req.body || {};
     const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
