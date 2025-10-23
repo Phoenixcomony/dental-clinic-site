@@ -11,10 +11,10 @@
     "health": "node -e \"require('http').createServer((_,r)=>r.end('ok')).listen(8080)\""
   },
   "dependencies": {
-    "axios": "^1.6.8",
-    "body-parser": "^1.20.2",
+    "axios": "^1.12.2",
+    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "puppeteer": "^24.25.0"
+    "express": "^4.21.2",
+    "puppeteer": "^24.26.0"
   }
 }

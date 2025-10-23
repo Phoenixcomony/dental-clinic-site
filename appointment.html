@@ -122,7 +122,8 @@
     <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
 
     <p style="color:#b00020; font-weight:bold; margin:12px 0; text-align:center;">
-      🔔تنبيه: عيادة الليزر متاحة فقط للحجز في المجمع.
+      🔔تنبيه: عيادة الليزر متاحة فقط للحجز في المجمع.------------------
+      الموقع تحت الصيانة 
     </p>
 
     <div id="otpGroup" style="display:none;">
@@ -321,7 +322,7 @@
     loginMsg.textContent = 'جاري إرسال الكود...';
     showLoader(true);
     try{
-      const r = await fetch('http://localhost:3000/send-otp', {
+      const r = await fetch('/send-otp', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ phone })
       });
@@ -383,7 +384,7 @@
     };
     showLoader(true);
     try{
-      await fetch('http://localhost:3000/api/login', {
+      const r = await fetch('/api/login', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify(payload)
       });
@@ -525,7 +526,7 @@
     showLoader(true);
 
     try {
-      await fetch('http://localhost:3000/api/times', {
+      const r = await fetch('/api/times', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ clinic, month, needChainMin })
@@ -586,7 +587,7 @@
       let data;
       if (slotsCount > 1) {
         // حجز متسلسل
-        await fetch('http://localhost:3000/api/book-multi', {
+        const res = await fetch('/api/book-multi', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
@@ -602,7 +603,7 @@
         data = await res.json().catch(()=>({ success:false, message:'فشل الحجز المتسلسل' }));
       } else {
         // حجز خانة واحدة
-        const res = await fetch('http://localhost:3000/api/book', {
+        const res = await fetch('/api/book', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body: JSON.stringify({

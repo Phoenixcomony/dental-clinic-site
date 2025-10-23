@@ -1086,12 +1086,14 @@ app.post('/api/times', async (req, res) => {
     try{
       await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
       await gotoAppointments(page);
+
       const clinicValue = await page.evaluate((name) => {
         const opts = Array.from(document.querySelectorAll('#clinic_id option'));
         const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
         return f ? f.value : null;
       }, clinic);
       if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+
       await Promise.all([
         page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
         page.select('#clinic_id', clinicValue)
@@ -1102,94 +1104,138 @@ app.post('/api/times', async (req, res) => {
         const sel = document.querySelector('#month1');
         if (!sel) return null;
         const w = String(wanted).trim();
-        const opts = Array.from(sel.options || []).map(o => ({value: o.value || '',text: (o.textContent || '').trim()}));
+
+        const opts = Array.from(sel.options || []).map(o => ({
+          value: o.value || '',
+          text: (o.textContent || '').trim()
+        }));
+
         const hit =
           opts.find(o => o.text === w) ||
           opts.find(o => o.value.includes(`month=${w}`)) ||
           opts.find(o => o.text.endsWith(w)) ||
           null;
+
         if (!hit) return null;
-        try { sel.value = hit.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
+
         try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+
         return hit.value;
       }, month);
+
       if (!pickedMonth) throw new Error('month_not_found');
+
+      // انتظر تحميل صفحة الشهر
       await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+
       const raw = await page.evaluate(()=>{
-        const out=[]; const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
-        for(const r of radios){const value=r.value||'';const [date,time24]=value.split('*');out.push({ value, date:(date||'').trim(), time24:(time24||'').trim() });}
+        const out=[];
+        const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
+        for(const r of radios){
+          const value=r.value||'';
+          const [date,time24]=value.split('*');
+          out.push({ value, date: (date||'').trim(), time24: (time24||'').trim() });
+        }
         return out;
       });
+
       let filtered = raw;
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+
+      // Overrides لبعض العيادات المسائية
+      (function applyClinicEveningOverrides() {
+        const isEveningNow = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        if (!isEveningNow) return;
+
+        const baseClinic = baseClinicName;
+        const ascii = asciiClinic;
+
+        const isDentalWordHere = /الأسنان|الاسنان/i.test(baseClinic);
+        const isDental1 = isDentalWordHere && /(^|[^0-9])1([^0-9]|$)/.test(ascii);
+        const isDental2 = isDentalWordHere && /(^|[^0-9])2([^0-9]|$)/.test(ascii);
+        const isDental4 = isDentalWordHere && /(^|[^0-9])4([^0-9]|$)/.test(ascii);
+        const isDental5 = isDentalWordHere && /(^|[^0-9])5([^0-9]|$)/.test(ascii);
+        const isDerm = /الجلدية|التجميل/.test(baseClinic);
+        const isSkinClean = /(تنظيف.?البشرة|هايدرافيشل|التشقير)/i.test(baseClinic);
+
+        const between = (t, h1, m1, h2, m2) => {
+          const m = timeToMinutes(t);
+          const s = h1*60 + m1, e = h2*60 + m2;
+          return m >= s && m <= e;
+        };
+
+        if (isDental1 || isDental2) {
+          filtered = raw.filter(x => x.time24 && between(x.time24, 16, 0, 20, 30));
+          return;
+        }
+        if (isDental4) {
+          filtered = raw.filter(x => x.time24 && between(x.time24, 14, 0, 21, 30));
+          return;
+        }
+        if (isDental5) {
+          filtered = raw.filter(x => x.time24 && between(x.time24, 12, 0, 19, 30));
+          return;
+        }
+        if (isDerm) {
+          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 0, 21, 30));
+          return;
+        }
+        if (isSkinClean) {
+          filtered = raw.filter(x => x.time24 && between(x.time24, 15, 30, 21, 30));
+          return;
+        }
+      })();
+
       if (shouldBlockFriSat) {
-        const isFriOrSat = (dateStr)=>{const [Y,M,D]=(dateStr||'').split('-').map(n=>+n);if(!Y||!M||!D)return false;const wd=new Date(Date.UTC(Y,M-1,D)).getUTCDay();return wd===5||wd===6;};
+        const isFriOrSat = (dateStr)=> {
+          const [Y,M,D] = (dateStr||'').split('-').map(n=>+n);
+          if(!Y||!M||!D) return false;
+          const wd = new Date(Date.UTC(Y, M-1, D)).getUTCDay();
+          return wd === 5 || wd === 6;
+        };
         filtered = filtered.filter(x => !isFriOrSat(x.date));
       }
-      const times = filtered.map(x => ({ value: x.value, label: `${x.date} - ${to12h(x.time24)}` }));
-      await browser.close(); res.json({ times });
-    }catch(e){ try{ await browser.close(); }catch(_){ } res.json({ times:[], error:e?.message||String(e) }); }
-  } catch (e) { res.json({ times: [], error: e?.message||String(e) }); }
-});
 
-/** ===== Helper: Select Patient (new unified) ===== */
-async function selectPatientOnAppointments(page, identity) {
-  const idText = (identity && String(identity).trim()) || '';
-  if (!idText) throw new Error('لا يوجد رقم هوية!');
+      const times = filtered.map(x => ({
+        value: x.value,
+        label: `${x.date} - ${to12h(x.time24)}`
+      }));
 
-  await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
-  await typeSlow(page, '#SearchBox120', idText, 120);
-
-  const deadline = Date.now() + 12000;
-  let pickedOk = false;
-
-  while (!pickedOk && Date.now() < deadline) {
-    await page.evaluate(() => {
-      const box = document.querySelector('#SearchBox120');
-      if (!box) return;
-      ['input','keyup','keydown','change'].forEach(ev =>
-        box.dispatchEvent(new Event(ev, { bubbles: true }))
-      );
-      try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
-    });
-    const clicked = await page.evaluate(() => {
-      const li = document.querySelector('li[onclick^="fillSearch120"]');
-      if (li) { li.click(); return true; }
-      return false;
-    });
-    if (clicked) { pickedOk = true; break; }
-    for (const f of page.frames()) {
-      const li = await f.$('li[onclick^="fillSearch120"]');
-      if (li) { await li.click(); pickedOk = true; break; }
+      await browser.close();
+      res.json({ times });
+    }catch(e){
+      try{ await browser.close(); }catch(_){}
+      res.json({ times:[], error:e?.message||String(e) });
     }
-    if (!pickedOk) await page.waitForTimeout(300);
+  } catch (e) {
+    res.json({ times: [], error: e?.message||String(e) });
   }
-  if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
-  await page.waitForTimeout(300);
-}
+});
 
 /** ===== Booking queue (single) ===== */
 const bookingQueue = [];
-let processingBooking = false;
+let processingBooking=false;
 
-app.post('/api/book', async (req, res) => {
-  bookingQueue.push({ req, res });
-  processQueue();
-});
+app.post('/api/book', async (req,res)=>{ bookingQueue.push({req,res}); processQueue(); });
 
-async function processQueue() {
-  if (processingBooking || !bookingQueue.length) return;
-  processingBooking = true;
+async function processQueue(){
+  if(processingBooking || !bookingQueue.length) return;
+  processingBooking=true;
 
   const { req, res } = bookingQueue.shift();
-  try {
-    const msg = await bookNow({ ...req.body });
+  try{
+    const msg = await bookNow({ ...req.body }); // bookNow يدير الحساب والمتصفح
     res.json({ msg });
-  } catch (e) {
-    res.json({ msg: '❌ فشل الحجز! ' + (e?.message || String(e)) });
-  } finally {
-    processingBooking = false;
+  }catch(e){
+    res.json({ msg:'❌ فشل الحجز! '+(e?.message||String(e)) });
+  }finally{
+    processingBooking=false;
     processQueue();
   }
 }
@@ -1197,8 +1243,7 @@ async function processQueue() {
 /** ===== Booking flow (single) ===== */
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   const browser = await launchBrowserSafe();
-  const page = await browser.newPage();
-  await prepPage(page);
+  const page = await browser.newPage(); await prepPage(page);
 
   let account = null;
   try {
@@ -1209,7 +1254,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
     // اختر العيادة
     const clinicValue = await page.evaluate((name) => {
       const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-      const f = opts.find(o => (o.textContent || '').trim() === name || (o.value || '') === name);
+      const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
       return f ? f.value : null;
     }, clinic);
     if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
@@ -1219,10 +1264,11 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       page.select('#clinic_id', clinicValue)
     ]);
 
-    // ضبط الشهر
+    // [FIX] set month for single-book — نفس منطق /api/book-multi
     await applyOneMonthView(page);
-    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {});
-    await page.waitForTimeout(500);
+    // [FIX] انتظر تغيّر الشهر فعليًا قبل المتابعة
+await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(()=>{});
+await page.waitForTimeout(500);
 
     if (month) {
       const wantedMonth = String(month).match(/(\d{1,2})$/)?.[1] || String(month).trim();
@@ -1239,17 +1285,63 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
           opts.find(o => o.text.endsWith(w)) ||
           null;
         if (!hit) return false;
-        try { sel.value = hit.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
         try { if (hit.value) window.location.href = hit.value; } catch (_) {}
         return true;
       }, wantedMonth);
+
       if (monthSet) {
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(()=>{});
+      } else {
+        console.warn('[IMDAD] month option not found for', month);
       }
     }
 
-    // ✅ استخدام الدالة الجديدة لاختيار المريض
-    await selectPatientOnAppointments(page, identity);
+    // --- اكتب الهوية فقط ثم اختر أول اقتراح ---
+    const idText = (identity && String(identity).trim()) || '';
+    if (!idText) throw new Error('لا يوجد رقم هوية!');
+
+    await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+    await typeSlow(page, '#SearchBox120', idText, 120);
+
+    let pickedOk = false;
+    const deadline = Date.now() + 12000;
+
+    while (!pickedOk && Date.now() < deadline) {
+      // حفّز بناء القائمة
+      await page.evaluate(() => {
+        const box = document.querySelector('#SearchBox120');
+        if (!box) return;
+        ['input','keyup','keydown','change'].forEach(ev =>
+          box.dispatchEvent(new Event(ev, { bubbles: true }))
+        );
+        try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
+      });
+
+      // حاول اضغط أول عنصر مباشرة
+      const clicked = await page.evaluate(() => {
+        const li = document.querySelector('li[onclick^="fillSearch120"]');
+        if (li) { li.click(); return true; }
+        return false;
+      });
+      if (clicked) { pickedOk = true; break; }
+
+      // جرّب داخل أي iframe كاحتياط
+      for (const f of page.frames()) {
+        const li = await f.$('li[onclick^="fillSearch120"]');
+        if (li) { await li.click(); pickedOk = true; break; }
+      }
+
+      if (!pickedOk) await page.waitForTimeout(300);
+    }
+
+    if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+
+    // مهلة قصيرة بعد الاختيار
+    await page.waitForTimeout(300);
 
     // ثبّت الهاتف + الملاحظة (إن وُجدت)
     await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, toLocal05(phone || ''));
@@ -1259,19 +1351,20 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       await page.$eval('input[name="notes"]', (el) => { el.value = ''; });
     }
 
+    // قيم افتراضية مطلوبة بالحجز
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
 
     // اختر الوقت
     const selected = await page.evaluate((wanted) => {
-      const normalize = (t) => String(t || '').replace(/:0(\b|$)/g, ':00');
-      const W = normalize(wanted);
-      const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
-      for (const r of radios) {
-        if (!r.disabled && normalize(r.value) === W) { r.click(); return true; }
-      }
-      return false;
-    }, time);
+  const normalize = (t) => String(t || '').replace(/:0(\b|$)/g, ':00'); // 20:0 ⇔ 20:00
+  const W = normalize(wanted);
+  const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
+  for (const r of radios) {
+    if (!r.disabled && normalize(r.value) === W) { r.click(); return true; }
+  }
+  return false;
+}, time);
 
     if (!selected) throw new Error('لم يتم العثور على الموعد المطلوب!');
 
@@ -1284,16 +1377,15 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
     });
     if (!pressed) throw new Error('زر الحجز غير متاح!');
 
-    // انتظار التأكيد
+    // انتظر تأكيد حقيقي
     const confirmed = await Promise.race([
       page.waitForSelector('#popupContact', { visible: true, timeout: 15000 }).then(() => true).catch(() => false),
       page.waitForFunction(() => /تم الحجز|Reserve Done|حجز ناجح/i.test(document.body.innerText), { timeout: 15000 })
-        .then(() => true).catch(() => false)
+           .then(() => true).catch(() => false)
     ]);
     if (!confirmed) throw new Error('لم تصل شاشة التأكيد من إمداد');
 
-    await browser.close();
-    if (account) releaseAccount(account);
+    await browser.close(); if (account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
   } catch (e) {
@@ -1303,33 +1395,33 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   }
 }
 
+
 /** ===== build chain utils ===== */
-function parseTimeValue(v) {
-  const [date, t] = String(v || '').split('*');
+function parseTimeValue(v){
+  const [date, t] = String(v||'').split('*');
   if (!date || !t) return null;
-  const [H, M = '0'] = t.split(':');
-  return { date, H: +H, M: +M, mm: (+H) * 60 + (+M) };
+  const [H, M='0'] = t.split(':');
+  return { date, H: +H, M: +M, mm: (+H)*60 + (+M) };
 }
-function buildChainTimes(firstValue, slotsCount) {
+function buildChainTimes(firstValue, slotsCount){
   const p = parseTimeValue(firstValue);
   if (!p) return [];
   const out = [];
-  for (let i = 0; i < slotsCount; i++) {
-    const mm = p.mm + 15 * i;
-    const H = Math.floor(mm / 60), M = mm % 60;
-    const t = String(H).padStart(2, '0') + ':' + String(M).padStart(2, '0');
+  for(let i=0;i<slotsCount;i++){
+    const mm = p.mm + 15*i;
+    const H = Math.floor(mm/60), M = mm%60;
+    const t = String(H).padStart(2,'0') + ':' + String(M).padStart(2,'0');
     out.push(`${p.date}*${t}`);
   }
   return out;
 }
 
 /** ===== bookMultiChain ===== */
-async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, slotsCount, note, account }) {
+async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, slotsCount, note, account }){
   const browser = await launchBrowserSafe();
-  const page = await browser.newPage();
-  await prepPage(page);
+  const page = await browser.newPage(); await prepPage(page);
   let acc = account;
-  try {
+  try{
     if (!acc) acc = await acquireAccount();
     await loginToImdad(page, acc);
     await gotoAppointments(page);
@@ -1337,87 +1429,160 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
     // اختر العيادة
     const clinicValue = await page.evaluate((name) => {
       const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-      const f = opts.find(o => (o.textContent || '').trim() === name || (o.value || '') === name);
+      const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
       return f ? f.value : null;
     }, clinic);
-    if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+    if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }),
+      page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
       page.select('#clinic_id', clinicValue)
     ]);
 
+    // 1 month ثم الشهر (نضبطها فقط لتحميل نفس اللوحة، لكن الاعتماد على قيمة الوقت)
     await applyOneMonthView(page);
+    const months = await page.evaluate(()=>Array.from(document.querySelectorAll('#month1 option')).map(o=>({value:o.value,text:(o.textContent||'').trim()})));
+    const monthValue = months.find(m => m.text === String(month) || m.value === String(month))?.value || months?.[0]?.value || '';
+    if (monthValue) {
+      await Promise.all([
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+        page.select('#month1', monthValue)
+      ]);
+    }
 
-    // ✅ استخدم الدالة الجديدة لاختيار المريض
-    await selectPatientOnAppointments(page, identity);
+    // --- اكتب الهوية ثم اختر من الاقتراحات ---
+    await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+    await page.waitForTimeout(1200);
+    await typeSlow(page, '#SearchBox120', String(identity || '').trim(), 120);
 
-    // ثبّت الهاتف والملاحظات
-    await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, toLocal05(phone));
+    // ✅ إظهار قائمة الاقتراحات ثم الضغط على عنصرها (الأفضل مطابقة الجوال)
+    const wantedPhone05 = toLocal05(phone||'');
+    let pickedOk = false;
+    const until = Date.now() + 12000;
+
+    while (!pickedOk && Date.now() < until) {
+      // حفّز بناء القائمة
+      await page.evaluate(() => {
+        const box = document.querySelector('#SearchBox120');
+        if (!box) return;
+        ['input','keyup','keydown','change'].forEach(ev =>
+          box.dispatchEvent(new Event(ev, { bubbles:true }))
+        );
+        try {
+          if (typeof window.suggestme120 === 'function') {
+            window.suggestme120(box.value, new KeyboardEvent('keyup'));
+          }
+        } catch (_) {}
+      });
+
+      // حاول المطابقة بالجوال أولاً، ثم أول عنصر كبديل
+      const clicked = await page.evaluate((phone05) => {
+        const $ = (sel) => Array.from(document.querySelectorAll(sel));
+        const lis = $('li[onclick^="fillSearch120"]');
+
+        const get05 = (txt) => {
+          const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+          const ascii = String(txt||'').replace(/[٠-٩]/g, d => map[d]||d);
+          const d = ascii.replace(/\D/g,'');
+          if (/^9665\d{8}$/.test(d)) return '0' + d.slice(3);
+          if (/^5\d{8}$/.test(d))   return '0' + d;
+          if (/^05\d{8}$/.test(d))  return d;
+          return '';
+        };
+
+        let li = lis.find(x => get05(x.innerText) === phone05);
+        if (!li) li = lis[0];
+        if (li) { li.click(); return true; }
+        return false;
+      }, wantedPhone05);
+
+      if (clicked) { pickedOk = true; break; }
+
+      for (const f of page.frames()) {
+        const li = await f.$('li[onclick^="fillSearch120"]');
+        if (li) { await li.click(); pickedOk = true; break; }
+      }
+
+      if (!pickedOk) await page.waitForTimeout(300);
+    }
+
+    if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
+
+    // مهلة صغيرة بعد الاختيار
+    await page.waitForTimeout(400);
+
+    // ثبّت الهاتف والملاحظة
+    await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
     if (typeof note === 'string' && note.trim()) {
-      await page.$eval('input[name="notes"]', (el, v) => { el.value = v; }, note.trim());
+      await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
     } else {
-      await page.$eval('input[name="notes"]', (el) => { el.value = ''; });
+      await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
     }
     await page.select('select[name="gender"]', '1');
     await page.select('select[name="nation_id"]', '1');
 
-      const chain = buildChainTimes(firstTimeValue, Math.max(1, +slotsCount || 1));
+    const chain = buildChainTimes(firstTimeValue, Math.max(1, +slotsCount||1));
     const successes = [];
 
-    for (let i = 0; i < chain.length; i++) {
+    for (let i=0;i<chain.length;i++){
       const wanted = chain[i];
 
-      const selected = await page.evaluate((val) => {
+      const selected = await page.evaluate((val)=>{
         const radios = document.querySelectorAll('input[type="radio"][name="ss"]');
-        for (const r of radios) {
-          if (r.value === val && !r.disabled) { r.click(); return true; }
+        for(const r of radios){
+          if(r.value===val && !r.disabled){ r.click(); return true; }
         }
         return false;
       }, wanted);
-      if (!selected) break;
+      if(!selected) break;
 
-      const pressed = await page.evaluate(() => {
-        const btn = Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
-          .find(el => el.value && el.value.trim() === 'حجز : Reserve');
-        if (!btn) return false;
-        btn.disabled = false; btn.removeAttribute('disabled'); btn.click(); return true;
+      const pressed = await page.evaluate(()=>{
+        const btn=Array.from(document.querySelectorAll('input[type="submit"][name="submit"]'))
+          .find(el=>el.value && el.value.trim()==='حجز : Reserve');
+        if(!btn) return false;
+        btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); return true;
       });
-      if (!pressed) break;
+      if(!pressed) break;
 
-      await page.waitForSelector('#popupContact', { visible: true, timeout: 15000 }).catch(() => null);
+      await page.waitForSelector('#popupContact', { visible:true, timeout:15000 }).catch(()=>null);
       successes.push(wanted);
 
-      // ارجع للمواعيد للجولة التالية
+      // ارجع للمواعيد لنفس العيادة/الشهر للجولة التالية
       await gotoAppointments(page);
       await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }),
+        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
         page.select('#clinic_id', clinicValue)
       ]);
       await applyOneMonthView(page);
-
-      // إعادة تحديد المريض السريع
-      await selectPatientOnAppointments(page, identity);
-      await page.$eval('input[name="phone"]', (el, v) => { el.value = v; }, toLocal05(phone));
+      if (monthValue) {
+        await Promise.all([
+          page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}),
+          page.select('#month1', monthValue)
+        ]);
+      }
+      // إعادة تحديد المريض سريعًا بالجوال
+      await typeSlow(page, '#SearchBox120', phone05, 80);
+      await pickFirstSuggestionOnAppointments(page, 2500);
+      await page.$eval('input[name="phone"]', (el,v)=>{ el.value=v; }, toLocal05(phone));
       if (typeof note === 'string' && note.trim()) {
-        await page.$eval('input[name="notes"]', (el, v) => { el.value = v; }, note.trim());
+        await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
       } else {
-        await page.$eval('input[name="notes"]', (el) => { el.value = ''; });
+        await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
       }
     }
 
-    await browser.close(); if (!account && acc) releaseAccount(acc);
+    await browser.close(); if(!account && acc) releaseAccount(acc);
 
     if (successes.length === chain.length) {
-      return { ok: true, message: `تم حجز ${successes.length} خانة متتالية بنجاح` };
+      return { ok:true, message:`تم حجز ${successes.length} خانة متتالية بنجاح` };
     } else if (successes.length > 0) {
-      return { ok: true, partial: true, message: `تم حجز ${successes.length} خانة وبعض الخانات غير متاحة` };
+      return { ok:true, partial:true, message:`تم حجز ${successes.length} خانة، وبعض الخانات غير متاحة` };
     } else {
-      return { ok: false, message: 'تعذر حجز أي خانة' };
+      return { ok:false, message:'تعذر حجز أي خانة' };
     }
-  } catch (e) {
-    try { await browser.close(); } catch (_) {}
-    if (!account && acc) releaseAccount(acc);
-    return { ok: false, message: 'فشل الحجز المتسلسل: ' + (e?.message || String(e)) };
+  } catch(e){
+    try{ await browser.close(); }catch(_){}
+    if(!account && acc) releaseAccount(acc);
+    return { ok:false, message:'فشل الحجز المتسلسل: ' + (e?.message||String(e)) };
   }
 }
 
@@ -1425,21 +1590,34 @@ async function bookMultiChain({ identity, phone, clinic, month, firstTimeValue, 
 app.post('/api/book-multi', async (req, res) => {
   let account = null;
   try {
-    const { identity, phone, clinic, month, slotsCount, note } = req.body || {};
+    const {
+      identity, phone, clinic, month,      // month اختياري
+      slotsCount, note
+    } = req.body || {};
+
+    // 👈 اجمع الوقت من أي اسم محتمَل ترسله الواجهة:
     const first = (req.body?.firstTimeValue || req.body?.time || req.body?.value || '').trim();
+
     if (!identity || !phone || !clinic || !first) {
-      return res.json({ success: false, message: 'حقول ناقصة (identity/phone/clinic/firstTimeValue)' });
+      return res.json({ success:false, message:'حقول ناقصة (identity/phone/clinic/firstTimeValue)' });
     }
+
     account = await acquireAccount();
+
     const result = await bookMultiChain({
-      identity, phone, clinic, month,
-      firstTimeValue: first,
+      identity,
+      phone,
+      clinic,
+      month,                 // لا نعتمد عليه للحساب، فقط لثبات اللوحة
+      firstTimeValue: first, // 👈 الأساس: 22-10-2025*15:30
       slotsCount: Math.max(1, Number(slotsCount || 1)),
-      note, account
+      note,
+      account
     });
+
     return res.json({ success: !!result.ok, message: result.message });
   } catch (e) {
-    return res.json({ success: false, message: 'فشل الحجز المتعدد: ' + (e?.message || String(e)) });
+    return res.json({ success:false, message:'فشل الحجز المتعدد: ' + (e?.message || String(e)) });
   } finally {
     if (account) releaseAccount(account);
   }
@@ -1455,14 +1633,19 @@ function ensureDir(p) {
   try {
     const dir = path.dirname(p);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  } catch (e) { console.error('[metrics] ensureDir error:', e?.message || e); }
+  } catch (e) {
+    console.error('[metrics] ensureDir error:', e?.message || e);
+  }
 }
 function safeReadJSON(p, fallback) {
   try {
     if (!fs.existsSync(p)) return fallback;
     const txt = fs.readFileSync(p, 'utf8');
     return JSON.parse(txt);
-  } catch (e) { console.error('[metrics] read error:', e?.message || e); return fallback; }
+  } catch (e) {
+    console.error('[metrics] read error:', e?.message || e);
+    return fallback;
+  }
 }
 function safeWriteJSON(p, obj) {
   try {
@@ -1472,14 +1655,28 @@ function safeWriteJSON(p, obj) {
     fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
     if (fs.existsSync(p)) fs.copyFileSync(p, bak);
     fs.renameSync(tmp, p);
-  } catch (e) { console.error('[metrics] write error:', e?.message || e); }
+  } catch (e) {
+    console.error('[metrics] write error:', e?.message || e);
+  }
 }
 function loadMetrics() {
   const init = { ok: true, total: 0, byClinic: {}, byDate: {}, byDateClinic: {} };
   const main = safeReadJSON(METRICS_PATH, null);
-  if (main) return { ok: true, total: Number(main.total || 0), byClinic: main.byClinic || {}, byDate: main.byDate || {}, byDateClinic: main.byDateClinic || {} };
+  if (main) return {
+    ok: true,
+    total: Number(main.total||0),
+    byClinic: main.byClinic||{},
+    byDate: main.byDate||{},
+    byDateClinic: main.byDateClinic||{}
+  };
   const backup = safeReadJSON(METRICS_PATH + '.bak', null);
-  if (backup) return { ok: true, total: Number(backup.total || 0), byClinic: backup.byClinic || {}, byDate: backup.byDate || {}, byDateClinic: backup.byDateClinic || {} };
+  if (backup) return {
+    ok: true,
+    total: Number(backup.total||0),
+    byClinic: backup.byClinic||{},
+    byDate: backup.byDate||{},
+    byDateClinic: backup.byDateClinic||{}
+  };
   safeWriteJSON(METRICS_PATH, init);
   return init;
 }
@@ -1489,11 +1686,14 @@ function saveMetrics() {
   if (_writing) { _pendingWrite = true; return; }
   _writing = true;
   try { safeWriteJSON(METRICS_PATH, METRICS); }
-  finally { _writing = false; if (_pendingWrite) { _pendingWrite = false; saveMetrics(); } }
+  finally {
+    _writing = false;
+    if (_pendingWrite) { _pendingWrite = false; saveMetrics(); }
+  }
 }
 function todayKeyRiyadh() {
   const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' });
-  return fmt.format(new Date());
+  return fmt.format(new Date()); // YYYY-MM-DD
 }
 function incMetrics({ clinic }) {
   const dateKey = todayKeyRiyadh();
@@ -1507,35 +1707,48 @@ function incMetrics({ clinic }) {
   saveMetrics();
 }
 
+/** Track success (called from success.html) */
 app.post('/api/track-success', (req, res) => {
-  try { incMetrics({ clinic: req.body?.clinic }); return res.json({ ok: true }); }
-  catch (e) { console.error('/api/track-success', e?.message || e); return res.status(500).json({ ok: false, error: 'failed' }); }
+  try {
+    const { clinic } = req.body || {};
+    incMetrics({ clinic });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('/api/track-success', e?.message || e);
+    return res.status(500).json({ ok: false, error: 'failed' });
+  }
 });
 
+/** Staff dashboard summary (protected) */
 app.get('/api/stats/summary', (req, res) => {
   const key = req.headers['x-staff-key'] || req.query.key || '';
-  if (!STAFF_KEY || key !== STAFF_KEY) return res.status(403).json({ ok: false, error: 'Forbidden' });
-  METRICS = loadMetrics();
+  if (!STAFF_KEY || key !== STAFF_KEY) {
+    return res.status(403).json({ ok: false, error: 'Forbidden' });
+  }
+  METRICS = loadMetrics(); // حمّل آخر نسخة قبل الإرجاع
   return res.json(METRICS);
 });
 
+/** Reset metrics (protected) */
 app.post('/api/stats/reset', (req, res) => {
   const key = req.headers['x-staff-key'] || req.query.key || '';
-  if (!STAFF_KEY || key !== STAFF_KEY) return res.status(403).json({ ok: false, error: 'Forbidden' });
+  if (!STAFF_KEY || key !== STAFF_KEY) {
+    return res.status(403).json({ ok: false, error: 'Forbidden' });
+  }
   METRICS = { ok: true, total: 0, byClinic: {}, byDate: {}, byDateClinic: {} };
   saveMetrics();
   res.json({ ok: true });
 });
 
-app.get('/health', (_req, res) => res.json({
-  ok: true,
-  time: new Date().toISOString(),
-  chrome: CHROMIUM_PATH || 'bundled',
+/** ===== Health/Diag ===== */
+app.get('/health', (_req,res)=> res.json({
+  ok:true,
+  time:new Date().toISOString(),
+  chrome:CHROMIUM_PATH||'bundled',
   baseCacheDir: BASE_DL_DIR,
-  debug: DEBUG_BROWSER
+  debug:DEBUG_BROWSER
 }));
 
+/** ===== Start server ===== */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () =>
-  console.log(`Server running on http://0.0.0.0:${PORT} (debug=${DEBUG_BROWSER})`)
-);
+app.listen(PORT, '0.0.0.0', ()=> console.log(`Server running on http://0.0.0.0:${PORT} (debug=${DEBUG_BROWSER})`));
