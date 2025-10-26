@@ -1353,7 +1353,7 @@ async function selectPatientOnAppointments(page, identity) {
       const li = await f.$('li[onclick^="fillSearch120"]');
       if (li) { await li.click(); pickedOk = true; break; }
     }
-    if (!pickedOk) await page.waitForTimeout(300);
+    if (!pickedOk) await page.waitForTimeout(3000);
   }
   if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
   await page.waitForTimeout(2000);
