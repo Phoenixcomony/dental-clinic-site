@@ -1323,41 +1323,77 @@ async function clickReserveAndConfirm(page) {
 }
 
 
-/** ===== Helper: Select Patient (new unified) ===== */
+/** ===== Helper: Select Patient (robust) ===== */
 async function selectPatientOnAppointments(page, identity) {
-  const idText = (identity && String(identity).trim()) || '';
+  const idText = String(identity||'').trim();
   if (!idText) throw new Error('لا يوجد رقم هوية!');
 
+  // اكتب الهوية
   await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
-  await typeSlow(page, '#SearchBox120', idText, 120);
+  await page.focus('#SearchBox120');
+  await page.$eval('#SearchBox120', el => el.value = '');
+  for (const ch of idText) await page.type('#SearchBox120', ch, { delay: 120 });
 
-  const deadline = Date.now() + 12000;
+  const deadline = Date.now() + 15000;
   let pickedOk = false;
 
   while (!pickedOk && Date.now() < deadline) {
+    // حفّز الاقتراحات
     await page.evaluate(() => {
       const box = document.querySelector('#SearchBox120');
       if (!box) return;
-      ['input','keyup','keydown','change'].forEach(ev =>
-        box.dispatchEvent(new Event(ev, { bubbles: true }))
-      );
+      ['input','keyup','keydown','change'].forEach(ev => box.dispatchEvent(new Event(ev, { bubbles:true })));
       try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
     });
+
+    // (A) انقر أول عنصر
     const clicked = await page.evaluate(() => {
-      const li = document.querySelector('li[onclick^="fillSearch120"]');
+      const li = document.querySelector('li[onclick^="fillSearch120"], .searchsugg120 li');
       if (li) { li.click(); return true; }
       return false;
     });
-    if (clicked) { pickedOk = true; break; }
-    for (const f of page.frames()) {
-      const li = await f.$('li[onclick^="fillSearch120"]');
-      if (li) { await li.click(); pickedOk = true; break; }
+    if (clicked) pickedOk = true;
+
+    // (B) لو ما نفع: سهم لتحت + Enter
+    if (!pickedOk) {
+      try {
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Enter');
+        pickedOk = true;
+      } catch {}
     }
-    if (!pickedOk) await page.waitForTimeout(3000);
+
+    // (C) لو في iframe
+    if (!pickedOk) {
+      for (const f of page.frames()) {
+        const had = await f.$('li[onclick^="fillSearch120"], .searchsugg120 li');
+        if (had) { await had.click(); pickedOk = true; break; }
+      }
+    }
+
+    // تحقق أن البيانات انعكست فعلاً قبل الخروج من اللوب
+    if (pickedOk) {
+      const okReflected = await page.waitForFunction(() => {
+        // دلائل اختيار المريض في صفحة المواعيد:
+        // - وجود رابط ملف stq_search2.php
+        // - أو ظهور input/قيمة لرقم الملف
+        // - أو تغيّر النص أسفل البحث (بطاقة المريض)
+        const hasLink = !!document.querySelector('a[href^="stq_search2.php?id="]');
+        const hasFileInput = !!document.querySelector('input[name="file_id"], #file_id');
+        const infoBlock = !!document.querySelector('.patient-info, .searchsugg120_selected');
+        return hasLink || hasFileInput || infoBlock;
+      }, { timeout: 3000 }).then(()=>true).catch(()=>false);
+      if (!okReflected) pickedOk = false; // أعد المحاولة
+    }
+
+    if (!pickedOk) await page.waitForTimeout(300);
   }
+
   if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
-  await page.waitForTimeout(2000);
+  // تثبيت قصير بعد الاختيار
+  await page.waitForTimeout(500);
 }
+
 
 /** ===== Booking queue (single) ===== */
 const bookingQueue = [];
