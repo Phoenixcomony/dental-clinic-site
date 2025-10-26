@@ -1356,7 +1356,7 @@ async function selectPatientOnAppointments(page, identity) {
     if (!pickedOk) await page.waitForTimeout(300);
   }
   if (!pickedOk) throw new Error('تعذّر اختيار المريض من الاقتراحات!');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(2000);
 }
 
 /** ===== Booking queue (single) ===== */
