@@ -19,6 +19,47 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
+// ===== Pretty Arabic Routes & SEO Redirects =====
+const canonical = {
+  'index.html':               ['الرئيسية', 'الرئيسيه'],
+  'about.html':               ['من-نحن', 'نبذة'],
+  'appointment.html':         ['حجز-موعد'],
+  'contact.html':             ['اتصل-بنا'],
+  'dental.html':              ['الأسنان', 'الاسنان'],
+  'dermatology.html':         ['الجلدية-و-التجميل', 'الجلديه-و-التجميل'],
+  'general-medicine.html':    ['الطب-العام', 'الطب-العام-والطوارئ'],
+  'gynecology.html':          ['النساء-و-الولادة', 'النساء-و-الولادة'],
+  'hydrafacial.html':         ['هايدرافيشل', 'تنظيف-البشرة-العميق'],
+  'identity.html':            ['الهوية'],
+  'laser-hair-removal.html':  ['إزالة-الشعر-بالليزر', 'الليزر'],
+  'new-file.html':            ['فتح-ملف-جديد'],
+  'services.html':            ['الخدمات'],
+  'success.html':             ['تاكيد-الحجز'],
+};
+
+// 1) SEO 301
+for (const [file, slugs] of Object.entries(canonical)) {
+  const target = `/${slugs[0]}`;
+  app.get(`/${file}`, (req, res) => res.redirect(301, target));
+}
+
+// 2) ملفات المسارات العربية
+app.get('*', (req, res, next) => {
+  let p = req.path;
+  try { p = decodeURIComponent(p); } catch (_) {}
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  for (const [file, slugs] of Object.entries(canonical)) {
+    for (const slug of slugs) {
+      if (p === `/${slug}`) return res.sendFile(path.join(__dirname, file));
+    }
+  }
+  next();
+});
+
+// 3) الجذر
+app.get('/', (req, res) => res.redirect(302, `/${canonical['index.html'][0]}`));
+app.use(express.static(__dirname));
+
 
 /** ===== ENV =====
  * INSTANCE_ID / ACCESS_TOKEN: mywhats.cloud credentials
