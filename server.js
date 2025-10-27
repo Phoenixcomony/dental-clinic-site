@@ -1,6 +1,8 @@
+// server.js
 // ===============================
-// Phoenix Clinic - Backend Server (Railway-ready)
+// Phoenix Clinic - Backend Server (Railway-ready, Headless-hardened)
 // ===============================
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -9,27 +11,13 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// ✅ نقطة فحص الحالة (مطلوبة من Railway)
-const app = express();
-app.get('/health', (req, res) => res.status(200).send('OK'));
-
-// بيئة آمنة للهيدلس
+/// بيئة آمنة للهيدلس
 process.env.XDG_RUNTIME_DIR = process.env.XDG_RUNTIME_DIR || '/tmp';
 process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 
+const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-app.use(express.static(__dirname));
-
-import path from "path";
-const __dirname = path.resolve();
-
-// ✅ استدعاء صفحة حجز الموعد عند زيارة المسارات العربية أو الإنجليزية
-app.get(['/حجز-موعد', '/حجز', '/appointment'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'appointment.html')); // لأنها بجانب server.js
-});
-
-// ✅ عرض باقي الصفحات والملفات (CSS / JS / صور)
 app.use(express.static(__dirname));
 
 /** ===== ENV =====
