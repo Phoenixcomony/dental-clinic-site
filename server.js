@@ -551,7 +551,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   if (!liPhone) {
     try {
       liPhone = await page.evaluate(()=>{
-        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
         const tds = Array.from(document.querySelectorAll('td[height="29"]'));
         for(const td of tds){
           const val = (td.textContent||'').trim();
@@ -570,7 +570,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
 async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPhone05 }) {
   const selector = '#navbar-search-input, input[name="name122"]';
   await page.evaluate(()=>{ const el = document.querySelector('#navbar-search-input, input[name="name122"]'); if (el) el.value = ''; });
-  await typeSlow(page, selector, identityDigits, 120);
+  await typeSlow(page, selector, identityDigits, 150);
 
   // التقط الاقتراحات
   const deadline = Date.now() + 20000;
@@ -587,11 +587,20 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
     }, selector);
     await sleep(300);
   }
-  if (!items.length) return { ok:false, reason:'no_suggestions' };
+ if (!items.length) return { ok:false, reason:'no_suggestions' };
 
-  // حاول اختيار اقتراح يحتوي رقم الهوية نصًا، وإلا خذ الأول
-  const digi = identityDigits.replace(/\D/g,'');
-  let chosen = items.find(it => toAsciiDigits(it.text).replace(/\D/g,'').includes(digi)) || items[0];
+const digi = identityDigits.replace(/\D/g,'');
+// لا تختَر أول عنصر أبداً إن ما فيه الهوية — اختر فقط اقتراحات تحتوي الرقم
+const candidates = items.filter(it => toAsciiDigits(it.text).replace(/\D/g,'').includes(digi));
+
+// لو ما وجدنا اقتراح يحتوي الهوية نصًا → رجّع no_id_in_suggestions
+if (!candidates.length) {
+  return { ok:false, reason:'no_id_in_suggestions' };
+}
+
+// اختر أول مرشّح (الأقرب زمنياً بعد ظهور القائمة)
+const chosen = candidates[0];
+
 
   // افتح بطاقة المريض
   await page.evaluate((idx)=>{
@@ -634,7 +643,7 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   } catch {}
 
   const idDigitsPage = toAsciiDigits(idStatus?.ssnVal || '').replace(/\D/g,'');
-  const identityMatches = digi && idDigitsPage && idDigitsPage.endsWith(digi); // بعض الأنظمة تحفظ 10 أرقام كاملة، نقبل المطابقة التامة
+  const identityMatches = digi && idDigitsPage && (idDigitsPage === digi); // بعض الأنظمة تحفظ 10 أرقام كاملة، نقبل المطابقة التامة
   const phoneMatches = pagePhone ? phonesEqual05(pagePhone, expectedPhone05) : true; // لو ما فيه جوال محفوظ ما نفشل المطابقة بالجوال
 
   if (!identityMatches) return { ok:false, reason:'id_mismatch', fileId, foundId: idDigitsPage, pickedText: chosen.text };
@@ -807,7 +816,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\س+/g,' ');
+      const ascii = toAscii(val).replace(/\s+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
