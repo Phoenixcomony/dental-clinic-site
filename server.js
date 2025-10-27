@@ -612,22 +612,24 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   const fileId = ((patientHref.match(/id=(\d+)/) || [])[1] || '') || extractFileId(patientHref);
   await page.goto(`https://phoenix.imdad.cloud/medica13/${patientHref}`, { waitUntil: 'domcontentloaded' });
 
-  // اقرأ الهوية والجوال من صفحة التحرير للتأكد الدقيق
-  const idStatus = await readIdentityStatus(page, fileId);
   let pagePhone = '';
   try {
     pagePhone = await page.evaluate(()=>{
-      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+      // تصحيح خريطة الأرقام: ٧ ← '7' (كانت خطأ '8')
+      function toAscii(s){
+        const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+        return String(s).replace(/[٠-٩]/g, d => map[d] || d);
+      }
       const tds = Array.from(document.querySelectorAll('td[height="29"]'));
-      for(const td of tds){
+      for (const td of tds) {
         const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
-        if(/^05\d{8}$/.test(digits)) return digits;
+        if (/^05\d{8}$/.test(digits)) return digits;
       }
       // أو من حقل الهاتف إن وجد
       const inp = document.querySelector('#phone');
       if (inp && inp.value) {
         const d = toAscii(inp.value).replace(/\D/g,'');
-        if(/^05\d{8}$/.test(d)) return d;
+        if (/^05\d{8}$/.test(d)) return d;
       }
       return '';
     });
@@ -807,7 +809,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\س+/g,' ');
+      const ascii = toAscii(val).replace(/\s+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
