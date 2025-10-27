@@ -612,24 +612,22 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   const fileId = ((patientHref.match(/id=(\d+)/) || [])[1] || '') || extractFileId(patientHref);
   await page.goto(`https://phoenix.imdad.cloud/medica13/${patientHref}`, { waitUntil: 'domcontentloaded' });
 
+  // اقرأ الهوية والجوال من صفحة التحرير للتأكد الدقيق
+  const idStatus = await readIdentityStatus(page, fileId);
   let pagePhone = '';
   try {
     pagePhone = await page.evaluate(()=>{
-      // تصحيح خريطة الأرقام: ٧ ← '7' (كانت خطأ '8')
-      function toAscii(s){
-        const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
-        return String(s).replace(/[٠-٩]/g, d => map[d] || d);
-      }
+      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
       const tds = Array.from(document.querySelectorAll('td[height="29"]'));
-      for (const td of tds) {
+      for(const td of tds){
         const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
-        if (/^05\d{8}$/.test(digits)) return digits;
+        if(/^05\d{8}$/.test(digits)) return digits;
       }
       // أو من حقل الهاتف إن وجد
       const inp = document.querySelector('#phone');
       if (inp && inp.value) {
         const d = toAscii(inp.value).replace(/\D/g,'');
-        if (/^05\d{8}$/.test(d)) return d;
+        if(/^05\d{8}$/.test(d)) return d;
       }
       return '';
     });
@@ -768,15 +766,17 @@ app.post('/api/login', async (req, res) => {
         console.log('[IMDAD] patient has no phone on file; accepting identity match.');
       }
 
-     await browser.close(); if (account) releaseAccount(account);
-return res.json({
-  success: true,
-  exists: true,
-  fileId,
-  hasIdentity: !!searchRes.hasIdentity, // خذ القيمة من نتيجة البحث نفسها
-  pickedText: searchRes.pickedText
-});
+      const idStatus = await readIdentityStatus(page, fileId);
 
+      await browser.close(); if(account) releaseAccount(account);
+
+      return res.json({
+        success:true,
+        exists:true,
+        fileId,
+        hasIdentity: idStatus.hasIdentity, // غالبًا true بما أنه بحث بالهوية
+        pickedText: searchRes.pickedText
+      });
     }catch(e){
       console.error('[IMDAD] /api/login error:', e?.message||e);
       try{ await browser.close(); }catch(_){}
@@ -807,7 +807,7 @@ async function readIdentityStatus(page, fileId) {
     const tds = Array.from(document.querySelectorAll('td[height="29"]'));
     for(const td of tds){
       const val = (td.textContent||'').trim();
-      const ascii = toAscii(val).replace(/\s+/g,' ');
+      const ascii = toAscii(val).replace(/\س+/g,' ');
       const digits = ascii.replace(/\D/g,'');
       if(/^05\d{8}$/.test(digits)) continue;
       if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
