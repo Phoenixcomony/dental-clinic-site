@@ -18,6 +18,16 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+
+import path from "path";
+const __dirname = path.resolve();
+
+// ✅ استدعاء صفحة حجز الموعد عند زيارة المسارات العربية أو الإنجليزية
+app.get(['/حجز-موعد', '/حجز', '/appointment'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'appointment.html')); // لأنها بجانب server.js
+});
+
+// ✅ عرض باقي الصفحات والملفات (CSS / JS / صور)
 app.use(express.static(__dirname));
 
 /** ===== ENV =====
