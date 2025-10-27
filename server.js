@@ -768,17 +768,15 @@ app.post('/api/login', async (req, res) => {
         console.log('[IMDAD] patient has no phone on file; accepting identity match.');
       }
 
-      const idStatus = await readIdentityStatus(page, fileId);
+     await browser.close(); if (account) releaseAccount(account);
+return res.json({
+  success: true,
+  exists: true,
+  fileId,
+  hasIdentity: !!searchRes.hasIdentity, // خذ القيمة من نتيجة البحث نفسها
+  pickedText: searchRes.pickedText
+});
 
-      await browser.close(); if(account) releaseAccount(account);
-
-      return res.json({
-        success:true,
-        exists:true,
-        fileId,
-        hasIdentity: idStatus.hasIdentity, // غالبًا true بما أنه بحث بالهوية
-        pickedText: searchRes.pickedText
-      });
     }catch(e){
       console.error('[IMDAD] /api/login error:', e?.message||e);
       try{ await browser.close(); }catch(_){}
