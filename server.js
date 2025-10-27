@@ -18,7 +18,6 @@ process.env.LANG = process.env.LANG || 'ar_SA.UTF-8';
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-app.use(express.static(__dirname));
 // ===== Pretty Arabic Routes & SEO Redirects =====
 const canonical = {
   'index.html':               ['الرئيسية', 'الرئيسيه'],
@@ -37,29 +36,35 @@ const canonical = {
   'success.html':             ['تاكيد-الحجز'],
 };
 
-// 1) SEO 301
+// 1) SEO 301: من الاسم الإنجليزي → أول مسار عربي (الكانوني)
 for (const [file, slugs] of Object.entries(canonical)) {
   const target = `/${slugs[0]}`;
   app.get(`/${file}`, (req, res) => res.redirect(301, target));
 }
 
-// 2) ملفات المسارات العربية
+// 2) خدمة الملفات عند زيارة المسارات العربية (تفك ترميز %D8…)
 app.get('*', (req, res, next) => {
   let p = req.path;
   try { p = decodeURIComponent(p); } catch (_) {}
-  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1);
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1); // شيل السلاش الأخير
+
+  // طابق أي مسار عربي معروف وقدّم ملفه
   for (const [file, slugs] of Object.entries(canonical)) {
     for (const slug of slugs) {
-      if (p === `/${slug}`) return res.sendFile(path.join(__dirname, file));
+      if (p === `/${slug}`) {
+        return res.sendFile(path.join(__dirname, file));
+      }
     }
   }
+
+  // غير ذلك → كمل لباقي الراوتس/الستاتك
   next();
 });
 
-// 3) الجذر
+// 3) (اختياري) خَلّ الجذر يظهر المسار الجميل للرئيسية
 app.get('/', (req, res) => res.redirect(302, `/${canonical['index.html'][0]}`));
-app.use(express.static(__dirname));
 
+app.use(express.static(__dirname));
 
 /** ===== ENV =====
  * INSTANCE_ID / ACCESS_TOKEN: mywhats.cloud credentials
@@ -171,7 +176,7 @@ function toAsciiDigits(s='') {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(s).replace(/[٠-٩]/g, d => map[d] || d);
 }
-function isTripleName(n){ return normalizeArabic(n).split(' ').filter(Boolean).length === 3; }
+function isTripleName(n){ return normalizeArabic(n).split(' ').filter(Boolean).length === 3; } // (لم تعد مستخدمة لتسجيل الدخول)
 function isSaudi05(v){ const d = toAsciiDigits(v||'').replace(/\D/g,''); return /^05\d{8}$/.test(d); }
 function normalizePhoneIntl(v){
   const raw = toAsciiDigits(v||''); const d = raw.replace(/\D/g,'');
@@ -229,6 +234,12 @@ function parseSuggestionText(txt=''){
   }
   if(phone){ phone = toLocal05(phone); }
   return { name, phone, fileId, raw: raw };
+}
+
+function isLikelyIdentity(v){
+  const d = toAsciiDigits(v||'').replace(/\D/g,'');
+  // هوية/إقامة سعودية الشيوع 10 أرقام، نقبل 8+ حتى لا نفقد حالات قديمة
+  return d.length >= 8 && !/^05\d{8}$/.test(d);
 }
 
 /** ===== Puppeteer launch (headless-hardened) ===== */
@@ -480,7 +491,7 @@ async function searchSuggestionsByPhoneOnAppointments(page, phone05){
   return items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
 }
 
-/** ===== High-level search + open by best match ===== */
+/** ===== High-level search + open by best match (NAME/PHONE) ===== */
 async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   // 1) ابحث بالاسم
   let items = await searchSuggestionsByName(page, fullName);
@@ -540,7 +551,7 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   if (!liPhone) {
     try {
       liPhone = await page.evaluate(()=>{
-        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+        function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
         const tds = Array.from(document.querySelectorAll('td[height="29"]'));
         for(const td of tds){
           const val = (td.textContent||'').trim();
@@ -553,6 +564,85 @@ async function searchAndOpenPatient(page, { fullName, expectedPhone05 }) {
   }
 
   return { ok:true, pickedText: chosen.text, fileId, liPhone, liName: chosen.parsed.name };
+}
+
+/** ===== New: Search + open by IDENTITY then verify phone ===== */
+async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPhone05 }) {
+  const selector = '#navbar-search-input, input[name="name122"]';
+  await page.evaluate(()=>{ const el = document.querySelector('#navbar-search-input, input[name="name122"]'); if (el) el.value = ''; });
+  await typeSlow(page, selector, identityDigits, 120);
+
+  // التقط الاقتراحات
+  const deadline = Date.now() + 20000;
+  let items = [];
+  while (Date.now() < deadline) {
+    items = await readNameSuggestions(page);
+    if (items.length) break;
+    await page.evaluate((sel)=>{
+      const el = document.querySelector(sel);
+      if(!el) return;
+      ['input','keyup','keydown','change'].forEach(ev=> el.dispatchEvent(new Event(ev, { bubbles: true })));
+      el.blur(); el.focus();
+      try { if (typeof window.suggestme122 === 'function') window.suggestme122(el.value, new KeyboardEvent('keyup')); } catch(e){}
+    }, selector);
+    await sleep(300);
+  }
+  if (!items.length) return { ok:false, reason:'no_suggestions' };
+
+  // حاول اختيار اقتراح يحتوي رقم الهوية نصًا، وإلا خذ الأول
+  const digi = identityDigits.replace(/\D/g,'');
+  let chosen = items.find(it => toAsciiDigits(it.text).replace(/\D/g,'').includes(digi)) || items[0];
+
+  // افتح بطاقة المريض
+  await page.evaluate((idx)=>{
+    const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
+    if(lis && lis[idx]) lis[idx].click();
+  }, chosen.idx);
+
+  // استخرج رابط الملف واذهب إليه
+  const patientHref = await page.evaluate(()=>{
+    const a1 = document.querySelector('a[href^="stq_search2.php?id="]');
+    if (a1) return a1.getAttribute('href');
+    const icon = document.querySelector('a i.far.fa-address-card');
+    if (icon && icon.closest('a')) return icon.closest('a').getAttribute('href');
+    return '';
+  });
+  if (!patientHref) return { ok:false, reason:'no_patient_link', pickedText: chosen.text };
+
+  const fileId = ((patientHref.match(/id=(\d+)/) || [])[1] || '') || extractFileId(patientHref);
+  await page.goto(`https://phoenix.imdad.cloud/medica13/${patientHref}`, { waitUntil: 'domcontentloaded' });
+
+  // اقرأ الهوية والجوال من صفحة التحرير للتأكد الدقيق
+  const idStatus = await readIdentityStatus(page, fileId);
+  let pagePhone = '';
+  try {
+    pagePhone = await page.evaluate(()=>{
+      function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'8','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+      const tds = Array.from(document.querySelectorAll('td[height="29"]'));
+      for(const td of tds){
+        const digits = toAscii((td.textContent||'').trim()).replace(/\D/g,'');
+        if(/^05\d{8}$/.test(digits)) return digits;
+      }
+      // أو من حقل الهاتف إن وجد
+      const inp = document.querySelector('#phone');
+      if (inp && inp.value) {
+        const d = toAscii(inp.value).replace(/\D/g,'');
+        if(/^05\d{8}$/.test(d)) return d;
+      }
+      return '';
+    });
+  } catch {}
+
+  const idDigitsPage = toAsciiDigits(idStatus?.ssnVal || '').replace(/\D/g,'');
+  const identityMatches = digi && idDigitsPage && idDigitsPage.endsWith(digi); // بعض الأنظمة تحفظ 10 أرقام كاملة، نقبل المطابقة التامة
+  const phoneMatches = pagePhone ? phonesEqual05(pagePhone, expectedPhone05) : true; // لو ما فيه جوال محفوظ ما نفشل المطابقة بالجوال
+
+  if (!identityMatches) return { ok:false, reason:'id_mismatch', fileId, foundId: idDigitsPage, pickedText: chosen.text };
+  if (expectedPhone05 && pagePhone && !phoneMatches) {
+    return { ok:false, reason:'phone_mismatch', fileId, liPhone: pagePhone, pickedText: chosen.text };
+  }
+
+  return { ok:true, fileId, liPhone: pagePhone, hasIdentity: !!idDigitsPage, pickedText: chosen.text };
 }
 
 /** ===== Duplicate-phone detector (wider) ===== */
@@ -613,7 +703,7 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15000 });
+    await axios.get(url, { timeout: 15015 });
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -629,11 +719,13 @@ function verifyOtpInline(phone, otp){
   return !!(rec && String(rec.code)===String(otp));
 }
 
-/** ===== Search by name/phone → open patient ===== */
+/** ===== Search by identity/phone → open patient ===== */
 app.post('/api/login', async (req, res) => {
   try {
-    const { name, phone, otp } = req.body || {};
-    if(!isTripleName(name)) return res.status(200).json({ success:false, message:'الاسم يجب أن يكون ثلاثيًا' });
+    const { identity, phone, otp } = req.body || {};
+    // تحقق المُدخلات
+    const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
+    if(!isLikelyIdentity(idDigits)) return res.status(200).json({ success:false, message:'اكتب رقم الهوية/الإقامة بشكل صحيح' });
     if(!isSaudi05(phone))  return res.status(200).json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
     if(!verifyOtpInline(phone, otp)) return res.status(200).json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
 
@@ -645,14 +737,20 @@ app.post('/api/login', async (req, res) => {
       await loginToImdad(page, account);
 
       const phone05 = toLocal05(phone);
-      const searchRes = await searchAndOpenPatient(page, {
-        fullName: normalizeArabic(name),
+
+      // البحث بالهوية أولاً (حسب طلبك)
+      const searchRes = await searchAndOpenPatientByIdentity(page, {
+        identityDigits: idDigits,
         expectedPhone05: phone05
       });
 
       if(!searchRes.ok){
-        console.log('[IMDAD] search result:', searchRes);
+        console.log('[IMDAD] login-by-id result:', searchRes);
         await browser.close(); if(account) releaseAccount(account);
+        // رسالة موحدة
+        if (searchRes.reason === 'phone_mismatch') {
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
+        }
         return res.json({ success:false, exists:false, message:'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).' });
       }
 
@@ -662,10 +760,10 @@ app.post('/api/login', async (req, res) => {
       if (liPhone) {
         if (!phonesEqual05(liPhone, phone)) {
           await browser.close(); if(account) releaseAccount(account);
-          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الاسم' });
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
         }
       } else {
-        console.log('[IMDAD] patient has no phone on file; accepting name match.');
+        console.log('[IMDAD] patient has no phone on file; accepting identity match.');
       }
 
       const idStatus = await readIdentityStatus(page, fileId);
@@ -676,9 +774,8 @@ app.post('/api/login', async (req, res) => {
         success:true,
         exists:true,
         fileId,
-        fullName: normalizeArabic(name),
-        hasIdentity: idStatus.hasIdentity,
-        matchedText: searchRes.pickedText
+        hasIdentity: idStatus.hasIdentity, // غالبًا true بما أنه بحث بالهوية
+        pickedText: searchRes.pickedText
       });
     }catch(e){
       console.error('[IMDAD] /api/login error:', e?.message||e);
@@ -920,10 +1017,7 @@ app.post('/api/create-patient', async (req, res) => {
   });
 });
 
-/** ===== Helper: تطبيق "1 month" قبل اختيار الشهر (موثوق) =====
- * يبحث في كل <select> عن خيار نصه "1 month" أو قيمته تحتوي day_no=30
- * ثم يغير select ويطلق change، وإذا كانت القيمة رابط appoint_display.php يوجّه الصفحة.
- */
+/** ===== Helper: تطبيق "1 month" قبل اختيار الشهر (موثوق) ===== */
 async function applyOneMonthView(page){
   const didSet = await page.evaluate(()=>{
     const selects = Array.from(document.querySelectorAll('select'));
@@ -951,14 +1045,7 @@ async function applyOneMonthView(page){
   return didSet;
 }
 
-/** ===== API: /api/times =====
- * يقبل: clinic, month, period(optional: 'morning' | 'evening')
- * يعيد: value (كما هو من الموقع 24h) + label 12h بالعربي.
- * ✅ تحديد الفترة تلقائيًا إذا كان اسم/قيمة العيادة يتضمن "**الفترة الاولى/الثانية"
- * ✅ استثناء خاص: "عيادة الجلدية والتجميل**الفترة الثانية" = 15:00–22:00
- * ✅ الباقي: صباحي 08:00–11:30، مسائي 16:00–22:00
- * ✅ (جديد) استبعاد الجمعة/السبت للعيادات المطلوبة حسب طلب العميل
- */
+/** ===== API: /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
@@ -969,17 +1056,16 @@ app.post('/api/times', async (req, res) => {
     const autoPeriod =
       /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
-    const effectivePeriod = period || autoPeriod; // تُفضَّل period لو مررتها الواجهة
+    const effectivePeriod = period || autoPeriod;
 
-    // ⚠️ استثناء خاص للمسائية في "الجلدية والتجميل"
     const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
     const isDermEvening = clinicStr === DERM_EVENING_VALUE;
 
     // Helpers (وقت)
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };                 // 08:00 → 11:30
-    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; }; // 15:00(الجلدية) أو 16:00 → 22:00
+    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
+    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; };
 
     // Helpers (تاريخ) — تحديد الجمعة/السبت
     const parseYMD = (s='')=>{
@@ -1008,14 +1094,11 @@ app.post('/api/times', async (req, res) => {
       return p.wd === 5 || p.wd === 6;
     };
 
-    // ======= (مهم) التعرف الدقيق على عيادات الأسنان 1/2/4 =======
-    // نتعامل مع نص قد يحتوي لاحقة "**الفترة ..." فنأخذ الاسم الأساسي قبلها.
+    // ======= (مهم) التعرف الدقيق على بعض العيادات =======
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic = toAsciiDigits(baseClinicName);
     const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
     const isDermClinic   = /الجلدية/.test(baseClinicName);
-
-    // مطابقة قوية للأسنان مع الأرقام 1 أو 2 أو 4 (تدعم الأرقام العربية بتحويلها مسبقًا)
     const isDentalWord = /الأسنان|الاسنان/i.test(baseClinicName);
     const has124Number = /(^^|[^0-9])(1|2|4)([^0-9]|$)/.test(asciiClinic);
     const dental124Names = [
@@ -1026,13 +1109,9 @@ app.post('/api/times', async (req, res) => {
       (isDentalWord && has124Number) ||
       dental124Names.some(n => asciiClinic.includes(n));
 
-    // من تُطبَّق عليه قاعدة الحجب الجمعة/السبت؟
     const shouldBlockFriSat = (() => {
-      // الجلدية: فقط المسائي
       if (isDermClinic && (effectivePeriod === 'evening' || isDermEvening)) return true;
-      // النساء والولادة: صباحي ومسائي
       if (isWomenClinic) return true;
-      // الأسنان 1/2/4: صباحي ومسائي
       if (isDental124) return true;
       return false;
     })();
@@ -1067,7 +1146,6 @@ app.post('/api/times', async (req, res) => {
         page.select('#month1', monthValue)
       ]);
 
-      // اجلب كل المواعيد
       const raw = await page.evaluate(()=>{
         const out=[];
         const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
@@ -1079,13 +1157,40 @@ app.post('/api/times', async (req, res) => {
         return out;
       });
 
-      // فلترة حسب الفترة (إن طُلبت/استنتجت)
       let filtered = raw;
+      const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M); };
+      const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
+      const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
+      const inEvening = (t)=>{ const m=timeToMinutes(t); const start = (clinicStr === 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية') ? 15*60 : 16*60; return m>=start && m<=22*60; };
+
+      const effectivePeriod =
+        /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
+        (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
+
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
 
-      // (جديد) استبعاد الجمعة/السبت حسب قواعد العميل
+      // === خاص: عيادة الأسنان 2 (الفترة المسائية) — 4:00 م → 8:00 م فقط ===
+      (function applyDental2EveningWindow() {
+        // نتحقق أن العيادة هي "الأسنان" وبها الرقم 2 وأن الفترة مسائية
+        const isDentalWordHere = /الأسنان|الاسنان/.test(baseClinicName);
+        const hasNumber2 = /(^|[^0-9])2([^0-9]|$)/.test(asciiClinic);
+        const isEvening = (effectivePeriod === 'evening') || /\*\*الفترة الثانية$/.test(clinicStr);
+        if (isDentalWordHere && hasNumber2 && isEvening) {
+          filtered = filtered.filter(x => {
+            const m = timeToMinutes(x.time24);
+            return m >= 16 * 60 && m <= 20 * 60; // 16:00 → 20:00 شامل
+          });
+        }
+      })();
+
       if (shouldBlockFriSat) {
+        const isFriOrSat = (dateStr)=> {
+          const [Y,M,D] = (dateStr||'').split('-').map(n=>+n);
+          if(!Y||!M||!D) return false;
+          const wd = new Date(Date.UTC(Y, M-1, D)).getUTCDay();
+          return wd === 5 || wd === 6;
+        };
         filtered = filtered.filter(x => !isFriOrSat(x.date));
       }
 
@@ -1130,11 +1235,8 @@ async function processQueue(){
   }
 }
 
-/** ===== Booking flow (USES USER NOTE IF PROVIDED) =====
- * ✅ إذا أرسل العميل ملاحظة (note) نكتبها كما هي في إمداد
- * ✅ إذا لم يُرسل ملاحظة → نترك خانة الملاحظات فارغة (بدون نص تلقائي)
- */
-async function bookNow({ name, phone, clinic, month, time, note, account }){
+/** ===== Booking flow (USES IDENTITY + USER NOTE IF PROVIDED) ===== */
+async function bookNow({ identity, name, phone, clinic, month, time, note, account }){
   const browser = await launchBrowserSafe();
   const page = await browser.newPage(); await prepPage(page);
   try{
@@ -1163,16 +1265,19 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
       page.select('#month1', monthValue)
     ]);
 
-    // ✅ اكتب الاسم ثم اختر الاقتراح الذي يطابق رقم المريض
-    const phone05 = toLocal05(phone);
-    await typeSlow(page, '#SearchBox120', normalizeArabic(name), 140);
+    // ✅ اكتب "رقم الهوية" (إن وُجد) وإلا fallback للاسم القديم
+    const searchKey = (identity && String(identity).trim()) || (name && normalizeArabic(name)) || '';
+    if (!searchKey) throw new Error('لا يوجد مفتاح بحث (هوية/اسم)!');
+    await typeSlow(page, '#SearchBox120', searchKey, 120);
 
-    // انتظر الاقتراحات واقتنص المطابق للرقم
+    // انتظر الاقتراحات واقتنص المطابق للرقم (الجوال)
+    const phone05 = toLocal05(phone || '');
     let picked = false;
     const deadline = Date.now() + 12000;
     while (!picked && Date.now() < deadline) {
       const items = await readApptSuggestions(page);
       const enriched = items.map(it => ({ ...it, parsed: parseSuggestionText(it.text) }));
+      // الأفضلية: مطابقة برقم الجوال
       const match = enriched.find(it => phonesEqual05(it.parsed.phone, phone05));
       if (match) {
         await page.evaluate((idx)=>{
@@ -1182,6 +1287,7 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
         picked = true;
         break;
       }
+      // لو ما لقي الجوال، اختر أول نتيجة بعد تحفيز القائمة
       await page.evaluate(()=>{
         const el = document.querySelector('#SearchBox120');
         if (el) {
@@ -1190,7 +1296,6 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
       });
       await sleep(250);
     }
-    // لو ما حصلنا رقم مطابق، fallback: أول عنصر
     if (!picked) {
       const fallback = await pickFirstSuggestionOnAppointments(page, 3000);
       if (!fallback) throw new Error('تعذر اختيار المريض من قائمة الاقتراحات!');
@@ -1202,7 +1307,6 @@ async function bookNow({ name, phone, clinic, month, time, note, account }){
     if (typeof note === 'string' && note.trim()) {
       await page.$eval('input[name="notes"]', (el,v)=>{ el.value=v; }, note.trim());
     } else {
-      // اضمن بقاء الحقل فارغًا
       await page.$eval('input[name="notes"]', (el)=>{ el.value=''; });
     }
 
@@ -1374,12 +1478,6 @@ app.post('/api/new-file', async (req, res) => {
           });
           fileId = (hrefId.match(/id=(\d+)/) || [])[1] || extractFileId(hrefId) || '';
         } catch(_) {}
-
-        if (!fileId) {
-          const byPhone = await searchSuggestionsByPhoneOnNavbar(page, phone05);
-          const found = byPhone.find(it => phonesEqual05(it.parsed.phone, phone05));
-          if (found && found.parsed.fileId) fileId = found.parsed.fileId;
-        }
 
         await browser.close(); if (account) releaseAccount(account);
 

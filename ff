@@ -1,0 +1,101 @@
+/** ===== /api/login ===== */
+app.post('/api/login', async (req, res) => {
+  try {
+    const { identity, phone, otp } = req.body || {};
+    const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
+    if(!isLikelyIdentity(idDigits)) return res.status(200).json({ success:false, message:'اكتب رقم الهوية/الإقامة بشكل صحيح' });
+    if(!isSaudi05(phone))  return res.status(200).json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
+    if(!verifyOtpInline(phone, otp)) return res.status(200).json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
+
+    const browser = await launchBrowserSafe();
+    const page = await browser.newPage(); await prepPage(page);
+
+    let account=null;
+    try{
+      account = await acquireAccount();
+      await loginToImdad(page, account);
+
+      const phone05 = toLocal05(phone);
+      const searchRes = await searchAndOpenPatientByIdentity(page, {
+        identityDigits: idDigits,
+        expectedPhone05: phone05
+      });
+      await triggerSuggestions(page, '#navbar-search-input, input[name="name122"]');
+
+      if(!searchRes.ok){
+        console.log('[IMDAD] login-by-id result:', searchRes);
+        try { if (!WATCH) await browser.close(); } catch(_){}
+        if(account) releaseAccount(account);
+        if (searchRes.reason === 'phone_mismatch') {
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
+        }
+        return res.json({ success:false, exists:false, message:'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).' });
+      }
+
+      const fileId = searchRes.fileId;
+      const liPhone = searchRes.liPhone;
+
+      if (liPhone) {
+        if (!phonesEqual05(liPhone, phone)) {
+          try { if (!WATCH) await browser.close(); } catch(_){}
+          if(account) releaseAccount(account);
+          return res.json({ success:false, exists:true, reason:'phone_mismatch', message:'رقم الجوال غير متطابق مع الهوية' });
+        }
+      } else {
+        console.log('[IMDAD] patient has no phone on file; accepting identity match.');
+      }
+
+      const idStatus = await readIdentityStatus(page, fileId);
+
+      try { if (!WATCH) await browser.close(); } catch(_){}
+      if(account) releaseAccount(account);
+
+      return res.json({
+        success:true,
+        exists:true,
+        fileId,
+        hasIdentity: idStatus.hasIdentity,
+        pickedText: searchRes.pickedText
+      });
+    }catch(e){
+      console.error('[IMDAD] /api/login error:', e?.message||e);
+      try{ if (!WATCH) await browser.close(); }catch(_){}
+      if(account) releaseAccount(account);
+      return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
+    }
+  } catch (e) {
+    console.error('/api/login fatal', e?.message||e);
+    return res.status(200).json({ success:false, message:'تعذّر التحقق حاليًا. حاول لاحقًا.' });
+  }
+});
+
+/** ===== Read identity ===== */
+async function readIdentityStatus(page, fileId) {
+  console.log('[IMDAD] checking identity…');
+  await page.goto(`https://phoenix.imdad.cloud/medica13/stq_edit.php?id=${fileId}`, { waitUntil:'domcontentloaded' }).catch(()=>{});
+
+  try {
+    await page.waitForSelector('#ssn', { timeout: 7000 });
+    const ssnVal = await page.$eval('#ssn', el => (el.value || '').trim());
+    const digits = toAsciiDigits(ssnVal).replace(/\D/g,'');
+    const hasIdentity = !!(digits && !/^0+$/.test(digits) && digits.length >= 8 && !/^05\d{8}$/.test(digits));
+    return { hasIdentity, ssnVal };
+  } catch (_) {}
+
+  const ssnVal = await page.evaluate(()=>{
+    function toAscii(s){const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};return String(s).replace(/[٠-٩]/g, d=>map[d]||d);}
+    const tds = Array.from(document.querySelectorAll('td[height="29"]'));
+    for(const td of tds){
+      const val = (td.textContent||'').trim();
+      const ascii = toAscii(val).replace(/\s+/g,' ');
+      const digits = ascii.replace(/\D/g,'');
+      if(/^05\d{8}$/.test(digits)) continue;
+      if (digits && !/^0+$/.test(digits) && digits.length >= 8) return digits;
+    }
+    return '';
+  });
+
+  const digits = toAsciiDigits(ssnVal).replace(/\D/g,'');
+  const hasIdentity = !!(digits && !/^0+$/.test(digits) && digits.length >= 8 && !/^05\d{8}$/.test(digits));
+  return { hasIdentity, ssnVal };
+}
