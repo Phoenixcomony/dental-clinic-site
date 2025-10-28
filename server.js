@@ -1194,10 +1194,8 @@ app.post('/api/times', async (req, res) => {
     }
   } catch (e) { res.json({ times: [], error: e?.message||String(e) }); }
 });
-
 /** ===== دالة الضغط والتأكيد للحجز (إصدار قوي للهيدلس) ===== */
 async function clickReserveAndConfirm(page) {
-  // إعدادات تشخيص عند الفشل (اختياري: فعّل BOOK_DEBUG=1)
   const BOOK_DEBUG = process.env.BOOK_DEBUG === '1';
   async function dumpDebug(tag='reserve') {
     try {
@@ -1211,11 +1209,9 @@ async function clickReserveAndConfirm(page) {
     } catch(_) {}
   }
 
-  // التقط أي Dialog فجأة
   page.removeAllListeners('dialog');
   page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
-  // راقب الاستجابات المرتبطة بالحجز (save/reserve)
   let serverSaved = false;
   const respPromise = page.waitForResponse(async (r) => {
     const u = r.url();
@@ -1227,34 +1223,26 @@ async function clickReserveAndConfirm(page) {
           return true;
         }
       } catch(_) {}
-      // حتى لو ما قدرنا نقرأ، اعتبرها إشارة محتملة
       return true;
     }
     return false;
   }, { timeout: 35000 }).catch(()=>false);
 
-  // طريقتا نقر: في الصفحة + ماوسي فعلي
   async function pressInPage() {
     return await page.evaluate(() => {
-      const candidates = [
+      const cand = [
         document.querySelector('input[type="submit"][name="submit"]'),
         ...Array.from(document.querySelectorAll('input[type="submit"]')).filter(b => /حجز|Reserve/i.test((b.value||''))),
         document.querySelector('button#submit'),
         ...Array.from(document.querySelectorAll('button, input[type="button"]')).filter(b => /حجز|Reserve/i.test((b.textContent||b.value||''))),
       ].filter(Boolean);
-
-      const btn = candidates[0];
+      const btn = cand[0];
       if (!btn) return { pressed:false };
-
-      btn.disabled = false;
-      btn.removeAttribute?.('disabled');
-
+      btn.disabled = false; btn.removeAttribute?.('disabled');
       const rect = btn.getBoundingClientRect?.();
       if (rect) window.scrollTo({ top: rect.top + window.scrollY - 140, behavior: 'smooth' });
-
       btn.click();
       btn.dispatchEvent(new Event('click', { bubbles: true }));
-
       const form = btn.closest('form');
       if (form) {
         form.noValidate = true;
@@ -1276,7 +1264,6 @@ async function clickReserveAndConfirm(page) {
     return true;
   }
 
-  // جولة 1: ضغط + انتظار مؤشرات النجاح
   await pressInPage();
   let ok = await Promise.race([
     respPromise.then(Boolean),
@@ -1285,7 +1272,6 @@ async function clickReserveAndConfirm(page) {
     page.waitForFunction(() => /confirm|success/i.test(((document.querySelector('.toast, .alert-success, .alert.alert-success, .swal2-title')||{}).textContent||'')), { timeout: 25000 }).then(()=>true).catch(()=>false),
   ]);
 
-  // جولة 2: نقر ماوسي حقيقي + إعادة محاولة
   if (!ok) {
     await pressWithMouse();
     ok = await Promise.race([
@@ -1295,7 +1281,6 @@ async function clickReserveAndConfirm(page) {
     ]);
   }
 
-  // fallback أخير: submit لكل فورم له علاقة بالحجز
   if (!ok) {
     await page.evaluate(() => {
       const forms = Array.from(document.querySelectorAll('form')).filter(f =>
@@ -1312,37 +1297,52 @@ async function clickReserveAndConfirm(page) {
     ]);
   }
 
-  // تحقّق DOM: إن تحوّل الراديو المختار إلى Disabled نعتبره نجاح
   const radioDisabled = await page.evaluate(() => {
     const r = document.querySelector('input[type="radio"][name="ss"]:checked');
-    if (!r) return true; // لو اختفى؛ غالبًا صار الحجز وتم تحديث الصفحة
+    if (!r) return true;
     return r.disabled === true;
   });
 
   if (ok || serverSaved || radioDisabled) return true;
-
   if (BOOK_DEBUG) await dumpDebug('reserve-failed');
   throw new Error('لم تصل شاشة التأكيد من إمداد');
 }
 
 
-// ===== Helper: Select Patient (robust, headless-friendly) =====
+/** ===== Helper: Select Patient (robust, headless-friendly) ===== */
 async function selectPatientOnAppointments(page, identity) {
-  const idText = String(identity || '').trim();
+  const toAscii = s => String(s||'').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٠-٩]/g, m=>''); // احتياط
+  const idText = toAscii(String(identity || '').trim()).replace(/\D/g,'');
   if (!idText) throw new Error('لا يوجد رقم هوية!');
 
-  // ضبط الشاشة/تركيز (يفيد في headless)
+  try { await page.bringToFront(); } catch(_) {}
   try { await page.setViewport({ width: 1280, height: 900 }); } catch(_) {}
 
-  // اكتب الهوية ببطء مع تحفيز الأحداث
+  // تأكد أن الحقل قابل للكتابة 100%
   await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
-  await page.focus('#SearchBox120');
-  await page.$eval('#SearchBox120', el => el.value = '');
+  await page.evaluate(() => {
+    const el = document.querySelector('#SearchBox120');
+    if (!el) return;
+    el.removeAttribute?.('readonly');
+    el.removeAttribute?.('disabled');
+    el.disabled = false;
+    el.readOnly = false;
+    el.setAttribute?.('autocomplete','off');
+    el.setAttribute?.('autocapitalize','off');
+    el.setAttribute?.('inputmode','numeric');
+    el.value = '';
+    ['focus','click','input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev, { bubbles:true })));
+  });
+
+  // مسار (A): كتابة بطيئة مضمونة
+  const TYPE_DELAY = Number(process.env.FORCE_TYPE_SLOW_MS || 120);
+  await page.click('#SearchBox120', { delay: 50 }).catch(()=>{});
+  await page.focus('#SearchBox120').catch(()=>{});
   for (const ch of idText) {
-    await page.type('#SearchBox120', ch, { delay: 110 });
+    await page.type('#SearchBox120', ch, { delay: TYPE_DELAY }).catch(()=>{});
   }
 
-  // حفّز الاقتراحات فورًا
+  // تحفيز الاقتراحات بعد الكتابة
   await page.evaluate(() => {
     const box = document.querySelector('#SearchBox120');
     if (!box) return;
@@ -1350,53 +1350,60 @@ async function selectPatientOnAppointments(page, identity) {
     try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
   });
 
-  // ننتظر عنصر الاقتراح ثم نضغط عليه بمراحل (mousedown + mouseup + click)
-  const end = Date.now() + 15000;
+  // نبحث عن LI للاقتراح — مع بدائل متعددة
+  const deadline = Date.now() + 15000;
   let picked = false;
 
-  while (!picked && Date.now() < end) {
-    // 1) إذا ظهرت عناصر LI مباشرة فنقر عليها
+  while (!picked && Date.now() < deadline) {
+    // (1) نقر مباشر على LI إن وُجد
     try {
-      const sel = await page.waitForSelector('li[onclick^="fillSearch120"], .searchsugg120 li', { timeout: 3000 });
+      const sel = await page.waitForSelector('li[onclick^="fillSearch120"], .searchsugg120 li', { timeout: 1200 });
       if (sel) {
-        // استخدم أحداث مousedown/mouseup ثم click
         await page.evaluate(el => {
           el.scrollIntoView({ block: 'center' });
           el.dispatchEvent(new MouseEvent('mousedown', { bubbles:true, cancelable:true }));
           el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true }));
           el.click();
         }, sel);
-        // اترك وقتًا للصفحة لتعكس الاختيار
-        await page.waitForTimeout(500);
-        // تحقق أن الاختيار انعكس
+        await page.waitForTimeout(400);
         const okReflected = await page.evaluate(() => {
           const hasLink = !!document.querySelector('a[href^="stq_search2.php?id="]');
           const hasFileInput = !!document.querySelector('input[name="file_id"], #file_id');
           const infoBlock = !!document.querySelector('.patient-info, .searchsugg120_selected');
           const box = document.querySelector('#SearchBox120');
-          const boxLooksLikeName = box && /\D/.test((box.value||'').replace(/\s+/g,''));
-          return hasLink || hasFileInput || infoBlock || boxLooksLikeName;
+          const looksName = box && /\D/.test((box.value||'').replace(/\s+/g,''));
+          return hasLink || hasFileInput || infoBlock || looksName;
         });
         if (okReflected) { picked = true; break; }
       }
-    } catch (e) {
-      // لم يظهر LI خلال timeout، نجرّب بدائل
-    }
+    } catch(_) {}
 
-    // 2) بديل: استخدم لوحة المفاتيح (ArrowDown + Enter)
+    // (2) مسار لوحة مفاتيح ArrowDown + Enter
     try {
-      await page.keyboard.press('ArrowDown');
-      await page.keyboard.press('Enter');
-      await page.waitForTimeout(500);
+      await page.keyboard.press('ArrowDown').catch(()=>{});
+      await page.keyboard.press('Enter').catch(()=>{});
+      await page.waitForTimeout(300);
       const ok = await page.evaluate(() => {
         const hasLink = !!document.querySelector('a[href^="stq_search2.php?id="]');
         const box = document.querySelector('#SearchBox120');
         return hasLink || (box && /\D/.test((box.value||'').replace(/\s+/g,'')));
       });
       if (ok) { picked = true; break; }
-    } catch (_) {}
+    } catch(_) {}
 
-    // 3) بديل: افحص iframes وانقر داخلها
+    // (3) fallback: setValue المباشر + تحفيز
+    if (!picked) {
+      await page.evaluate((val) => {
+        const el = document.querySelector('#SearchBox120');
+        if (!el) return;
+        el.value = val;
+        ['input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev, { bubbles:true })));
+        try { if (typeof window.suggestme120 === 'function') window.suggestme120(el.value, new KeyboardEvent('keyup')); } catch(_) {}
+      }, idText);
+      await page.waitForTimeout(300);
+    }
+
+    // (4) تفقد iframes
     for (const f of page.frames()) {
       try {
         const li = await f.$('li[onclick^="fillSearch120"], .searchsugg120 li');
@@ -1407,28 +1414,28 @@ async function selectPatientOnAppointments(page, identity) {
             el.dispatchEvent(new MouseEvent('mouseup',   { bubbles:true, cancelable:true }));
             el.click();
           }, li);
-          await page.waitForTimeout(500);
+          await page.waitForTimeout(400);
           const ok2 = await page.evaluate(() => !!document.querySelector('a[href^="stq_search2.php?id="]'));
           if (ok2) { picked = true; break; }
         }
-      } catch (_) {}
+      } catch(_) {}
     }
     if (picked) break;
 
-    // 4) إعادة تحفيز الاقتراحات وإعادة المحاولة
+    // (5) إعادة التحفيز
     await page.evaluate(() => {
       const box = document.querySelector('#SearchBox120');
       if (!box) return;
-      ['input','keyup','keydown','change'].forEach(ev => box.dispatchEvent(new Event(ev, { bubbles: true })));
+      ['input','keyup','keydown','change'].forEach(ev => box.dispatchEvent(new Event(ev, { bubbles:true })));
       try { if (typeof window.suggestme120 === 'function') window.suggestme120(box.value, new KeyboardEvent('keyup')); } catch(_) {}
     });
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(300);
   }
 
   if (!picked) {
-    // لحالة الـ headless الصعبة: خزن Debug screenshot/HTML لو مفعل
     try {
       if (process.env.DEBUG_SCREENCAP === '1') {
+        const path = require('path'), fs = require('fs');
         const dir = path.join(__dirname, 'debug');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir);
         await page.screenshot({ path: path.join(dir, `select-fail-${Date.now()}.png`), fullPage: true });
@@ -1439,11 +1446,8 @@ async function selectPatientOnAppointments(page, identity) {
     throw new Error('تعذّر اختيار المريض من الاقتراحات!');
   }
 
-  // تثبيت قصير للتأكد
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(350);
 }
-
-
 
 
 /** ===== Booking queue (single) ===== */
@@ -1471,167 +1475,128 @@ async function processQueue() {
   }
 }
 
-/// ===== Booking flow (single) =====
+
+/// ===== Booking flow (single) — V2 =====
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   const browser = await launchBrowserSafe();
   const page = await browser.newPage();
   await prepPage(page);
 
-  const delay = (ms = 1000) => new Promise(r => setTimeout(r, ms));
   let account = null;
+  const delay = (ms=700)=>new Promise(r=>setTimeout(r,ms));
 
   try {
     account = await acquireAccount();
     await loginToImdad(page, account);
+
     await gotoAppointments(page);
     await delay();
 
-    // 1) اختر العيادة
-    const clinicValue = await page.evaluate((name) => {
+    const clinicValue = await page.evaluate((wanted) => {
       const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-      const f = opts.find(o => (o.textContent || '').trim() === name || (o.value || '') === name);
-      return f ? f.value : null;
-    }, clinic);
+      const hit = opts.find(o => (o.textContent||'').trim() === wanted || (o.value||'') === wanted);
+      return hit ? hit.value : null;
+    }, String(clinic||'').trim());
     if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
 
     await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }).catch(()=>{}),
+      page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{}),
       page.select('#clinic_id', clinicValue)
     ]);
     await delay();
 
-    // 2) حمّل عرض شهر واحد
     await applyOneMonthView(page);
-    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
+    await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 8000 }).catch(()=>{});
     await delay();
 
-    // 3) اختر الشهر
     if (month) {
-      const wantedMonth = String(month).match(/(\d{1,2})$/)?.[1] || String(month).trim();
-      const monthSet = await page.evaluate((w) => {
-        const sel = document.querySelector('#month1');
-        if (!sel) return false;
-        const opts = Array.from(sel.options || []).map(o => ({ value: o.value || '', text: (o.textContent || '').trim() }));
-        const hit =
-          opts.find(o => o.text === w) ||
-          opts.find(o => o.value.includes(`month=${w}`)) ||
-          opts.find(o => o.text.endsWith(w)) ||
-          null;
-        if (!hit) return false;
-        try { sel.value = hit.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
-        try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+      const wanted = String(month).match(/(\d{1,2})$/)?.[1] || String(month).trim();
+      const changed = await page.evaluate((w)=>{
+        const sel=document.querySelector('#month1'); if(!sel) return false;
+        const opts=Array.from(sel.options||[]).map(o=>({value:o.value||'', text:(o.textContent||'').trim()}));
+        const hit=opts.find(o=>o.text===w) || opts.find(o=>o.value.includes(`month=${w}`)) || opts.find(o=>o.text.endsWith(w)) || null;
+        if(!hit) return false;
+        try{ sel.value=hit.value; sel.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){}
+        try{ if(hit.value) window.location.href=hit.value; }catch(_){}
         return true;
-      }, wantedMonth);
-      if (monthSet) {
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 3000 }).catch(() => {});
+      }, wanted);
+      if (changed) {
+        await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout:12000 }).catch(()=>{});
+        await delay();
       }
-      await delay();
     }
 
-    // 4) كتابة الهوية + اختيار أول عنصر من القائمة
-    await page.waitForSelector('#SearchBox120', { visible: true, timeout: 4000 });
-    await page.focus('#SearchBox120');
-    await page.$eval('#SearchBox120', el => el.value = '');
-    for (const ch of String(identity)) await page.type('#SearchBox120', ch, { delay: 150 });
-
-    await page.evaluate(() => {
-      const el = document.querySelector('#SearchBox120');
-      if (el) {
-        ['input','keyup','keydown','change'].forEach(ev => el.dispatchEvent(new Event(ev, { bubbles: true })));
-        try { if (typeof window.suggestme120 === 'function') window.suggestme120(el.value, new KeyboardEvent('keyup')); } catch(_) {}
-      }
-    });
+    await selectPatientOnAppointments(page, String(identity||'').trim());
     await delay();
 
-    await page.evaluate(() => {
-      const li = document.querySelector('li[onclick^="fillSearch120"], .searchsugg120 li');
-      if (li) li.click();
-    });
+    await page.evaluate(v=>{
+      const el=document.querySelector('input[name="notes"],#notes,textarea[name="notes"]');
+      if(el){ el.value=(v||'').trim(); el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true})); }
+    }, (note||'')).catch(()=>{});
+    await page.evaluate(()=>{
+      const g=document.querySelector('select[name="gender"]'); if(g && !g.value){ g.value='1'; g.dispatchEvent(new Event('change',{bubbles:true})); }
+      const n=document.querySelector('select[name="nation_id"]'); if(n && !n.value){ n.value='1'; n.dispatchEvent(new Event('change',{bubbles:true})); }
+    }).catch(()=>{});
     await delay();
 
-    // 5) لا تكتب رقم الجوال نهائياً (تخطي الجوال)
-    // 6) اختياري: الملاحظة والجنس/الجنسية
-    await page.evaluate(v => {
-      const el = document.querySelector('input[name="notes"], #notes, textarea[name="notes"]');
-      if (el) { el.value = v || ''; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }
-    }, (note || '').trim()).catch(() => {});
-    await page.evaluate(() => {
-      const g = document.querySelector('select[name="gender"]');
-      if (g && !g.value) { g.value = '1'; g.dispatchEvent(new Event('change', { bubbles: true })); }
-      const n = document.querySelector('select[name="nation_id"]');
-      if (n && !n.value) { n.value = '1'; n.dispatchEvent(new Event('change', { bubbles: true })); }
-    }).catch(() => {});
-    await delay();
-
-    // 7) اختر الموعد بالنقر الحقيقي
-    await page.waitForFunction(
-      () => document.querySelectorAll('input[type="radio"][name="ss"]').length > 0,
-      { timeout: 20000 }
-    ).catch(() => {});
-
-    function normalizeWanted(v) {
-      const [date, hm = ''] = String(v || '').split('*');
-      let [H, M = '0'] = hm.split(':');
-      return { date: String(date||'').trim(), H: String(+H), M: String(+M) };
+    function normalizeWanted(v){
+      const [date, hm='']=String(v||'').split('*'); let [H,M='0']=String(hm).split(':');
+      return { date:String(date||'').trim(), H:String(+H), M:String(+M) };
     }
     const W = normalizeWanted(time);
 
-    const picked = await page.evaluate(({ date, H, M }) => {
+    await page.waitForFunction(
+      () => document.querySelectorAll('input[type="radio"][name="ss"]').length > 0,
+      { timeout: 20000 }
+    ).catch(()=>{});
+
+    const picked = await page.evaluate(({date,H,M})=>{
       function eq(a,b){ return String(a)===String(b); }
-      function matchValue(val, date, H, M){
-        const parts = String(val||'').split('*');
-        if (parts.length < 2) return false;
-        const vDate = (parts[0]||'').trim();
-        const [vH, vM='0'] = String(parts[1]||'').split(':');
-        return eq(vDate, date) && eq(String(+vH), H) && eq(String(+vM), M);
+      function matchValue(val,date,H,M){
+        const parts=String(val||'').split('*'); if(parts.length<2) return false;
+        const vDate=(parts[0]||'').trim(); const [vH,vM='0']=String(parts[1]||'').split(':');
+        return eq(vDate,date)&&eq(String(+vH),H)&&eq(String(+vM),M);
       }
-      const radios = Array.from(document.querySelectorAll('input[type="radio"][name="ss"]'));
-      for (const r of radios) {
-        if (!r.disabled && matchValue(r.value, date, H, M)) {
-          const label = r.closest('label');
-          if (label) {
-            const rect = label.getBoundingClientRect();
-            window.scrollTo({ top: rect.top + window.scrollY - 120, behavior: 'smooth' });
-            label.click();
-          } else {
-            r.click();
-          }
-          r.dispatchEvent(new Event('change', { bubbles: true }));
+      const radios=Array.from(document.querySelectorAll('input[type="radio"][name="ss"]'));
+      for(const r of radios){
+        if(!r.disabled && matchValue(r.value,date,H,M)){
+          const lab=r.closest('label');
+          if(lab){ const rect=lab.getBoundingClientRect(); window.scrollTo({top:rect.top+window.scrollY-120,behavior:'smooth'}); lab.click(); }
+          else { r.click(); }
+          r.dispatchEvent(new Event('change',{bubbles:true}));
           return true;
         }
       }
-      const wantHM = `${H}:${M}`;
-      const spans = Array.from(document.querySelectorAll('.front-end.box span'));
-      const hit = spans.find(s => (s.textContent || '').includes(wantHM));
-      if (hit) {
-        const lab = hit.closest('label');
-        if (lab) {
-          const rect = lab.getBoundingClientRect();
-          window.scrollTo({ top: rect.top + window.scrollY - 120, behavior: 'smooth' });
+      const wantHM=`${H}:${M}`;
+      const spans=Array.from(document.querySelectorAll('.front-end.box span'));
+      const hit=spans.find(s=>(s.textContent||'').includes(wantHM));
+      if(hit){
+        const lab=hit.closest('label');
+        if(lab){
+          const rect=lab.getBoundingClientRect(); window.scrollTo({top:rect.top+window.scrollY-120,behavior:'smooth'});
           lab.click();
-          const r = lab.querySelector('input[type="radio"][name="ss"]');
-          if (r) r.dispatchEvent(new Event('change', { bubbles: true }));
+          const r=lab.querySelector('input[type="radio"][name="ss"]'); if(r) r.dispatchEvent(new Event('change',{bubbles:true}));
           return true;
         }
       }
       return false;
     }, W);
     if (!picked) throw new Error('لم يتم العثور على الموعد المطلوب!');
-    await delay();
 
-    // 8+9) ضغط زر الحجز + انتظار التأكيد (نسخة قوية)
+    await delay(600);
     await clickReserveAndConfirm(page);
 
-    try { if (!WATCH) await browser.close(); } catch (_){}
+    try { if (!WATCH) await browser.close(); } catch(_){}
     if (account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
   } catch (e) {
-    try { if (!WATCH) await browser.close(); } catch (_){}
+    try { if (!WATCH) await browser.close(); } catch(_){}
     if (account) releaseAccount(account);
     return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
 }
+
 
 /** =========================================================
  *                 Persistent Metrics (stats.json)
@@ -1723,11 +1688,9 @@ app.post('/api/open', async (req, res) => {
   try {
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
-
     const acc = ACCOUNTS[0] || { user:'', pass:'' };
     await loginToImdad(page, acc);
     await gotoAppointments(page);
-
     return res.json({ ok:true, message:'المتصفح انفتح ووصل لصفحة المواعيد — شاهد الآن.' });
   } catch (e) {
     return res.status(500).json({ ok:false, message:'تعذّر فتح المشاهدة: ' + (e?.message || String(e)) });
