@@ -1085,7 +1085,13 @@ app.post('/api/times', async (req, res) => {
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M) };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
     const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
-    const inEvening = (t)=>{ const m=timeToMinutes(t); const start = isDermEvening ? 15*60 : 16*60; return m>=start && m<=22*60; };
+    const inEvening = (t)=>{ 
+  const m=timeToMinutes(t);
+  const start = isDermEvening ? 15*60 : 16*60;      // 3:00م أو 4:00م
+  const end   = isDermEvening ? (21*60 + 30) : 22*60; // جلديّة: حتى 9:30م، غيرها: حتى 10:00م
+  return m >= start && m <= end;
+};
+
 
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic = toAsciiDigits(baseClinicName);
