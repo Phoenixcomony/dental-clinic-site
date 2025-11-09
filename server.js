@@ -1084,7 +1084,12 @@ app.post('/api/times', async (req, res) => {
 
     const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M) };
     const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ const m=timeToMinutes(t); return m>=8*60 && m<=11*60+30; };
+    const inMorning = (t)=>{ 
+  const m = timeToMinutes(t); 
+  // النساء والولادة: من 10:00 ص إلى 11:30 ص
+  return m >= 10*60 && m <= 11*60 + 30;
+};
+
   const inEvening = (t)=>{ 
   const m = timeToMinutes(t);
 
