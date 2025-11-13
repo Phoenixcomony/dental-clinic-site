@@ -1124,12 +1124,9 @@ app.post('/api/times', async (req, res) => {
       (isDentalWord && has124Number) ||
       dental124Names.some(n => asciiClinic.includes(n));
 
-    const shouldBlockFriSat = (() => {
-      if (isDermClinic && (effectivePeriod === 'evening' || isDermEvening)) return true;
-      if (isWomenClinic) return true;
-      if (isDental124) return true;
-      return false;
-    })();
+    // فقط عيادة الجلدية والتجميل (NO.200)**الفترة الثانية
+const shouldBlockFriSat = isDermEvening;
+
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
@@ -1173,15 +1170,17 @@ app.post('/api/times', async (req, res) => {
       let filtered = raw;
       if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
       if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
-      if (shouldBlockFriSat) {
-        const isFriOrSat = (dateStr)=>{
-          const [Y,M,D]=(dateStr||'').split('-').map(n=>+n);
-          if(!Y||!M||!D)return false;
-          const wd=new Date(Date.UTC(Y,M-1,D)).getUTCDay(); // 5=Fri, 6=Sat
-          return wd===5||wd===6;
-        };
-        filtered = filtered.filter(x => !isFriOrSat(x.date));
-      }
+     if (shouldBlockFriSat) {
+  const isFriOrSat = (dateStr)=>{
+    // التاريخ يأتي مثل: 14-11-2025 (يوم-شهر-سنة)
+    const [D,M,Y]=(dateStr||'').split('-').map(n=>+n);
+    if(!Y||!M||!D)return false;
+    const wd=new Date(Date.UTC(Y,M-1,D)).getUTCDay(); // 5=Fri, 6=Sat
+    return wd===5||wd===6; // جمعة أو سبت
+  };
+  filtered = filtered.filter(x => !isFriOrSat(x.date));
+}
+
 
       // عيادة "تشقير وتنظيف البشرة**الفترة الثانية" — تجميع بالساعة
       const DERM_CLEANING_LABEL = 'تشقير وتنظيف البشرة**الفترة الثانية';
