@@ -1074,82 +1074,124 @@ app.post('/api/times', async (req, res) => {
     if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
 
     const clinicStr = String(clinic || '');
+
+    // تحديد الفترة تلقائيًا من اسم العيادة
     const autoPeriod =
       /\*\*الفترة الثانية$/.test(clinicStr) ? 'evening' :
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
     const effectivePeriod = period || autoPeriod;
 
-    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
-    const isDermEvening = clinicStr === DERM_EVENING_VALUE;
-
-    const timeToMinutes = (t)=>{ if(!t) return NaN; const [H,M='0']=t.split(':'); return (+H)*60 + (+M) };
-    const to12h = (t)=>{ if(!t) return ''; let [H,M='0']=t.split(':'); H=+H; M=String(+M).padStart(2,'0'); const am=H<12; let h=H%12; if(h===0) h=12; return `${h}:${M} ${am?'ص':'م'}`; };
-    const inMorning = (t)=>{ 
-  const m = timeToMinutes(t); 
-  // النساء والولادة: من 10:00 ص إلى 11:30 ص
-  return m >= 10*60 && m <= 11*60 + 30;
-};
-
-  const inEvening = (t)=>{ 
-  const m = timeToMinutes(t);
-
-  // تشقير وتنظيف البشرة: 4:00–9:00م
-  if (baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف')) {
-    return m >= 16*60 && m <= 21*60;
-  }
-
-  // الجلدية والتجميل (الفترة الثانية): 3:00–9:30م
-  if (isDermEvening) {
-    return m >= 15*60 && m <= 21*60 + 30;
-  }
-
-  // الافتراضي لباقي العيادات المسائية (مثل عيادة الأسنان 5): 2:00–9:30م
-  return m >= 12*60 && m <= 21*60 + 30;
-};
-
-
-
-
+    // اسم العيادة بدون الجزء الخاص بالفترة (قبل **)
     const baseClinicName = clinicStr.split('**')[0].trim();
-    const asciiClinic = toAsciiDigits(baseClinicName);
-    const isWomenClinic = /النساء|الولادة/.test(baseClinicName);
-    const isDermClinic   = /الجلدية/.test(baseClinicName);
-    const isDentalWord = /الأسنان|الاسنان/i.test(baseClinicName);
-    const has124Number = /(^|[^0-9])(1|2|4)($|[^0-9])/.test(asciiClinic);
-    const dental124Names = [
-      'عيادة الأسنان 1','عيادة الأسنان 2','عيادة الأسنان 4',
-      'عيادة الاسنان 1','عيادة الاسنان 2','عيادة الاسنان 4'
-    ].map(n => toAsciiDigits(n));
-    const isDental124 =
-      (isDentalWord && has124Number) ||
-      dental124Names.some(n => asciiClinic.includes(n));
+    const asciiClinic    = toAsciiDigits(baseClinicName);
 
-    // فقط عيادة الجلدية والتجميل (NO.200)**الفترة الثانية
-const shouldBlockFriSat = isDermEvening;
+    // عيادات خاصة نحتاج نميّزها
+    const isCleaningDerm = baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف');
 
+    // الجلدية والتجميل الفترة الثانية (هي اللي نحجب عنها الجمعة)
+    const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
+    const isDermEvening      = (clinicStr === DERM_EVENING_VALUE);
+
+    // عيادة الأسنان 1 الفترة الثانية
+    const isDental1Evening =
+      clinicStr.includes('عيادة الاسنان 1') ||
+      clinicStr.includes('عيادة الأسنان 1');
+
+    // عيادة الأسنان 4 الفترة الثانية
+    const isDental4Evening =
+      clinicStr.includes('عيادة الاسنان 4') ||
+      clinicStr.includes('عيادة الأسنان 4');
+
+    // حجب الجمعة فقط لعيادة الجلدية والتجميل الفترة الثانية
+    const shouldBlockFriday = isDermEvening;
+
+    const timeToMinutes = (t) => {
+      if (!t) return NaN;
+      const [H, M = '0'] = t.split(':');
+      return (+H) * 60 + (+M);
+    };
+
+    const to12h = (t) => {
+      if (!t) return '';
+      let [H, M = '0'] = t.split(':');
+      H = +H;
+      M = String(+M).padStart(2, '0');
+      const am = H < 12;
+      let h = H % 12;
+      if (h === 0) h = 12;
+      return `${h}:${M} ${am ? 'ص' : 'م'}`;
+    };
+
+    // الفترة الصباحية (حاليًا: نساء وولادة 10:00–11:30 ص)
+    const inMorning = (t) => {
+      const m = timeToMinutes(t);
+      return m >= 10 * 60 && m <= 11 * 60 + 30;
+    };
+
+    // الفترة المسائية (منطق خاص لكل عيادة)
+    const inEvening = (t) => {
+      const m = timeToMinutes(t);
+
+      // 1) تشقير وتنظيف البشرة: 4:00–9:00م
+      if (isCleaningDerm) {
+        return m >= 16 * 60 && m <= 21 * 60;
+      }
+
+      // 2) الجلدية والتجميل (NO.200)**الفترة الثانية: 3:00–9:30م
+      if (isDermEvening) {
+        return m >= 15 * 60 && m <= 21 * 60 + 30;
+      }
+
+      // 3) عيادة الأسنان 1 الفترة الثانية: 4:00–9:30م
+      if (isDental1Evening) {
+        return m >= 16 * 60 && m <= 21 * 60 + 30;
+      }
+
+      // 4) عيادة الأسنان 4 الفترة الثانية: 2:00–9:30م
+      if (isDental4Evening) {
+        return m >= 14 * 60 && m <= 21 * 60 + 30;
+      }
+
+      // 5) الافتراضي لباقي العيادات المسائية (مثل عيادة الأسنان 5…)
+      return m >= 12 * 60 && m <= 21 * 60 + 30;
+    };
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
-    try{
-      await loginToImdad(page, { user:'1111111111', pass:'1111111111' });
+
+    try {
+      // نستخدم أول حساب فقط لقراءة المواعيد
+      await loginToImdad(page, { user: '1111111111', pass: '1111111111' });
       await gotoAppointments(page);
+
+      // اختيار العيادة
       const clinicValue = await page.evaluate((name) => {
         const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-        const f = opts.find(o => (o.textContent||'').trim() === name || (o.value||'') === name);
+        const f = opts.find(o =>
+          (o.textContent || '').trim() === name ||
+          (o.value || '') === name
+        );
         return f ? f.value : null;
       }, clinic);
-      if(!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+      if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+
       await Promise.all([
-        page.waitForNavigation({waitUntil:'domcontentloaded', timeout:120000}).catch(()=>{}),
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {}),
         page.select('#clinic_id', clinicValue)
       ]);
 
+      // عرض شهر واحد
       await applyOneMonthView(page);
+
+      // اختيار الشهر المطلوب
       const pickedMonth = await page.evaluate((wanted) => {
         const sel = document.querySelector('#month1');
         if (!sel) return null;
         const w = String(wanted).trim();
-        const opts = Array.from(sel.options || []).map(o => ({value: o.value || '',text: (o.textContent || '').trim()}));
+        const opts = Array.from(sel.options || []).map(o => ({
+          value: o.value || '',
+          text: (o.textContent || '').trim()
+        }));
         const hit =
           opts.find(o => o.text === w) ||
           opts.find(o => o.value.includes(`month=${w}`)) ||
@@ -1160,31 +1202,50 @@ const shouldBlockFriSat = isDermEvening;
         try { if (hit.value) window.location.href = hit.value; } catch (_) {}
         return hit.value;
       }, month);
+
       if (!pickedMonth) throw new Error('month_not_found');
       await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-      const raw = await page.evaluate(()=>{
-        const out=[]; const radios=document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
-        for(const r of radios){const value=r.value||'';const [date,time24]=value.split('*');out.push({ value, date:(date||'').trim(), time24:(time24||'').trim() });}
+
+      // قراءة كل المواعيد المتاحة (راديو غير معطّل)
+      const raw = await page.evaluate(() => {
+        const out = [];
+        const radios = document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)');
+        for (const r of radios) {
+          const value = r.value || '';
+          const [date, time24] = value.split('*');
+          out.push({
+            value,
+            date: (date || '').trim(),
+            time24: (time24 || '').trim()
+          });
+        }
         return out;
       });
-      let filtered = raw;
-      if (effectivePeriod === 'morning') filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      if (effectivePeriod === 'evening') filtered = raw.filter(x => x.time24 && inEvening(x.time24));
-     if (shouldBlockFriSat) {
-  const isFriOrSat = (dateStr)=>{
-    // التاريخ يأتي مثل: 14-11-2025 (يوم-شهر-سنة)
-    const [D,M,Y]=(dateStr||'').split('-').map(n=>+n);
-    if(!Y||!M||!D)return false;
-    const wd=new Date(Date.UTC(Y,M-1,D)).getUTCDay(); // 5=Fri, 6=Sat
-    return wd===5||wd===6; // جمعة أو سبت
-  };
-  filtered = filtered.filter(x => !isFriOrSat(x.date));
-}
 
+      let filtered = raw;
+
+      // تطبيق فلترة الفترة (صباحية / مسائية)
+      if (effectivePeriod === 'morning') {
+        filtered = raw.filter(x => x.time24 && inMorning(x.time24));
+      }
+      if (effectivePeriod === 'evening') {
+        filtered = raw.filter(x => x.time24 && inEvening(x.time24));
+      }
+
+      // حجب الجمعة فقط للجلدية والتجميل الفترة الثانية
+      if (shouldBlockFriday) {
+        const isFriday = (dateStr) => {
+          // التاريخ مثل: 14-11-2025 (يوم-شهر-سنة)
+          const [D, M, Y] = (dateStr || '').split('-').map(n => +n);
+          if (!Y || !M || !D) return false;
+          const wd = new Date(Date.UTC(Y, M - 1, D)).getUTCDay(); // 5 = الجمعة
+          return wd === 5;
+        };
+        filtered = filtered.filter(x => !isFriday(x.date));
+      }
 
       // عيادة "تشقير وتنظيف البشرة**الفترة الثانية" — تجميع بالساعة
-      const DERM_CLEANING_LABEL = 'تشقير وتنظيف البشرة**الفترة الثانية';
-      if (baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف')) {
+      if (isCleaningDerm) {
         const buckets = new Map(); // key = date|H
         for (const x of filtered) {
           if (!x.time24) continue;
@@ -1202,20 +1263,28 @@ const shouldBlockFriSat = isDermEvening;
           hourly.push({ value: firstSlot.value, label: `${date} - ${to12hHour(H)}` });
         }
         hourly.sort((a, b) => a.label.localeCompare(b.label, 'ar'));
-        try { if (!WATCH) await browser.close(); } catch(_){}
+        try { if (!WATCH) await browser.close(); } catch (_) {}
         return res.json({ times: hourly });
       }
 
-      const times = filtered.map(x => ({ value: x.value, label: `${x.date} - ${to12h(x.time24)}` }));
-      try { if (!WATCH) await browser.close(); } catch(_){}
+      // الشكل النهائي للأوقات لباقي العيادات
+      const times = filtered.map(x => ({
+        value: x.value,
+        label: `${x.date} - ${to12h(x.time24)}`
+      }));
+
+      try { if (!WATCH) await browser.close(); } catch (_) {}
       res.json({ times });
 
-    }catch(e){
-      try{ if (!WATCH) await browser.close(); }catch(_){ }
-      res.json({ times:[], error:e?.message||String(e) });
+    } catch (e) {
+      try { if (!WATCH) await browser.close(); } catch (_) {}
+      res.json({ times: [], error: e?.message || String(e) });
     }
-  } catch (e) { res.json({ times: [], error: e?.message||String(e) }); }
+  } catch (e) {
+    res.json({ times: [], error: e?.message || String(e) });
+  }
 });
+
 /** ===== دالة الضغط والتأكيد للحجز (إصدار قوي للهيدلس) ===== */
 async function clickReserveAndConfirm(page) {
   const BOOK_DEBUG = process.env.BOOK_DEBUG === '1';
