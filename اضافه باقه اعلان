@@ -1,0 +1,20 @@
+  <!-- الباقات -->
+  <section class="section dark" data-aos="fade-up">
+    <h3 class="title">باقات مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 2"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 3"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 4"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 2"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 3"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 4"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 5"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 6"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 7"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="" alt="باقة 1"></div><div class="card-body"><p class="card-title">باقة</p><p class="card-muted">عرض خاص</p></div></article>
+
+    </div>
+  </section>
