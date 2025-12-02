@@ -1102,6 +1102,12 @@ app.post('/api/times', async (req, res) => {
       clinicStr.includes('عيادة الاسنان 4') ||
       clinicStr.includes('عيادة الأسنان 4');
 
+          // عيادة الأسنان 5 الفترة المسائية (د. معاذ)
+    const isDental5Evening =
+      clinicStr.includes('عيادة الاسنان 5') ||
+      clinicStr.includes('عيادة الأسنان 5');
+
+
     // حجب الجمعة فقط لعيادة الجلدية والتجميل الفترة الثانية
     const shouldBlockFriday = isDermEvening;
 
@@ -1129,7 +1135,7 @@ app.post('/api/times', async (req, res) => {
     };
 
     // الفترة المسائية (منطق خاص لكل عيادة)
-    const inEvening = (t) => {
+        const inEvening = (t) => {
       const m = timeToMinutes(t);
 
       // 1) تشقير وتنظيف البشرة: 4:00–9:00م
@@ -1152,9 +1158,15 @@ app.post('/api/times', async (req, res) => {
         return m >= 14 * 60 && m <= 21 * 60 + 30;
       }
 
-      // 5) الافتراضي لباقي العيادات المسائية (مثل عيادة الأسنان 5…)
+      // 5) عيادة الأسنان 5 الفترة المسائية (د. معاذ): 2:00–9:00م
+      if (isDental5Evening) {
+        return m >= 14 * 60 && m <= 21 * 60;
+      }
+
+      // 6) الافتراضي لباقي العيادات المسائية
       return m >= 12 * 60 && m <= 21 * 60 + 30;
     };
+
 
     const browser = await launchBrowserSafe();
     const page = await browser.newPage(); await prepPage(page);
