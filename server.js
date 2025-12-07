@@ -1071,7 +1071,9 @@ async function applyOneMonthView(page){
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
-    if (!clinic || !month) return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+    if (!clinic || !month) {
+      return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
+    }
 
     const clinicStr = String(clinic || '');
 
@@ -1085,8 +1087,9 @@ app.post('/api/times', async (req, res) => {
     const baseClinicName = clinicStr.split('**')[0].trim();
     const asciiClinic    = toAsciiDigits(baseClinicName);
 
-    // عيادات خاصة نحتاج نميّزها
-    const isCleaningDerm = baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف');
+    // عيادة "تشقير وتنظيف البشرة"
+    const isCleaningDerm =
+      baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف');
 
     // الجلدية والتجميل الفترة الثانية (هي اللي نحجب عنها الجمعة)
     const DERM_EVENING_VALUE = 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
@@ -1097,16 +1100,20 @@ app.post('/api/times', async (req, res) => {
       clinicStr.includes('عيادة الاسنان 1') ||
       clinicStr.includes('عيادة الأسنان 1');
 
+    // عيادة الأسنان 2 الفترة الثانية (د. ريّانة) — 4:00–8:30م
+    const isDental2Evening =
+      clinicStr.includes('عيادة الاسنان 2') ||
+      clinicStr.includes('عيادة الأسنان 2');
+
     // عيادة الأسنان 4 الفترة الثانية
     const isDental4Evening =
       clinicStr.includes('عيادة الاسنان 4') ||
       clinicStr.includes('عيادة الأسنان 4');
 
-          // عيادة الأسنان 5 الفترة المسائية (د. معاذ)
+    // عيادة الأسنان 5 الفترة المسائية (د. معاذ)
     const isDental5Evening =
       clinicStr.includes('عيادة الاسنان 5') ||
       clinicStr.includes('عيادة الأسنان 5');
-
 
     // حجب الجمعة فقط لعيادة الجلدية والتجميل الفترة الثانية
     const shouldBlockFriday = isDermEvening;
@@ -1135,7 +1142,7 @@ app.post('/api/times', async (req, res) => {
     };
 
     // الفترة المسائية (منطق خاص لكل عيادة)
-        const inEvening = (t) => {
+    const inEvening = (t) => {
       const m = timeToMinutes(t);
 
       // 1) تشقير وتنظيف البشرة: 4:00–9:00م
@@ -1153,23 +1160,28 @@ app.post('/api/times', async (req, res) => {
         return m >= 16 * 60 && m <= 20 * 60 + 30;
       }
 
-      // 4) عيادة الأسنان 4 الفترة الثانية: 2:00–9:30م
+      // 4) عيادة الأسنان 2 الفترة الثانية (د. ريّانة): 4:00–8:30م
+      if (isDental2Evening) {
+        return m >= 16 * 60 && m <= 20 * 60 + 30;
+      }
+
+      // 5) عيادة الأسنان 4 الفترة الثانية: 2:00–9:30م
       if (isDental4Evening) {
         return m >= 14 * 60 && m <= 21 * 60 + 30;
       }
 
-      // 5) عيادة الأسنان 5 الفترة المسائية (د. معاذ): 2:00–9:00م
+      // 6) عيادة الأسنان 5 الفترة المسائية (د. معاذ): 2:00–9:00م
       if (isDental5Evening) {
         return m >= 14 * 60 && m <= 21 * 60;
       }
 
-      // 6) الافتراضي لباقي العيادات المسائية
+      // 7) الافتراضي لباقي العيادات المسائية
       return m >= 12 * 60 && m <= 21 * 60 + 30;
     };
 
-
     const browser = await launchBrowserSafe();
-    const page = await browser.newPage(); await prepPage(page);
+    const page = await browser.newPage();
+    await prepPage(page);
 
     try {
       // نستخدم أول حساب فقط لقراءة المواعيد
@@ -1189,7 +1201,7 @@ app.post('/api/times', async (req, res) => {
 
       await Promise.all([
         page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {}),
-        page.select('#clinic_id', clinicValue)
+        page.select('#clinic_id', clinicValue),
       ]);
 
       // عرض شهر واحد
@@ -1202,7 +1214,7 @@ app.post('/api/times', async (req, res) => {
         const w = String(wanted).trim();
         const opts = Array.from(sel.options || []).map(o => ({
           value: o.value || '',
-          text: (o.textContent || '').trim()
+          text: (o.textContent || '').trim(),
         }));
         const hit =
           opts.find(o => o.text === w) ||
@@ -1210,8 +1222,13 @@ app.post('/api/times', async (req, res) => {
           opts.find(o => o.text.endsWith(w)) ||
           null;
         if (!hit) return null;
-        try { sel.value = hit.value; sel.dispatchEvent(new Event('change', { bubbles: true })); } catch (_) {}
-        try { if (hit.value) window.location.href = hit.value; } catch (_) {}
+        try {
+          sel.value = hit.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (_) {}
+        try {
+          if (hit.value) window.location.href = hit.value;
+        } catch (_) {}
         return hit.value;
       }, month);
 
@@ -1228,7 +1245,7 @@ app.post('/api/times', async (req, res) => {
           out.push({
             value,
             date: (date || '').trim(),
-            time24: (time24 || '').trim()
+            time24: (time24 || '').trim(),
           });
         }
         return out;
@@ -1239,8 +1256,7 @@ app.post('/api/times', async (req, res) => {
       // تطبيق فلترة الفترة (صباحية / مسائية)
       if (effectivePeriod === 'morning') {
         filtered = raw.filter(x => x.time24 && inMorning(x.time24));
-      }
-      if (effectivePeriod === 'evening') {
+      } else if (effectivePeriod === 'evening') {
         filtered = raw.filter(x => x.time24 && inEvening(x.time24));
       }
 
@@ -1266,12 +1282,15 @@ app.post('/api/times', async (req, res) => {
           if (!buckets.has(key)) buckets.set(key, x); // أول خانة داخل الساعة
         }
         const to12hHour = (H) => {
-          const am = H < 12; let h = H % 12; if (h === 0) h = 12;
+          const am = H < 12;
+          let h = H % 12;
+          if (h === 0) h = 12;
           return `${h}:00 ${am ? 'ص' : 'م'}`;
         };
         const hourly = [];
         for (const [key, firstSlot] of buckets.entries()) {
-          const [date, Hstr] = key.split('|'); const H = +Hstr || 0;
+          const [date, Hstr] = key.split('|');
+          const H = +Hstr || 0;
           hourly.push({ value: firstSlot.value, label: `${date} - ${to12hHour(H)}` });
         }
         hourly.sort((a, b) => a.label.localeCompare(b.label, 'ar'));
@@ -1282,20 +1301,21 @@ app.post('/api/times', async (req, res) => {
       // الشكل النهائي للأوقات لباقي العيادات
       const times = filtered.map(x => ({
         value: x.value,
-        label: `${x.date} - ${to12h(x.time24)}`
+        label: `${x.date} - ${to12h(x.time24)}`,
       }));
 
       try { if (!WATCH) await browser.close(); } catch (_) {}
-      res.json({ times });
+      return res.json({ times });
 
     } catch (e) {
       try { if (!WATCH) await browser.close(); } catch (_) {}
-      res.json({ times: [], error: e?.message || String(e) });
+      return res.json({ times: [], error: e?.message || String(e) });
     }
   } catch (e) {
-    res.json({ times: [], error: e?.message || String(e) });
+    return res.json({ times: [], error: e?.message || String(e) });
   }
 });
+
 
 /** ===== دالة الضغط والتأكيد للحجز (إصدار قوي للهيدلس) ===== */
 async function clickReserveAndConfirm(page) {
