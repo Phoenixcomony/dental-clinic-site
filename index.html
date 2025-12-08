@@ -22,10 +22,10 @@
       --muted:#6b6b6b;
       --shadow:0 6px 24px rgba(0,0,0,.08);
       --radius:18px;
-      --header-h:72px; /* ارتفاع الهيدر التقريبي */
+      --header-h:72px;
     }
 
-    /* خلفية أوضح — تم فقط تعديل القيم أدناه */
+    /* خلفية الموقع */
     .blur-bg-home{
       position:fixed; inset:0;
       background:url('images/297A8178 فينكس الاحترافيه.jpg') center/cover no-repeat;
@@ -75,7 +75,7 @@
 
     /* هيرو */
     .hero{
-      padding: calc(var(--header-h) + 12px) 12px 28px; /* مسافة فوق لتجنّب تغطية الهيدر */
+      padding: calc(var(--header-h) + 12px) 12px 28px;
       text-align:center; position:relative;
     }
     .hero h2{
@@ -93,19 +93,24 @@
     }
     .btn:hover{ background:#fffdfb; transform:translateY(-1px); }
 
-    /* بانر */
+    /* بانر العروض الرئيسي */
     .main-slider-banner{
       margin:16px auto 0; display:flex; justify-content:center; align-items:center;
-      width:100%; max-width:900px; border-radius:16px; overflow:hidden;
-      background:transparent; /* كان #fff —> صار شفاف */
+      width:100%; max-width:900px; border-radius:24px; overflow:hidden;
+      background:radial-gradient(circle at center,#ffffff,#f4e7d5);
       box-shadow:0 2px 15px #f0b88e55;
     }
     .main-slider-banner img{
-      width:100%; height:220px; object-fit:cover; object-position:center; display:block; transition:opacity .6s;
-      background:transparent; /* كان #fff —> صار شفاف */
+      width:100%;
+      height:220px;
+      object-fit:contain;
+      object-position:center;
+      display:block;
+      transition:opacity .6s;
+      background:transparent;
     }
 
-    /* ===== شبكة كروت (باقات + الجديد) ===== */
+    /* الأقسام */
     .section{ padding:48px 16px; margin:28px 0; background:rgba(255,255,255,.75); }
     .section.dark{ background:rgba(0,0,0,.62); }
     .section .title{ text-align:center; font-size:1.6rem; margin:0 0 22px; color:#222; }
@@ -118,17 +123,130 @@
       max-width:1200px; margin:0 auto;
     }
 
-    .card{ background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; transition:transform .18s, box-shadow .18s; display:flex; flex-direction:column; }
-    .card:hover{ transform:translateY(-3px); box-shadow:0 10px 28px rgba(0,0,0,.12); }
+    /* كرت الباقة / الجديد – برواز شفاف */
+    .card{
+      background:transparent;
+      border-radius:24px;
+      border:1px solid rgba(255,255,255,0.35);
+      box-shadow:0 6px 22px rgba(0,0,0,.18);
+      overflow:hidden;
+      transition:transform .18s, box-shadow .18s, border-color .18s;
+      display:flex; flex-direction:column;
+    }
+    .section:not(.dark) .card{
+      border-color:rgba(0,0,0,0.06);
+      box-shadow:0 4px 18px rgba(0,0,0,.08);
+    }
+    .card:hover{
+      transform:translateY(-4px);
+      box-shadow:0 10px 28px rgba(0,0,0,.20);
+      border-color:rgba(255,255,255,0.7);
+    }
 
-    .media-frame{ aspect-ratio:16/9; width:100%; overflow:hidden; background:#f6f6f6; }
-    .media-frame img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+    /* إطار الصورة – يناسب أي صورة طولية/عرضية */
+    .media-frame{
+      aspect-ratio:4/5;
+      width:100%;
+      overflow:hidden;
+      background:radial-gradient(circle at top,#fff,#f5ede0);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px;
+    }
+    .media-frame img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      object-position:center;
+      display:block;
+      cursor:pointer; /* للنقر لتكبير الصورة */
+    }
 
-    .card-body{ padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    .card-title{ font-weight:700; color:#2a2a2a; font-size:1rem; margin:0; }
-    .card-muted{ color:var(--muted); font-size:.92rem; margin:0; }
+    /* شريط زجاجي للنص (باقة / عرض خاص) */
+    .card-body{
+      margin:12px;
+      padding:10px 14px;
+      border-radius:16px;
+      background:linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.65));
+      backdrop-filter:blur(14px);
+      -webkit-backdrop-filter:blur(14px);
+      border:1px solid rgba(255,255,255,0.9);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .card-title{
+      font-weight:800;
+      color:#000;
+      font-size:1rem;
+      margin:0;
+      letter-spacing:0.5px;
+    }
+    .card-muted{
+      color:#111;
+      font-size:.9rem;
+      margin:0;
+      opacity:.8;
+    }
 
-    /* تحسينات موبايل */
+    /* عشان ما يغطي اللون الداكن النص */
+    .section.dark .card-body{
+      background:linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78));
+      border-color:rgba(255,255,255,1);
+    }
+
+    /* نافذة تكبير الصور (Lightbox) */
+    .img-viewer{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+    }
+    .img-viewer.show{ display:flex; }
+    .img-viewer-bg{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,.78);
+    }
+    .img-viewer-content{
+      position:relative;
+      max-width:90vw;
+      max-height:85vh;
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 18px 40px rgba(0,0,0,.5);
+      background:#000;
+    }
+    .img-viewer-content img{
+      display:block;
+      max-width:100%;
+      max-height:85vh;
+      object-fit:contain;
+    }
+    .img-close{
+      position:absolute;
+      top:10px;
+      right:10px;
+      width:34px;
+      height:34px;
+      border-radius:50%;
+      border:none;
+      font-size:20px;
+      font-weight:700;
+      cursor:pointer;
+      background:rgba(255,255,255,.92);
+      color:#000;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 4px 10px rgba(0,0,0,.4);
+    }
+    .img-close:hover{
+      background:#fff;
+    }
+
+    /* موبايل */
     @media (max-width:900px){
       :root{ --header-h:68px; }
       .logo-container img{ width:100px; }
@@ -143,19 +261,24 @@
       .hero h2{ font-size:1.25rem; }
       .hero p{ font-size:.95rem; }
       .btn{ font-size:.92rem; padding:8px 16px; }
-      .main-slider-banner img{ height:170px; }
+      .main-slider-banner img{ height:180px; }
       .section{ padding:36px 12px; }
       .section .title{ font-size:1.25rem; }
       .grid{ --min: 160px; gap:12px; }
+      .img-viewer-content{
+        max-width:94vw;
+        max-height:80vh;
+        border-radius:18px;
+      }
     }
 
-    /* تقليل “التكبير” للبنر على الشاشات الكبيرة: استخدم contain */
-    @media (min-width: 992px){
-      .main-slider-banner{ max-width:1000px; }
-      .main-slider-banner img{ height:300px; object-fit:contain; background:transparent; } /* كان #fff —> صار شفاف */
+    footer{
+      background-color:#dac6a28e;
+      color:#000;
+      text-align:center;
+      padding:10px 0;
+      font-weight:600;
     }
-
-    footer{ background-color:#dac6a28e; color:#000; text-align:center; padding:10px 0; font-weight:600; }
   </style>
 </head>
 <body>
@@ -195,18 +318,195 @@
     <img id="mainBannerImg" src="images/فينكس سينتر.png" alt="إعلان متغير مجمع فينكس الطبي">
   </div>
 
+  <!-- الباقات -->
+  <section class="section dark" data-aos="fade-up">
+    <h3 class="title">باقات مجمع فينكس الطبي</h3>
+    <div class="grid">
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.24_b87af8ef.jpg" alt="باقة 1">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
 
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.24_86e6e42d.jpg" alt="باقة 1">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.24_53e0cc7d.jpg" alt="باقة 2">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.24_7fb4e63a.jpg" alt="باقة 3">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.24_2bcac575.jpg" alt="باقة 4">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_cd05362d.jpg" alt="باقة 1">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_c79c9562.jpg" alt="باقة 2">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_606f82a4.jpg" alt="باقة 3">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_82fc6998.jpg" alt="باقة 4">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_8e64174d.jpg" alt="باقة 5">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.23_5a217bb5.jpg" alt="باقة 6">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/WhatsApp Image 2025-12-08 at 12.18.22_8b216d02.jpg" alt="باقة 7">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      </article>
+    </div>
+  </section>
 
   <!-- ما الجديد -->
   <section class="section" data-aos="fade-up">
     <h3 class="title">الجديد في مجمع فينكس الطبي</h3>
     <div class="grid">
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">تكنولوجيا متقدمة</p></div></article>
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/new image pro2.jpg" alt="جهاز سبلندر اكس الأمريكي"></div><div class="card-body"><p class="card-title">جهاز سبلندر اكس الأمريكي</p><p class="card-muted">دقة وأمان</p></div></article>
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/البروفايلو.jpg" alt="علاج البروفايلو"></div><div class="card-body"><p class="card-title">علاج البروفايلو</p><p class="card-muted">ترطيب وتجديد</p></div></article>
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/ابره السالمون.jpg" alt="ابرة السالمون"></div><div class="card-body"><p class="card-title">ابرة السالمون</p><p class="card-muted">نضارة طبيعية</p></div></article>
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/فراكشنال ليزر .jpg" alt="فراكشنال ليزر"></div><div class="card-body"><p class="card-title">فراكشنال ليزر</p><p class="card-muted">تحسين ملمس البشرة</p></div></article>
-      <article class="card" data-aos="zoom-in"><div class="media-frame"><img loading="lazy" src="images/الحشوه التجميليه.jpg" alt="الحشوة التجميلية"></div><div class="card-body"><p class="card-title">الحشوة التجميلية</p><p class="card-muted">ابتسامة أجمل</p></div></article>
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/new image pro.jpg" alt="جهاز سبلندر اكس الأمريكي">
+        </div>
+        <div class="card-body">
+          <p class="card-title">جهاز سبلندر اكس الأمريكي</p>
+          <p class="card-muted">تكنولوجيا متقدمة</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/new image pro2.jpg" alt="جهاز سبلندر اكس الأمريكي">
+        </div>
+        <div class="card-body">
+          <p class="card-title">جهاز سبلندر اكس الأمريكي</p>
+          <p class="card-muted">دقة وأمان</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/البروفايلو.jpg" alt="علاج البروفايلو">
+        </div>
+        <div class="card-body">
+          <p class="card-title">علاج البروفايلو</p>
+          <p class="card-muted">ترطيب وتجديد</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/ابره السالمون.jpg" alt="ابرة السالمون">
+        </div>
+        <div class="card-body">
+          <p class="card-title">ابرة السالمون</p>
+          <p class="card-muted">نضارة طبيعية</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/فراكشنال ليزر .jpg" alt="فراكشنال ليزر">
+        </div>
+        <div class="card-body">
+          <p class="card-title">فراكشنال ليزر</p>
+          <p class="card-muted">تحسين ملمس البشرة</p>
+        </div>
+      </article>
+
+      <article class="card" data-aos="zoom-in">
+        <div class="media-frame">
+          <img loading="lazy" src="images/الحشوه التجميليه.jpg" alt="الحشوة التجميلية">
+        </div>
+        <div class="card-body">
+          <p class="card-title">الحشوة التجميلية</p>
+          <p class="card-muted">ابتسامة أجمل</p>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -214,25 +514,35 @@
     <p>© 2025 جميع الحقوق محفوظة لعيادة مجمع فينكس الطبي </p>
   </footer>
 
+  <!-- نافذة تكبير الصور -->
+  <div id="imgViewer" class="img-viewer" aria-hidden="true">
+    <div class="img-viewer-bg"></div>
+    <div class="img-viewer-content">
+      <button class="img-close" type="button" aria-label="إغلاق">&times;</button>
+      <img id="imgViewerImg" src="" alt="">
+    </div>
+  </div>
+
   <!-- AOS -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script> AOS.init({ duration: 800, once: true }); </script>
 
-  <!-- سلايدر بسيط -->
+  <!-- سلايدر البنرات + تكبير الصور -->
   <script>
+    // سلايدر البنر الرئيسي
     const bannerImgs = [
-
-      
+      "images/WhatsApp Image 2025-12-06 at 13.52.02_c4d3dd80.jpg",
+      "images/WhatsApp Image 2025-12-08 at 12.18.24_86e6e42d.jpg",
+      "images/WhatsApp Image 2025-12-08 at 12.18.24_53e0cc7d.jpg",
+      "images/WhatsApp Image 2025-12-08 at 12.18.24_2bcac575.jpg",
+      "images/WhatsApp Image 2025-12-08 at 12.18.24_b87af8ef.jpg",
       "images/WhatsApp Image 2025-10-04 at 6.36.43 PM (1).jpeg",
       "images/WhatsApp Image 2025-10-04 at 6.36.49 PM (1).jpeg",
       "images/اطباء مجمع فينكس.png",
       "images/Image 2025-07-10 at 16.38.10_f435f3bd.jpg",
       "images/WhatsApp Image 2025-10-04 at 6.36.43 PM (1).jpeg",
       "images/WhatsApp Image 2025-07-27 at 20.34.59_69ea3ef6.jpg",
-      "images/WhatsApp Image 2025-07-27 at 20.34.57_225f1c7a.jpg",
-      
-
-
+      "images/WhatsApp Image 2025-07-27 at 20.34.57_225f1c7a.jpg"
     ];
     let bannerIndex = 0;
     const bannerImg = document.getElementById('mainBannerImg');
@@ -244,6 +554,39 @@
         bannerImg.style.opacity = "1";
       }, 300);
     }, 3200);
+
+    // تكبير الصور عند النقر
+    const zoomableImages = document.querySelectorAll('.media-frame img');
+    const imgViewer = document.getElementById('imgViewer');
+    const imgViewerImg = document.getElementById('imgViewerImg');
+    const imgViewerBg = imgViewer.querySelector('.img-viewer-bg');
+    const imgCloseBtn = imgViewer.querySelector('.img-close');
+
+    function openViewer(src, alt) {
+      imgViewerImg.src = src;
+      imgViewerImg.alt = alt || '';
+      imgViewer.classList.add('show');
+      imgViewer.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeViewer() {
+      imgViewer.classList.remove('show');
+      imgViewer.setAttribute('aria-hidden', 'true');
+      imgViewerImg.src = '';
+    }
+
+    zoomableImages.forEach((img) => {
+      img.addEventListener('click', () => {
+        openViewer(img.src, img.alt);
+      });
+    });
+
+    imgViewerBg.addEventListener('click', closeViewer);
+    imgCloseBtn.addEventListener('click', closeViewer);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeViewer();
+    });
   </script>
 </body>
 </html>
