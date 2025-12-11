@@ -131,7 +131,7 @@ console.log('Using Chromium path:', CHROMIUM_PATH || '(bundled by puppeteer)');
 /** ===== Imdad accounts ===== */
 const ACCOUNTS = [
 
-  { user: "2222222222", pass: "2222222222", busy: false },
+
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
   { user: "4444444444", pass: "4444444444", busy: false },
