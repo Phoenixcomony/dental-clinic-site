@@ -272,7 +272,7 @@ function launchOpts() {
   }
 
   return {
-    headless: false, // 👈 ضروري جدًا لتعمل fillSearch120 بشكل طبيعي
+    headless: "new", // 👈 ضروري جدًا لتعمل fillSearch120 بشكل طبيعي
     executablePath: exe,
     args: baseArgs,
     defaultViewport: { width: 1280, height: 900 },

@@ -2,12 +2,12 @@
   "name": "dental-clinic-site",
   "version": "1.0.0",
   "description": "Phoenix Clinic server (Express + Puppeteer)",
-  "main": "server/server.js",
+  "main": "server.js",
   "engines": {
     "node": "18.x"
   },
   "scripts": {
-    "start": "node server/server.js",
+    "start": "node server.js",
     "health": "node -e \"require('http').createServer((_,r)=>r.end('ok')).listen(8080)\""
   },
   "dependencies": {
