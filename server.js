@@ -103,6 +103,14 @@ async function resetSharedBrowser() {
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+// 🔁 تحويل الدومين بدون www إلى www
+app.use((req, res, next) => {
+  if (req.headers.host === 'phoenixclinic.net') {
+    return res.redirect(301, 'https://www.phoenixclinic.net' + req.url);
+  }
+  next();
+});
+
 
 /* ================= Imdad Accounts Pool ================= */
 const ACCOUNTS = [
