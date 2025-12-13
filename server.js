@@ -1259,9 +1259,20 @@ app.post('/api/times', async (req, res) => {
 
         const clinicValue = await page.evaluate((name) => {
           const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-         const f = opts.find(o =>
-  (o.textContent || '').includes(clinic.split('**')[0].trim())
+         const normalize = s =>
+  String(s||'')
+    .replace(/\s+/g,' ')
+    .replace(/[أإآ]/g,'ا')
+    .replace(/ة/g,'ه')
+    .trim();
+
+const target = normalize(name);
+
+const f = opts.find(o =>
+  normalize(o.textContent) === target ||
+  normalize(o.value) === target
 );
+
 
           return f ? f.value : null;
         }, clinic);
