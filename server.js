@@ -1213,11 +1213,32 @@ const isDental5 =
     };
 
     const inEvening = (t) => {
-      const m = timeToMinutes(t);
-      if (isCleaningDerm) return m >= 16 * 60 && m <= 21 * 60;
-      if (isDermEvening)  return m >= 15 * 60 && m <= 21 * 60 + 30;
-      return m >= 14 * 60 && m <= 21 * 60 + 30;
-    };
+  const m = timeToMinutes(t);
+
+  // 🦷 الأسنان 1 و 2 (مسائي): 4:00 م – 8:30 م
+  if (
+    clinicStr.includes('عيادة الاسنان 1') ||
+    clinicStr.includes('عيادة الأسنان 1') ||
+    clinicStr.includes('عيادة الاسنان 2') ||
+    clinicStr.includes('عيادة الأسنان 2')
+  ) {
+    return m >= 16 * 60 && m <= 20 * 60 + 30;
+  }
+
+  // 🧴 تنظيف البشرة
+  if (isCleaningDerm) {
+    return m >= 16 * 60 && m <= 21 * 60;
+  }
+
+  // 💄 الجلدية والتجميل
+  if (isDermEvening) {
+    return m >= 15 * 60 && m <= 21 * 60 + 30;
+  }
+
+  // الافتراضي لبقية العيادات المسائية
+  return m >= 14 * 60 && m <= 21 * 60 + 30;
+};
+
     // ===== منع يوم الجمعة لكل العيادات إلا الأسنان 5 =====
 const shouldBlockFriday = !isDental5;
 
@@ -1239,23 +1260,32 @@ const isFriday = (dateStr) => {
         await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
         await gotoAppointments(page);
 
-        // اختيار العيادة
-        const clinicValue = await page.evaluate((name) => {
-          const normalize = s =>
-            String(s||'')
-              .replace(/\s+/g,' ')
-              .replace(/[أإآ]/g,'ا')
-              .replace(/ة/g,'ه')
-              .trim();
+       // اختيار العيادة
+const clinicValue = await page.evaluate((name) => {
 
-          const target = normalize(name);
-          const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-          const f = opts.find(o =>
-            normalize(o.textContent) === target ||
-            normalize(o.value) === target
-          );
-          return f ? f.value : null;
-        }, clinic);
+  // ✅ تشقير وتنظيف البشرة لها رابط ثابت في إمداد
+  if (name.startsWith('عيادة تنظيف البشرة')) {
+    return 'appoint_display.php?clinic_id=137&per_id=2&day_no=7';
+  }
+
+  const normalize = s =>
+    String(s || '')
+      .replace(/\s+/g, ' ')
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .trim();
+
+  const target = normalize(name);
+  const opts = Array.from(document.querySelectorAll('#clinic_id option'));
+
+  const f = opts.find(o =>
+    normalize(o.textContent) === target ||
+    normalize(o.value) === target
+  );
+
+  return f ? f.value : null;
+}, clinic);
+
 
         if (!clinicValue) throw new Error('clinic_not_found');
 
