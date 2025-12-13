@@ -15,6 +15,11 @@ const Redis = require('ioredis');
 const INSTANCE_ID  = process.env.INSTANCE_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const SKIP_OTP_FOR_TESTING = process.env.SKIP_OTP_FOR_TESTING === 'true';
+const BASE_DL_DIR =
+  process.env.PUPPETEER_DOWNLOAD_PATH ||
+  process.env.PUPPETEER_CACHE_DIR ||
+  '/app/.cache/puppeteer';
+
 
 /* ================= Redis ================= */
 const redis = new Redis(process.env.REDIS_URL);
