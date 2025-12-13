@@ -1231,7 +1231,8 @@ app.post('/api/times', async (req, res) => {
       if (isCleaningDerm) return m >= 16 * 60 && m <= 21 * 60;
       if (isDermEvening)  return m >= 15 * 60 && m <= 20 * 60 + 30;
       if (isDental1Evening || isDental2Evening)
-        return m >= 16 * 60 && m <= 20 * 60 + 30;
+  return m >= 14 * 60 && m <= 21 * 60 + 30;
+
       if (isDental4Evening)
         return m >= 14 * 60 && m <= 21 * 60 + 30;
       if (isDental5Evening)
