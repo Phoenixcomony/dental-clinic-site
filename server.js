@@ -112,10 +112,29 @@ app.use((req, res, next) => {
 
 /* Static files */
 app.use(express.static(path.join(__dirname)));
-// مسارات عربية ثابتة
-app.get('/حجز-موعد', (req, res) => {
-  res.sendFile(path.join(__dirname, 'appointment.html'));
+// ✅ دعم المسارات العربية (SEO Slugs)
+app.get('/:slug', (req, res, next) => {
+  try {
+    const slug = decodeURIComponent(req.params.slug);
+
+    if (slug === 'حجز-موعد') {
+      return res.sendFile(path.join(__dirname, 'appointment.html'));
+    }
+
+    if (slug === 'الرئيسية') {
+      return res.sendFile(path.join(__dirname, 'index.html'));
+    }
+
+    if (slug === 'من-نحن') {
+      return res.sendFile(path.join(__dirname, 'about.html'));
+    }
+
+    return next();
+  } catch (e) {
+    return next();
+  }
 });
+
 
 
 app.use(cors());
