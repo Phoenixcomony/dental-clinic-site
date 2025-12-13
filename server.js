@@ -14,6 +14,7 @@ const path = require('path');
 const Redis = require('ioredis');
 const INSTANCE_ID  = process.env.INSTANCE_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const SKIP_OTP_FOR_TESTING = process.env.SKIP_OTP_FOR_TESTING === 'true';
 
 /* ================= Redis ================= */
 const redis = new Redis(process.env.REDIS_URL);
@@ -877,14 +878,15 @@ app.post('/api/login', async (req, res) => {
       return res.json({ success:false, message:'تعذر التحقق الآن' });
     }
 
-  } catch (e) {
+ } catch (e) {
   console.error('[LOGIN ERROR]', e);
   return res.json({
-    success:false,
-    message:'خطأ عام',
+    success: false,
+    message: 'خطأ أثناء التحقق',
     debug: e?.message || String(e)
   });
 }
+
 
 });
 
