@@ -14,12 +14,18 @@ const path = require('path');
 const Redis = require('ioredis');
 
 /* ================= Redis ================= */
-const redis = new Redis({
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-});
+/* ================= Redis ================= */
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL)
+  : new Redis({
+      host: process.env.REDIS_HOST,
+      port: process.env.REDIS_PORT,
+      password: process.env.REDIS_PASSWORD,
+    });
+
+/* ================= WATCH ================= */
 const WATCH = process.env.WATCH === '1' || process.env.DEBUG_BROWSER === '1';
+
 
 
 redis.on('connect', () => console.log('🟢 Redis connected'));
