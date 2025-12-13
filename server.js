@@ -878,8 +878,14 @@ app.post('/api/login', async (req, res) => {
     }
 
   } catch (e) {
-    return res.json({ success:false, message:'خطأ عام' });
-  }
+  console.error('[LOGIN ERROR]', e);
+  return res.json({
+    success:false,
+    message:'خطأ عام',
+    debug: e?.message || String(e)
+  });
+}
+
 });
 
 
