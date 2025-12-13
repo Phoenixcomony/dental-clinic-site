@@ -12,6 +12,8 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+const INSTANCE_ID  = process.env.INSTANCE_ID;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 
 /* ================= Redis ================= */
 const redis = new Redis(process.env.REDIS_URL);
@@ -749,6 +751,8 @@ async function existsPatientByPhone(page, phone05){
 /** ===== WhatsApp OTP ===== */
 const otpStore = {};
 const otpThrottle = {};
+console.log('ENV INSTANCE_ID:', process.env.INSTANCE_ID);
+console.log('ENV ACCESS_TOKEN:', process.env.ACCESS_TOKEN);
 
 app.post('/send-otp', async (req, res) => {
   try {
