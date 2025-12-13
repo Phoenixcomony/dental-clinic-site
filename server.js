@@ -1252,6 +1252,10 @@ app.post('/api/times', async (req, res) => {
       try {
         await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
         await gotoAppointments(page);
+        // انتظر جدول المواعيد فعليًا
+
+
+
 
         const clinicValue = await page.evaluate((name) => {
           const opts = Array.from(document.querySelectorAll('#clinic_id option'));
@@ -1269,6 +1273,11 @@ app.post('/api/times', async (req, res) => {
         ]);
 
         await applyOneMonthView(page);
+        await page.waitForFunction(
+  () => document.querySelectorAll('input[type="radio"][name="ss"]').length > 0,
+  { timeout: 25000 }
+);
+
 
         const pickedMonth = await page.evaluate((wanted) => {
           const sel = document.querySelector('#month1');
