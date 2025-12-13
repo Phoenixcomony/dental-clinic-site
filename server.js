@@ -1171,9 +1171,10 @@ app.post('/api/times', async (req, res) => {
     const cacheKey = makeTimesKey({ clinic, month, period: effectivePeriod || '' });
 
     const cached = getTimesCache(cacheKey);
-    if (cached) {
-      return res.json({ times: cached, cached: true });
-    }
+    if (cached && cached.length > 0) {
+  return res.json({ times: cached, cached: true });
+}
+
 
     if (timesInFlight.has(cacheKey)) {
       const data = await timesInFlight.get(cacheKey);
@@ -1296,8 +1297,15 @@ app.post('/api/times', async (req, res) => {
             return { value: r.value, date: date?.trim(), time24: time24?.trim() };
           });
         });
+        console.log('[TIMES] raw count =', raw.length);
+
 
         let filtered = raw;
+if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
+if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
+console.log('[TIMES] after period filter =', filtered.length, 'period=', effectivePeriod);
+
+
         
 
         if (shouldBlockFriday) {
@@ -1323,6 +1331,7 @@ app.post('/api/times', async (req, res) => {
           });
           return hourly.sort((a, b) => a.label.localeCompare(b.label, 'ar'));
         }
+console.log('[TIMES] final before return =', filtered.length);
 
         return filtered.map(x => ({
           value: x.value,
