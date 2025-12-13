@@ -19,8 +19,11 @@ const BASE_DL_DIR =
   process.env.PUPPETEER_DOWNLOAD_PATH ||
   process.env.PUPPETEER_CACHE_DIR ||
   '/app/.cache/puppeteer';
-
-
+  
+const CHROMIUM_PATH =
+  process.env.PUPPETEER_EXECUTABLE_PATH ||
+  process.env.CHROME_PATH ||
+  null;
 /* ================= Redis ================= */
 const redis = new Redis(process.env.REDIS_URL);
 
