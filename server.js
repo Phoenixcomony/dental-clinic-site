@@ -112,6 +112,11 @@ app.use((req, res, next) => {
 
 /* Static files */
 app.use(express.static(path.join(__dirname)));
+// مسارات عربية ثابتة
+app.get('/حجز-موعد', (req, res) => {
+  res.sendFile(path.join(__dirname, 'appointment.html'));
+});
+
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
