@@ -1180,6 +1180,11 @@ app.post('/api/times', async (req, res) => {
 
     // ===== إعدادات العيادات =====
     const baseClinicName = clinicStr.split('**')[0].trim();
+    // تحديد عيادة الأسنان 5 (الوحيدة المسموح لها بالجمعة)
+const isDental5 =
+  baseClinicName.includes('عيادة الاسنان 5') ||
+  baseClinicName.includes('عيادة الأسنان 5');
+
 
     const isCleaningDerm =
       baseClinicName.includes('تشقير') && baseClinicName.includes('تنظيف');
@@ -1213,6 +1218,16 @@ app.post('/api/times', async (req, res) => {
       if (isDermEvening)  return m >= 15 * 60 && m <= 21 * 60 + 30;
       return m >= 14 * 60 && m <= 21 * 60 + 30;
     };
+    // ===== منع يوم الجمعة لكل العيادات إلا الأسنان 5 =====
+const shouldBlockFriday = !isDental5;
+
+const isFriday = (dateStr) => {
+  // التاريخ: DD-MM-YYYY
+  const [D, M, Y] = (dateStr || '').split('-').map(Number);
+  if (!D || !M || !Y) return false;
+  return new Date(Date.UTC(Y, M - 1, D)).getUTCDay() === 5;
+};
+
 
     // ===== job (Puppeteer) =====
     const job = (async () => {
@@ -1298,6 +1313,16 @@ app.post('/api/times', async (req, res) => {
         let filtered = raw;
         if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
         if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
+// 🚫 منع الجمعة لكل العيادات ما عدا الأسنان 5
+filtered = filtered.filter(x => {
+  const [D, M, Y] = (x.date || '').split('-').map(Number);
+  if (!D || !M || !Y) return true;
+
+  const day = new Date(Date.UTC(Y, M - 1, D)).getUTCDay(); // 5 = الجمعة
+  if (day === 5 && !isDental5) return false;
+
+  return true;
+});
 
         // تجميع تنظيف البشرة بالساعة
         if (isCleaningDerm) {
