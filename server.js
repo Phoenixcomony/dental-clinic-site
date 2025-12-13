@@ -14,19 +14,12 @@ const path = require('path');
 const Redis = require('ioredis');
 
 /* ================= Redis ================= */
-/* ================= Redis ================= */
-const redis = process.env.REDIS_URL
-  ? new Redis(process.env.REDIS_URL)
-  : new Redis({
-      host: process.env.REDIS_HOST,
-      port: process.env.REDIS_PORT,
-      password: process.env.REDIS_PASSWORD,
-    });
+const Redis = require('ioredis');
+
+const redis = new Redis(process.env.REDIS_URL);
 
 /* ================= WATCH ================= */
 const WATCH = process.env.WATCH === '1' || process.env.DEBUG_BROWSER === '1';
-
-
 
 redis.on('connect', () => console.log('🟢 Redis connected'));
 redis.on('error', e => console.error('🔴 Redis error', e.message));
@@ -45,6 +38,7 @@ async function setLoginCache(identityDigits, data) {
     24 * 60 * 60
   );
 }
+
 
 /* ================= Times Cache (Redis – 5 min) ================= */
 async function getTimesCache(key) {
