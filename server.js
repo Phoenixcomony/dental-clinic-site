@@ -14,8 +14,6 @@ const path = require('path');
 const Redis = require('ioredis');
 
 /* ================= Redis ================= */
-const Redis = require('ioredis');
-
 const redis = new Redis(process.env.REDIS_URL);
 
 /* ================= WATCH ================= */
