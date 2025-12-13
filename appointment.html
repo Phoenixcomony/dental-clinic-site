@@ -487,6 +487,7 @@
   });
 
   // ===== عناصر الحجز =====
+  let isLoadingTimes = false;
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
   const bookNowBtn = document.getElementById('bookNowBtn');
@@ -544,7 +545,8 @@
       timeSel.innerHTML = `<option value="">يرجى اختيار العيادة والشهر</option>`;
       return;
     }
-
+if (isLoadingTimes) return;
+isLoadingTimes = true;
     // قفل الحقول + منع النقرات + إظهار اللودر
     fetchBtn.disabled = true;
     clinicSel.disabled = true;
@@ -571,6 +573,7 @@
       bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
     } finally {
       // فتح الحقول من جديد بعد ظهور النتيجة
+      isLoadingTimes = false;
       fetchBtn.disabled = false;
       clinicSel.disabled = false;
       monthSel.disabled = false;
