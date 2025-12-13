@@ -1306,6 +1306,11 @@ const f = opts.find(o =>
 
         if (!pickedMonth) throw new Error('month_not_found');
         await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
+// ⏳ انتظر جدول المواعيد يكتمل (نفس سلوك الملف القديم)
+await page.waitForSelector(
+  'input[type="radio"][name="ss"], table, .table, #table',
+  { timeout: 45000 }
+);
 
         const raw = await page.evaluate(() => {
           console.log('[IMDAD RAW TIMES]', raw.length);
