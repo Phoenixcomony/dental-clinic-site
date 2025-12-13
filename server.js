@@ -101,14 +101,24 @@ async function resetSharedBrowser() {
 
 /* ================= Express ================= */
 const app = express();
-app.use(cors());
-app.use(bodyParser.json({ limit: '2mb' }));
-// 🔁 تحويل الدومين بدون www إلى www
+
+/* 🔁 تحويل الدومين بدون www إلى www (أول شيء) */
 app.use((req, res, next) => {
   if (req.headers.host === 'phoenixclinic.net') {
     return res.redirect(301, 'https://www.phoenixclinic.net' + req.url);
   }
   next();
+});
+
+/* Static files */
+app.use(express.static(path.join(__dirname)));
+
+app.use(cors());
+app.use(bodyParser.json({ limit: '2mb' }));
+
+/* الصفحة الرئيسية */
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 
