@@ -19,7 +19,7 @@ const BASE_DL_DIR =
   process.env.PUPPETEER_DOWNLOAD_PATH ||
   process.env.PUPPETEER_CACHE_DIR ||
   '/app/.cache/puppeteer';
-  
+
 const CHROMIUM_PATH =
   process.env.PUPPETEER_EXECUTABLE_PATH ||
   process.env.CHROME_PATH ||
@@ -1253,10 +1253,10 @@ app.post('/api/times', async (req, res) => {
 
         const clinicValue = await page.evaluate((name) => {
           const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-          const f = opts.find(o =>
-            (o.textContent || '').trim() === name ||
-            (o.value || '') === name
-          );
+         const f = opts.find(o =>
+  (o.textContent || '').includes(clinic.split('**')[0].trim())
+);
+
           return f ? f.value : null;
         }, clinic);
         if (!clinicValue) throw new Error('clinic_not_found');
@@ -1286,6 +1286,8 @@ app.post('/api/times', async (req, res) => {
         await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
 
         const raw = await page.evaluate(() => {
+          console.log('[IMDAD RAW TIMES]', raw.length);
+
           return Array.from(
             document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)')
           ).map(r => {
@@ -1295,8 +1297,7 @@ app.post('/api/times', async (req, res) => {
         });
 
         let filtered = raw;
-        if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
-        if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
+        
 
         if (shouldBlockFriday) {
           filtered = filtered.filter(x => {
