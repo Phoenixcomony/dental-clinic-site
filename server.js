@@ -1150,7 +1150,6 @@ async function applyOneMonthView(page){
 }
 
 /** ===== /api/times ===== */
-/** ===== /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
@@ -1169,12 +1168,10 @@ app.post('/api/times', async (req, res) => {
 
     // ===== الكاش =====
     const cacheKey = makeTimesKey({ clinic, month, period: effectivePeriod || '' });
-
     const cached = getTimesCache(cacheKey);
     if (cached && cached.length > 0) {
-  return res.json({ times: cached, cached: true });
-}
-
+      return res.json({ times: cached, cached: true });
+    }
 
     if (timesInFlight.has(cacheKey)) {
       const data = await timesInFlight.get(cacheKey);
@@ -1190,20 +1187,6 @@ app.post('/api/times', async (req, res) => {
     const isDermEvening =
       clinicStr === 'عيادة الجلدية والتجميل (NO.200)**الفترة الثانية';
 
-    const isDental1Evening =
-      clinicStr.includes('عيادة الاسنان 1') || clinicStr.includes('عيادة الأسنان 1');
-
-    const isDental2Evening =
-      clinicStr.includes('عيادة الاسنان 2') || clinicStr.includes('عيادة الأسنان 2');
-
-    const isDental4Evening =
-      clinicStr.includes('عيادة الاسنان 4') || clinicStr.includes('عيادة الأسنان 4');
-
-    const isDental5Evening =
-      clinicStr.includes('عيادة الاسنان 5') || clinicStr.includes('عيادة الأسنان 5');
-
-    const shouldBlockFriday = isDermEvening;
-
     const timeToMinutes = (t) => {
       if (!t) return NaN;
       const [H, M = '0'] = t.split(':');
@@ -1213,11 +1196,9 @@ app.post('/api/times', async (req, res) => {
     const to12h = (t) => {
       if (!t) return '';
       let [H, M = '0'] = t.split(':');
-      H = +H;
-      M = String(+M).padStart(2, '0');
+      H = +H; M = String(+M).padStart(2, '0');
       const am = H < 12;
-      let h = H % 12;
-      if (h === 0) h = 12;
+      let h = H % 12; if (h === 0) h = 12;
       return `${h}:${M} ${am ? 'ص' : 'م'}`;
     };
 
@@ -1228,68 +1209,54 @@ app.post('/api/times', async (req, res) => {
 
     const inEvening = (t) => {
       const m = timeToMinutes(t);
-
       if (isCleaningDerm) return m >= 16 * 60 && m <= 21 * 60;
-      if (isDermEvening)  return m >= 15 * 60 && m <= 20 * 60 + 30;
-      if (isDental1Evening || isDental2Evening)
-  return m >= 14 * 60 && m <= 21 * 60 + 30;
-
-      if (isDental4Evening)
-        return m >= 14 * 60 && m <= 21 * 60 + 30;
-      if (isDental5Evening)
-        return m >= 14 * 60 && m <= 21 * 60;
-
-      return m >= 12 * 60 && m <= 21 * 60 + 30;
+      if (isDermEvening)  return m >= 15 * 60 && m <= 21 * 60 + 30;
+      return m >= 14 * 60 && m <= 21 * 60 + 30;
     };
 
-    // ===== job (Puppeteer مرة وحدة فقط) =====
+    // ===== job (Puppeteer) =====
     const job = (async () => {
       const browser = await getSharedBrowser();
-
       const page = await browser.newPage();
       await prepPage(page);
 
       try {
         await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
         await gotoAppointments(page);
-        // انتظر جدول المواعيد فعليًا
 
-
-
-
+        // اختيار العيادة
         const clinicValue = await page.evaluate((name) => {
+          const normalize = s =>
+            String(s||'')
+              .replace(/\s+/g,' ')
+              .replace(/[أإآ]/g,'ا')
+              .replace(/ة/g,'ه')
+              .trim();
+
+          const target = normalize(name);
           const opts = Array.from(document.querySelectorAll('#clinic_id option'));
-         const normalize = s =>
-  String(s||'')
-    .replace(/\s+/g,' ')
-    .replace(/[أإآ]/g,'ا')
-    .replace(/ة/g,'ه')
-    .trim();
-
-const target = normalize(name);
-
-const f = opts.find(o =>
-  normalize(o.textContent) === target ||
-  normalize(o.value) === target
-);
-
-
+          const f = opts.find(o =>
+            normalize(o.textContent) === target ||
+            normalize(o.value) === target
+          );
           return f ? f.value : null;
         }, clinic);
+
         if (!clinicValue) throw new Error('clinic_not_found');
 
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {}),
-          page.select('#clinic_id', clinicValue),
-        ]);
+        await page.evaluate((val) => {
+          const sel = document.querySelector('#clinic_id');
+          sel.value = val;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          if (val) window.location.href = val;
+        }, clinicValue);
 
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(()=>{});
+
+        // عرض شهر واحد
         await applyOneMonthView(page);
-        await page.waitForFunction(
-  () => document.querySelectorAll('input[type="radio"][name="ss"]').length > 0,
-  { timeout: 25000 }
-);
 
-
+        // اختيار الشهر
         const pickedMonth = await page.evaluate((wanted) => {
           const sel = document.querySelector('#month1');
           if (!sel) return null;
@@ -1305,42 +1272,34 @@ const f = opts.find(o =>
         }, month);
 
         if (!pickedMonth) throw new Error('month_not_found');
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(() => {});
-// ⏳ انتظر جدول المواعيد يكتمل (نفس سلوك الملف القديم)
-await page.waitForSelector(
-  'input[type="radio"][name="ss"], table, .table, #table',
-  { timeout: 45000 }
-);
 
+        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 }).catch(()=>{});
+
+        // ⏳ انتظر جدول المواعيد يكتمل (الأهم)
+        await page.waitForSelector(
+          'input[type="radio"][name="ss"]',
+          { timeout: 45000 }
+        );
+
+        // قراءة المواعيد
         const raw = await page.evaluate(() => {
-          console.log('[IMDAD RAW TIMES]', raw.length);
-
           return Array.from(
             document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)')
           ).map(r => {
             const [date, time24] = (r.value || '').split('*');
-            return { value: r.value, date: date?.trim(), time24: time24?.trim() };
+            return {
+              value: r.value,
+              date: (date||'').trim(),
+              time24: (time24||'').trim()
+            };
           });
         });
-        console.log('[TIMES] raw count =', raw.length);
-
 
         let filtered = raw;
-if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
-if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
-console.log('[TIMES] after period filter =', filtered.length, 'period=', effectivePeriod);
+        if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
+        if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
 
-
-        
-
-        if (shouldBlockFriday) {
-          filtered = filtered.filter(x => {
-            const [D, M, Y] = (x.date || '').split('-').map(Number);
-            if (!D || !M || !Y) return true;
-            return new Date(Date.UTC(Y, M - 1, D)).getUTCDay() !== 5;
-          });
-        }
-
+        // تجميع تنظيف البشرة بالساعة
         if (isCleaningDerm) {
           const buckets = new Map();
           for (const x of filtered) {
@@ -1352,11 +1311,13 @@ console.log('[TIMES] after period filter =', filtered.length, 'period=', effecti
             const H = +x.time24.split(':')[0];
             const h12 = H % 12 || 12;
             const am = H < 12;
-            return { value: x.value, label: `${x.date} - ${h12}:00 ${am ? 'ص' : 'م'}` };
+            return {
+              value: x.value,
+              label: `${x.date} - ${h12}:00 ${am ? 'ص' : 'م'}`
+            };
           });
-          return hourly.sort((a, b) => a.label.localeCompare(b.label, 'ar'));
+          return hourly.sort((a,b)=>a.label.localeCompare(b.label,'ar'));
         }
-console.log('[TIMES] final before return =', filtered.length);
 
         return filtered.map(x => ({
           value: x.value,
@@ -1364,7 +1325,7 @@ console.log('[TIMES] final before return =', filtered.length);
         }));
 
       } finally {
-        try { if (!WATCH) await page.close(); } catch (_) {}
+        try { if (!WATCH) await page.close(); } catch(_) {}
       }
     })();
 
@@ -1382,6 +1343,7 @@ console.log('[TIMES] final before return =', filtered.length);
     return res.json({ times: [], error: e?.message || String(e) });
   }
 });
+
 
 
 
