@@ -42,11 +42,10 @@ async function getLoginCache(identityDigits) {
 async function setLoginCache(identityDigits, data) {
   await redis.set(
     `login:${identityDigits}`,
-    JSON.stringify(data),
-    'EX',
-    24 * 60 * 60
+    JSON.stringify(data)
   );
 }
+
 
 
 /* ================= Times Cache (Redis – 5 min) ================= */
