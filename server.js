@@ -808,94 +808,112 @@ function verifyOtpInline(phone, otp){
 app.post('/api/login', async (req, res) => {
   try {
     const { identity, phone, otp } = req.body || {};
+    if (!identity || !phone || !otp) {
+      return res.json({ success:false, message:'بيانات ناقصة' });
+    }
 
-    const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
-    if(!isLikelyIdentity(idDigits))
+    const identityDigits = String(identity).replace(/\D/g,'');
+    if (identityDigits.length < 9) {
       return res.json({ success:false, message:'رقم الهوية غير صحيح' });
+    }
 
-    if(!isSaudi05(phone))
-      return res.json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
+    /* ================= OTP ================= */
+    if (!SKIP_OTP_FOR_TESTING) {
+      const rec = otpStore[normalizePhoneIntl(phone)];
+      if (!rec || String(rec.code) !== String(otp)) {
+        return res.json({ success:false, message:'رمز التحقق غير صحيح' });
+      }
+    }
 
-    if(!verifyOtpInline(phone, otp))
-      return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
-
-    const phone05 = toLocal05(phone);
-
-    // ===== FAST LOGIN (Redis) =====
-    const cached = await getLoginCache(idDigits);
-    if (cached && phonesEqual05(cached.phone05, phone05)) {
-      setBookingAuth(idDigits, cached.fileId);
+    /* ================= 1) Redis (تسريع فقط) ================= */
+    const cached = await getLoginCache(identityDigits);
+    if (cached) {
       return res.json({
-        success:true,
-        exists:true,
-        fileId: cached.fileId,
-        hasIdentity: cached.hasIdentity,
-        cached:true
+        success: true,
+        fileId: cached.fileId || '',
+        hasIdentity: cached.hasIdentity !== false
       });
     }
 
-    // ===== Puppeteer starts here only =====
+    /* ================= 2) شغّل البوت (إجباري للمستخدم الجديد) ================= */
     const browser = await getSharedBrowser();
     const page = await browser.newPage();
     await prepPage(page);
 
-    let account;
     try {
-      account = await acquireAccount();
-      await loginToImdad(page, account);
+      await loginToImdad(page);
+      await gotoAppointments(page);
 
-      const result = await searchAndOpenPatientByIdentity(page, {
-        identityDigits: idDigits,
-        expectedPhone05: phone05
-      });
+      // 🔍 بحث بالهوية فقط (أسرع + أقل أخطاء)
+      const found = await page.evaluate((nid) => {
+        const input =
+          document.querySelector('#navbar-search-input') ||
+          document.querySelector('input[name="name122"]');
+        if (!input) return { found:false };
 
-      if (!result.ok) {
-        await page.close();
-        releaseAccount(account);
+        input.value = nid;
+        input.dispatchEvent(new Event('input', { bubbles:true }));
+        input.dispatchEvent(new KeyboardEvent('keyup', { bubbles:true }));
+
+        return { found:true };
+      }, identityDigits);
+
+      if (!found.found) {
         return res.json({
           success:false,
-          exists:false,
-          message:'لا يوجد ملف – افتح ملف جديد'
+          message:'لا تملك ملف — افتح ملف جديد'
         });
       }
 
-      const idStatus = await readIdentityStatus(page, result.fileId);
-      await page.close();
-      releaseAccount(account);
-
-      // ===== SAVE CACHE =====
-      await setLoginCache(idDigits, {
-        phone05,
-        fileId: result.fileId,
-        hasIdentity: idStatus.hasIdentity
+      // افتح أول "بيانات المريض"
+      const patient = await page.evaluate(() => {
+        const link = document.querySelector('a[href*="stq_search2.php?id="]');
+        if (!link) return { found:false };
+        return { found:true, url: link.href };
       });
 
-      setBookingAuth(idDigits, result.fileId);
+      if (!patient.found) {
+        return res.json({
+          success:false,
+          message:'لا تملك ملف — افتح ملف جديد'
+        });
+      }
+
+      await page.goto(patient.url, { waitUntil:'domcontentloaded' });
+
+      // اقرأ خانة الهوية فقط
+      const hasIdentity = await page.evaluate(() => {
+        const ssn = document.querySelector('#ssn');
+        return !!(ssn && ssn.value && ssn.value.trim().length >= 9);
+      });
+
+      const result = {
+        fileId: patient.url.split('id=')[1] || '',
+        hasIdentity
+      };
+
+      /* ================= 3) خزّن في Redis ================= */
+      await setLoginCache(identityDigits, result);
 
       return res.json({
         success:true,
-        exists:true,
         fileId: result.fileId,
-        hasIdentity: idStatus.hasIdentity
+        hasIdentity
       });
 
-    } catch (e) {
-      try { await page.close(); } catch {}
-      if (account) releaseAccount(account);
-      return res.json({ success:false, message:'تعذر التحقق الآن' });
+    } finally {
+      try { if (!WATCH) await page.close(); } catch(_) {}
     }
 
- } catch (e) {
-  console.error('[LOGIN ERROR]', e);
-  return res.json({
-    success: false,
-    message: 'خطأ أثناء التحقق',
-    debug: e?.message || String(e)
-  });
-}
-
-
+  } catch (e) {
+    console.error('[LOGIN ERROR]', e);
+    return res.json({
+      success:false,
+      message:'تعذّر التحقق حاليًا'
+    });
+  }
 });
+
 
 
 /** ===== Read identity ===== */
