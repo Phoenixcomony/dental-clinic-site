@@ -844,13 +844,11 @@ app.post('/api/login', async (req, res) => {
       await loginToImdad(page, account);
 
       const result = await searchAndOpenPatientByIdentity(page, {
-  identityDigits: idDigits,
-  expectedPhone05: null
-});
+        identityDigits: idDigits,
+        expectedPhone05: phone05
+      });
 
-
-      if (!result.fileId) {
-
+      if (!result.ok) {
         await page.close();
         releaseAccount(account);
         return res.json({
@@ -860,27 +858,25 @@ app.post('/api/login', async (req, res) => {
         });
       }
 
-      
+      const idStatus = await readIdentityStatus(page, result.fileId);
       await page.close();
       releaseAccount(account);
 
       // ===== SAVE CACHE =====
       await setLoginCache(idDigits, {
-  phone05,
-  fileId: result.fileId,
-  hasIdentity: true
-});
-
+        phone05,
+        fileId: result.fileId,
+        hasIdentity: idStatus.hasIdentity
+      });
 
       setBookingAuth(idDigits, result.fileId);
 
-     return res.json({
-  success:true,
-  exists:true,
-  fileId: result.fileId,
-  hasIdentity: true
-});
-
+      return res.json({
+        success:true,
+        exists:true,
+        fileId: result.fileId,
+        hasIdentity: idStatus.hasIdentity
+      });
 
     } catch (e) {
       try { await page.close(); } catch {}
