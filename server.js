@@ -849,7 +849,8 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-      if (!result.ok) {
+      if (!result.fileId) {
+
         await page.close();
         releaseAccount(account);
         return res.json({
