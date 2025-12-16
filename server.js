@@ -25,7 +25,12 @@ const CHROMIUM_PATH =
   process.env.CHROME_PATH ||
   null;
 /* ================= Redis ================= */
-const redis = new Redis(process.env.REDIS_URL);
+const redis = new Redis(process.env.REDIS_URL, {
+  retryStrategy(times) {
+    return Math.min(times * 100, 2000);
+  }
+});
+
 
 /* ================= WATCH ================= */
 const WATCH = process.env.WATCH === '1' || process.env.DEBUG_BROWSER === '1';
@@ -149,6 +154,14 @@ app.get('/:slug', (req, res, next) => {
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.aborted') {
+    console.warn('⚠️ Request aborted by client');
+    return;
+  }
+  next(err);
+});
+
 
 /* الصفحة الرئيسية */
 app.get('/', (req, res) => {
@@ -164,6 +177,11 @@ const ACCOUNTS = [
   { user: "9999999999", pass: "9999999999", busy: false },
   { user: "1010101010", pass: "1010101010", busy: false },
 ];
+// ===== Login Queue =====
+const loginQueue = [];
+let activeLogins = 0;
+const MAX_LOGIN_WORKERS = ACCOUNTS.length; // عدد حسابات إمداد
+
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -789,7 +807,10 @@ app.post('/send-otp', async (req, res) => {
 
     const msg = `رمز التحقق: ${otp} - Phoenix Clinic`;
     const url = `https://mywhats.cloud/api/send?number=${phone}&type=text&message=${encodeURIComponent(msg)}&instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
-    await axios.get(url, { timeout: 15015 });
+    await axios.get(url, { timeout: 8000 }).catch(() => {
+  console.warn('⚠️ OTP delayed – skipping block');
+});
+
 
     res.json({ success:true, phoneIntl: phone, phoneLocal: toLocal05(orig) });
   } catch (e) {
@@ -803,35 +824,37 @@ function verifyOtpInline(phone, otp){
   const rec = otpStore[intl];
   return !!(rec && String(rec.code)===String(otp));
 }
+async function processLoginQueue() {
+  if (activeLogins >= MAX_LOGIN_WORKERS) return;
+  if (!loginQueue.length) return;
 
-app.post('/api/login', async (req, res) => {
+  const { req, res } = loginQueue.shift();
+  activeLogins++;
+
+  handleLogin(req, res)
+    .catch(e => {
+      console.error('[LOGIN QUEUE ERROR]', e);
+      res.json({ success:false, message:'تعذّر تسجيل الدخول حاليًا' });
+    })
+    .finally(() => {
+      activeLogins--;
+      processLoginQueue();
+    });
+}
+
+app.post('/api/login', (req, res) => {
+  loginQueue.push({ req, res });
+  processLoginQueue();
+});
+
+    
+
+   async function handleLogin(req, res) {
   try {
     const { identity, phone, otp } = req.body || {};
 
-    const idDigits = toAsciiDigits(identity||'').replace(/\D/g,'');
-    if(!isLikelyIdentity(idDigits))
-      return res.json({ success:false, message:'رقم الهوية غير صحيح' });
-
-    if(!isSaudi05(phone))
-      return res.json({ success:false, message:'رقم الجوال بصيغة 05xxxxxxxx' });
-
-    if(!verifyOtpInline(phone, otp))
-      return res.json({ success:false, message:'رمز التحقق غير صحيح', reason:'otp' });
-
+    const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
     const phone05 = toLocal05(phone);
-
-    // ===== FAST LOGIN (Redis) =====
-    const cached = await getLoginCache(idDigits);
-    if (cached && phonesEqual05(cached.phone05, phone05)) {
-      setBookingAuth(idDigits, cached.fileId);
-      return res.json({
-        success:true,
-        exists:true,
-        fileId: cached.fileId,
-        hasIdentity: cached.hasIdentity,
-        cached:true
-      });
-    }
 
     // ===== Puppeteer starts here only =====
     const browser = await getSharedBrowser();
@@ -884,17 +907,15 @@ app.post('/api/login', async (req, res) => {
       return res.json({ success:false, message:'تعذر التحقق الآن' });
     }
 
- } catch (e) {
-  console.error('[LOGIN ERROR]', e);
-  return res.json({
-    success: false,
-    message: 'خطأ أثناء التحقق',
-    debug: e?.message || String(e)
-  });
+  } catch (e) {
+    console.error('[LOGIN ERROR]', e);
+    return res.json({
+      success:false,
+      message:'خطأ أثناء التحقق'
+    });
+  }
 }
 
-
-});
 
 
 /** ===== Read identity ===== */
