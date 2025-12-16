@@ -173,7 +173,6 @@ app.get('/', (req, res) => {
 const ACCOUNTS = [
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
-  { user: "4444444444", pass: "4444444444", busy: false },
   { user: "9999999999", pass: "9999999999", busy: false },
   { user: "1010101010", pass: "1010101010", busy: false },
 ];
