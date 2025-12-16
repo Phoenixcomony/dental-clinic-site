@@ -867,14 +867,13 @@ app.post('/api/login', (req, res) => {
       });
 
       if (!result.ok) {
-        await page.close();
-        releaseAccount(account);
-        return res.json({
-          success:false,
-          exists:false,
-          message:'لا يوجد ملف – افتح ملف جديد'
-        });
-      }
+  return res.json({
+    success:true,
+    exists:false,
+    go: 'new-file'
+  });
+}
+
 
       
       await page.close();
@@ -890,10 +889,12 @@ app.post('/api/login', (req, res) => {
       setBookingAuth(idDigits, result.fileId);
 
       return res.json({
-        success:true,
-        exists:true,
-        fileId: result.fileId,
-      });
+  success: true,
+  exists: true,
+  fileId: result.fileId,
+  go: 'appointments'
+});
+
 
     } catch (e) {
       try { await page.close(); } catch {}
@@ -943,50 +944,13 @@ async function readIdentityStatus(page, fileId) {
   return { hasIdentity, ssnVal };
 }
 
-/** ===== /api/update-identity ===== */
 app.post('/api/update-identity', async (req, res) => {
-  try{
-    const { fileId, nationalId, birthYear } = req.body || {};
-    if(!fileId) return res.json({ success:false, message:'رقم الملف مفقود' });
-    if(!nationalId) return res.json({ success:false, message:'رقم الهوية مطلوب' });
-    if(!birthYear) return res.json({ success:false, message:'سنة الميلاد مطلوبة' });
-
-    const browser = await getSharedBrowser();
-
-    const page = await browser.newPage(); await prepPage(page);
-
-    let account=null;
-    try{
-      account = await acquireAccount();
-      await loginToImdad(page, account);
-
-      await page.goto(`https://phoenix.imdad.cloud/medica13/stq_edit.php?id=${fileId}`, { waitUntil:'domcontentloaded' });
-
-      await page.waitForSelector('#ssn', { timeout: 20000 });
-      await page.$eval('#ssn', (el,v)=>{ el.value=v; }, String(nationalId));
-      await page.select('#year12', String(birthYear));
-
-      await page.waitForSelector('#submit', { timeout: 20000 });
-      await page.evaluate(() => {
-        const btn = document.querySelector('#submit');
-        if (btn) { btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); }
-      });
-
-      await sleep(1500);
-      try { if (!WATCH) await page.close(); }catch(_){}
-      if(account) releaseAccount(account);
-      return res.json({ success:true, message:'تم التحديث بنجاح' });
-    }catch(e){
-      console.error('/api/update-identity error', e?.message||e);
-      try{ if (!WATCH) await page.close(); }catch(_){}
-      if(account) releaseAccount(account);
-      return res.json({ success:false, message:'فشل التحديث: ' + (e?.message||e) });
-    }
-  }catch(e){
-    await resetSharedBrowser();
-    return res.json({ success:false, message:'خطأ غير متوقع' });
-  }
+  return res.json({
+    success: false,
+    message: 'تم تعطيل استكمال البيانات'
+  });
 });
+
 
 /** ===== /api/create-patient ===== */
 app.post('/api/create-patient', async (req, res) => {
