@@ -854,7 +854,24 @@ app.post('/api/login', (req, res) => {
     const { identity, phone, otp } = req.body || {};
 
     const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
-    const phone05 = toLocal05(phone);
+    const phone05  = toLocal05(phone);
+
+    // ===== FAST LOGIN (Redis ♾️) =====
+    const cached = await getLoginCache(idDigits);
+    if (cached && phonesEqual05(cached.phone05, phone05)) {
+      setBookingAuth(idDigits, cached.fileId);
+
+      return res.json({
+        success: true,
+        exists: true,
+        fileId: cached.fileId,
+        hasIdentity: cached.hasIdentity,
+        cached: true
+      });
+    }
+
+    // ===== فقط إذا ما فيه كاش نروح لإمداد =====
+
 
     // ===== Puppeteer starts here only =====
     const browser = await getSharedBrowser();
