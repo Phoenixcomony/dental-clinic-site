@@ -876,16 +876,16 @@ app.post('/api/login', (req, res) => {
         });
       }
 
-      const idStatus = await readIdentityStatus(page, result.fileId);
+      
       await page.close();
       releaseAccount(account);
 
       // ===== SAVE CACHE =====
       await setLoginCache(idDigits, {
-        phone05,
-        fileId: result.fileId,
-        hasIdentity: idStatus.hasIdentity
-      });
+  phone05,
+  fileId: result.fileId
+});
+
 
       setBookingAuth(idDigits, result.fileId);
 
@@ -893,7 +893,6 @@ app.post('/api/login', (req, res) => {
         success:true,
         exists:true,
         fileId: result.fileId,
-        hasIdentity: idStatus.hasIdentity
       });
 
     } catch (e) {
