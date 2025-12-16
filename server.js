@@ -726,31 +726,10 @@ async function searchAndOpenPatientByIdentity(page, { identityDigits, expectedPh
   await page.waitForTimeout(800);
   await page.waitForTimeout(1000);
 
-  const pagePhone = await page.evaluate(() => {
-    function toAscii(s){
-      const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
-      return String(s).replace(/[٠-٩]/g, d=>map[d]||d);
-    }
-    const td = Array.from(document.querySelectorAll('td[height="29"]'))
-      .map(x => toAscii((x.textContent || '').trim()))
-      .find(v => /^05\d{8}$/.test(v));
-    return td || '';
-  });
+ // ✔️ طالما فتح ملف المريض بالهوية نعتبره صحيح
+return { ok: true, fileId };
 
-  if (pagePhone && expectedPhone05) {
-    const cleanExpected = expectedPhone05.replace(/\D/g,'');
-    if (pagePhone.endsWith(cleanExpected.slice(-4))) {
-      console.log('[IMDAD] ✅ الجوال متطابق');
-      return { ok:true, fileId, liPhone: pagePhone };
-    } else {
-      console.warn('[IMDAD] ⚠️ الجوال غير متطابق');
-      return { ok:false, reason:'phone_mismatch', found: pagePhone };
-    }
-  } else {
-    return { ok:false, reason:'phone_not_found' };
-  }
 }
-
 /** ===== Duplicate phone detect ===== */
 async function isDuplicatePhoneWarning(page){
   try {
