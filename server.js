@@ -1683,7 +1683,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       const hit = opts.find(o => (o.textContent||'').trim() === wanted || (o.value||'') === wanted);
       return hit ? hit.value : null;
     }, String(clinic||'').trim());
-    if (!clinicValue) throw new Error('لم يتم العثور على العيادة!');
+    if (!clinicValue) throw new Error('');
 
     await Promise.all([
       page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{}),
@@ -1767,7 +1767,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       }
       return false;
     }, W);
-    if (!picked) throw new Error('لم يتم العثور على الموعد المطلوب!');
+    if (!picked) throw new Error(' ');
 
     await delay(600);
     await clickReserveAndConfirm(page);
