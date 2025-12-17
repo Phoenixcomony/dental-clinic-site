@@ -173,8 +173,7 @@ app.get('/', (req, res) => {
 const ACCOUNTS = [
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
-  { user: "9999999999", pass: "9999999999", busy: false },
-  { user: "1010101010", pass: "1010101010", busy: false },
+  { user: "8888888888", pass: "8888888888", busy: false },
 ];
 // ===== Login Queue =====
 const loginQueue = [];
