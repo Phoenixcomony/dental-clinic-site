@@ -758,7 +758,16 @@ console.log('ENV ACCESS_TOKEN:', process.env.ACCESS_TOKEN);
 
 app.post('/send-otp', async (req, res) => {
   try {
+
+    // ⛔ تخطي OTP إذا المستخدم موجود في Redis
+    const idDigits = toAsciiDigits(req.body?.identity || '').replace(/\D/g,'');
+    const cached = await getLoginCache(idDigits);
+    if (cached) {
+      return res.json({ success: true, skipped: true });
+    }
+
     let { phone } = req.body || {};
+
     const orig = phone;
     phone = normalizePhoneIntl(phone);
 
@@ -833,24 +842,38 @@ app.post('/api/login', (req, res) => {
     const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
     const phone05  = toLocal05(phone);
 
-    // ===== FAST LOGIN (Redis ♾️) =====
+    // ================================
+    // 🚀 FAST LOGIN FROM REDIS (NO OTP)
+    // ================================
     const cached = await getLoginCache(idDigits);
-    if (cached && phonesEqual05(cached.phone05, phone05)) {
+    if (cached) {
+      // ⛔ لا OTP
+      // ⛔ لا Puppeteer
       setBookingAuth(idDigits, cached.fileId);
 
       return res.json({
         success: true,
         exists: true,
         fileId: cached.fileId,
-        hasIdentity: cached.hasIdentity,
-        cached: true
+        cached: true,
+        go: 'appointments'
       });
     }
 
-    // ===== فقط إذا ما فيه كاش نروح لإمداد =====
+    // ================================
+    // ⬇️ من هنا فصاعدًا: مستخدم جديد فقط
+    // ================================
 
+    // ✅ تحقق OTP فقط للمستخدم الجديد
+    if (!verifyOtpInline(phone, otp)) {
+      return res.json({
+        success: false,
+        reason: 'otp',
+        message: 'رمز التحقق غير صحيح'
+      });
+    }
 
-    // ===== Puppeteer starts here only =====
+    // ===== Puppeteer =====
     const browser = await getSharedBrowser();
     const page = await browser.newPage();
     await prepPage(page);
@@ -861,39 +884,36 @@ app.post('/api/login', (req, res) => {
       await loginToImdad(page, account);
 
       const result = await searchAndOpenPatientByIdentity(page, {
-        identityDigits: idDigits,
-        expectedPhone05: phone05
+        identityDigits: idDigits
       });
 
       if (!result.ok) {
-  return res.json({
-    success:true,
-    exists:false,
-    go: 'new-file'
-  });
-}
+        await page.close();
+        releaseAccount(account);
+        return res.json({
+          success: true,
+          exists: false,
+          go: 'new-file'
+        });
+      }
 
-
-      
       await page.close();
       releaseAccount(account);
 
-      // ===== SAVE CACHE =====
+      // 💾 حفظ دائم في Redis
       await setLoginCache(idDigits, {
-  phone05,
-  fileId: result.fileId
-});
-
+        phone05,
+        fileId: result.fileId
+      });
 
       setBookingAuth(idDigits, result.fileId);
 
       return res.json({
-  success: true,
-  exists: true,
-  fileId: result.fileId,
-  go: 'appointments'
-});
-
+        success: true,
+        exists: true,
+        fileId: result.fileId,
+        go: 'appointments'
+      });
 
     } catch (e) {
       try { await page.close(); } catch {}
@@ -903,12 +923,10 @@ app.post('/api/login', (req, res) => {
 
   } catch (e) {
     console.error('[LOGIN ERROR]', e);
-    return res.json({
-      success:false,
-      message:'خطأ أثناء التحقق'
-    });
+    return res.json({ success:false, message:'خطأ أثناء تسجيل الدخول' });
   }
 }
+
 
 
 
