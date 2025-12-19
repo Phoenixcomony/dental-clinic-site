@@ -365,12 +365,9 @@
     const idDigits = (identity.value||'').replace(/\D/g,'');
     const okId = idDigits.length >= 9;              // قبول 9+ أرقام كحد أدنى
     const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
+    const ok = okId && phoneOK && okOtp;
 
-// 👇 السماح بالدخول بدون OTP (Redis fast login)
-const ok = okId && phoneOK && (okOtp || otpGroup.style.display === 'none');
-
-loginBtn.disabled = !ok;
-
+    loginBtn.disabled = !ok;
     loginMsg.textContent = ok ? '' : 'أدخل رقم الهوية/الإقامة، رقم 05xxxxxxxx، وكود 6 أرقام.';
   }
 
@@ -447,15 +444,10 @@ loginBtn.disabled = !ok;
     loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
     loginMsg.textContent = 'جارِ التحقق...';
     const payload = {
-  identity: (identity.value||'').trim(),
-  phone: (mobile.value||'').trim()
-};
-
-// فقط إذا OTP ظاهر أرسله
-if (otpGroup.style.display !== 'none') {
-  payload.otp = (otpInput.value||'').trim();
-}
-
+      identity: (identity.value||'').trim(),
+      phone: (mobile.value||'').trim(),
+      otp: (otpInput.value||'').trim()
+    };
     showLoader(true);
     try{
       const r = await fetch('/api/login', {
@@ -463,21 +455,6 @@ if (otpGroup.style.display !== 'none') {
         body: JSON.stringify(payload)
       });
       const data = await r.json();
-      // 🚀 دخول سريع من Redis
-if (data.success && data.cached) {
-  otpGroup.style.display = 'none';
-  sendOtpBtn.style.display = 'none';
-
-  localStorage.setItem('auth_identity', payload.identity);
-  localStorage.setItem('auth_phone', payload.phone);
-  localStorage.setItem('auth_fileId', data.fileId || '');
-
-  document.getElementById('loginSection').style.display = 'none';
-  document.getElementById('bookingSection').style.display = '';
-  window.scrollTo({top:0, behavior:'smooth'});
-  return;
-}
-
 
       if(!data.success){
         loginMsg.textContent = data.message || 'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).';
