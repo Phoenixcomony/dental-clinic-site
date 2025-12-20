@@ -883,9 +883,8 @@ app.post('/api/login', (req, res) => {
       account = await acquireAccount();
       await loginToImdad(page, account);
 
-      const result = await searchAndOpenPatientByIdentity(page, {
-        identityDigits: idDigits
-      });
+      const result = await searchSuggestionsByPhoneOnNavbar(page, phone05);
+
 
       if (!result.ok) {
         await page.close();
@@ -1743,7 +1742,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       }
     }
 
-    await selectPatientOnAppointments(page, String(identity||'').trim());
+    await selectPatientOnAppointments(page, toLocal05(phone));
+
     await delay();
 
     await page.evaluate(v=>{
@@ -1802,6 +1802,9 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
 
     await delay(600);
     await clickReserveAndConfirm(page);
+    // ✅ تسجيل حجز فعلي ناجح
+incMetrics({ clinic });
+
 
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
