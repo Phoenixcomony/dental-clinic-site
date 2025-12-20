@@ -51,6 +51,10 @@ async function setLoginCache(identityDigits, data) {
   );
 }
 
+async function getTimesCache(key) {
+  const v = await redis.get(`times:${key}`);
+  return v ? JSON.parse(v) : null;
+}
 
 
 /* ================= Times Cache (Redis – 3 min) ================= */
@@ -1383,12 +1387,18 @@ filtered = filtered.filter(x => {
     timesInFlight.set(cacheKey, job);
 
     try {
-  const times = await job;
-  setTimesCache(cacheKey, times);
-  return res.json({ times, cached: false });
+ const times = await job;
+
+if (!Array.isArray(times) || times.length === 0) {
+  throw new Error('no_times_found');
+}
+
+await setTimesCache(cacheKey, times);
+return res.json({ times, cached: false });
 } finally {
   timesInFlight.delete(cacheKey);
 }
+
 
 
   } catch (e) {
