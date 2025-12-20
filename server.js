@@ -53,20 +53,16 @@ async function setLoginCache(identityDigits, data) {
 
 
 
-/* ================= Times Cache (Redis – 5 min) ================= */
-async function getTimesCache(key) {
-  const v = await redis.get(`times:${key}`);
-  return v ? JSON.parse(v) : null;
-}
-
+/* ================= Times Cache (Redis – 3 min) ================= */
 async function setTimesCache(key, data) {
   await redis.set(
     `times:${key}`,
     JSON.stringify(data),
     'EX',
-    5 * 60
+    3 * 60   // ⬅️ هنا 3 دقائق
   );
 }
+
 
 const timesInFlight = new Map();
 
@@ -1162,6 +1158,11 @@ app.post('/api/times', async (req, res) => {
 
     // ===== الكاش =====
     const cacheKey = makeTimesKey({ clinic, month, period: effectivePeriod || '' });
+    if (timesInFlight.has(cacheKey)) {
+  const data = await timesInFlight.get(cacheKey);
+  return res.json({ times: data, cached: true, shared: true });
+}
+
     const cached = getTimesCache(cacheKey);
     if (cached && cached.length > 0) {
       return res.json({ times: cached, cached: true });
@@ -1245,6 +1246,7 @@ const isFriday = (dateStr) => {
 
 
     // ===== job (Puppeteer) =====
+   
     const job = (async () => {
       const browser = await getSharedBrowser();
       const page = await browser.newPage();
@@ -1381,12 +1383,13 @@ filtered = filtered.filter(x => {
     timesInFlight.set(cacheKey, job);
 
     try {
-      const times = await job;
-      setTimesCache(cacheKey, times);
-      return res.json({ times, cached: false });
-    } finally {
-      timesInFlight.delete(cacheKey);
-    }
+  const times = await job;
+  setTimesCache(cacheKey, times);
+  return res.json({ times, cached: false });
+} finally {
+  timesInFlight.delete(cacheKey);
+}
+
 
   } catch (e) {
     return res.json({ times: [], error: e?.message || String(e) });
@@ -1670,12 +1673,13 @@ async function processQueue() {
     const msg = await bookNow({ ...req.body });
     res.json({ msg });
   } catch (e) {
-    res.json({ msg: '❌ فشل الحجز! ' + (e?.message || String(e)) });
+    res.json({ msg: '❌ فشل الحجز' });
   } finally {
     processingBooking = false;
     processQueue();
   }
 }
+
 
 
 /// ===== Booking flow (single) — V2 =====
