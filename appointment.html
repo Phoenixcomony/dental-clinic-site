@@ -5,82 +5,485 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>حجز موعد | مجمع فينكس الطبي</title>
   <meta name="description" content="سجّل دخولك برقم الهوية/الإقامة والجوال مع تحقق واتساب، ثم احجز موعدك.">
+
+  <!-- ملفك الأساسي (يبقى) -->
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- أيقونات -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- خط -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
   <style>
-    :root{    
-      --gold-main:#e2be6d;
-      --gold-shadow:0 4px 32px 0 #e2be6d26, 0 1.5px 6px #ffdfa215;
-      --gold-light:#fff8e6;
-      --gold-gradient:linear-gradient(90deg,#e8ca7c 10%, #fff8e6 100%);
-      --green-main:#2e7d32;
-      --green-dark:#1b5e20;
-      --green-shadow:0 6px 16px rgba(46,125,50,.35);
-      --green-grad:linear-gradient(135deg,#2e7d32,#1b5e20);
+    :root{
+      --bg-0:#0b0f14;
+      --bg-1:#0f172a;
+      --card: rgba(255,255,255,.86);
+      --card2: rgba(255,255,255,.72);
+      --stroke: rgba(226,190,109,.28);
+
+      --gold:#e2be6d;
+      --gold2:#f2d792;
+      --gold3:#fff6df;
+
+      --green:#2e7d32;
+      --green2:#1b5e20;
+
+      --text:#0f172a;
+      --muted:#6b7280;
+
+      --shadow: 0 18px 60px rgba(15,23,42,.14);
+      --shadow2: 0 10px 30px rgba(15,23,42,.10);
+      --r-xl: 26px;
+      --r-lg: 18px;
+      --r-md: 14px;
+      --r-pill: 999px;
+
+      --ring: 0 0 0 4px rgba(226,190,109,.25);
     }
-    body{ font-family:'Cairo', Tahoma, Arial, sans-serif; margin:0; min-height:100vh; display:flex; flex-direction:column; background:#fffdfa; }
-    .wrap{ max-width:540px; margin:26px auto; background:#fff; border:1px solid #e8ca7c80; border-radius:18px; box-shadow:var(--gold-shadow); padding:18px; }
-    .title{ display:flex; align-items:center; gap:10px; justify-content:center; font-weight:800; color:#a67c0e; margin:6px 0 14px; }
-    label{ display:block; font-weight:700; color:#b18836; margin:.5rem 0 .3rem; }
-    input, select, textarea{ width:100%; padding:12px 11px; border-radius:14px; border:1.4px solid #e2be6d99; background:#fffdfa; font-size:1rem; }
-    textarea{ min-height:88px; resize:vertical; }
-    input:focus, select:focus, textarea:focus{ border:1.7px solid #e2be6d; background:#fff9e0; outline:none; }
-    .btn{ width:100%; padding:13px 0; border:none; border-radius:16px; font-weight:800; background:var(--gold-gradient); color:#6b4b00; cursor:pointer; box-shadow:0 6px 16px #e2be6d33; transition:.2s ease; }
-    .btn:disabled{ opacity:.6; cursor:not-allowed; }
-    .muted{ color:#7a6d4e; font-size:.95rem; text-align:center; min-height:22px; margin-top:8px; }
-    .row{ display:flex; gap:8px; } .row > *{ flex:1; }
-    footer{ margin-top:auto; text-align:center; padding:10px; color:#8c6d1c; font-weight:700; background:rgba(255,255,255,0.219); border-top:1.5px solid #eee; letter-spacing:.6px; box-shadow:0 -2px 12px #e2be6d54; }
 
-    /* خلفية */
-    .blur-bg-appointment{ position: fixed; inset: 0; background: url('images/حجز الموعد.png') center/cover no-repeat; filter: blur(16px) brightness(0.97); opacity: 1; z-index: 0; pointer-events: none; }
-    body > *:not(.blur-bg-appointment){ position: relative; z-index: 1; }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:'Cairo', system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 15% 0%, rgba(226,190,109,.22), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(46,125,50,.16), transparent 60%),
+                  radial-gradient(900px 500px at 55% 100%, rgba(99,102,241,.10), transparent 60%),
+                  #f4f5f7;
+      overflow-x:hidden;
+    }
 
-    /* هيدر */
-    header{ backdrop-filter: blur(6px); background: rgba(255,255,255,0.7); border-bottom: 1px solid #f1e4c5; box-shadow: 0 6px 24px #e2be6d26; position: sticky; top: 0; z-index: 5; }
-    .container.header-flex{ display:flex; justify-content:space-between; align-items:center; max-width:1200px; margin:0 auto; padding:10px 16px; }
-    .logo-container{ display:flex; align-items:center; gap:10px; }
-    .logo-img{ height:46px; margin-left:9px; }
-    header nav ul{ list-style:none; display:flex !important; flex-direction:row !important; align-items:center; gap:18px; margin:0; padding:0; background:transparent; flex-wrap:wrap; justify-content:center; }
-    header nav ul li{ display:flex; align-items:center; margin:0; padding:0; }
-    header nav ul li a{ color:#181818; text-decoration:none; padding:7px 14px; font-weight:700; border-radius:999px; font-size:1.05em; transition:.25s; background:transparent; display:inline-block; white-space:nowrap; }
-    header nav ul li a.active, header nav ul li a:hover{ background-color:#fffbe7; color:#a8861c; box-shadow:0 2px 10px #e2be6d23; }
+    /* خلفية بلور فخمة */
+    .lux-bg{
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.90)),
+        url('images/حجز الموعد.png') center/cover no-repeat;
+      filter: blur(18px) saturate(1.05);
+      opacity: .95;
+      z-index: 0;
+      pointer-events:none;
+      transform: scale(1.05);
+    }
+    body > *:not(.lux-bg){ position:relative; z-index:1; }
 
-    /* سوشيال */
-    .social-icons{ display:flex !important; align-items:center; gap:8px; margin-inline-start:8px; flex-wrap:nowrap; }
-    .social-icons .social-icon{ font-size:1.1em; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; background:#fff3ce; color:#b89023; text-decoration:none; border:1.2px solid #f9e9c8; box-shadow:0 1px 6px #e2be6d26; transition:.2s; }
-    .social-icons .social-icon:hover{ background:#fffbe7; color:#84610f; transform: translateY(-1px); }
+    /* هيدر زجاجي */
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(226,190,109,.25);
+      box-shadow: 0 10px 30px rgba(15,23,42,.06);
+    }
+    .header-inner{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 160px;
+    }
+    .brand img{
+      height:44px;
+      width:auto;
+      object-fit:contain;
+      filter: drop-shadow(0 10px 20px rgba(226,190,109,.25));
+    }
+
+    nav ul{
+      list-style:none;
+      display:flex;
+      gap:10px;
+      margin:0;
+      padding:0;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+    nav ul li a{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+      color:#111827;
+      font-weight:800;
+      padding: 8px 14px;
+      border-radius: var(--r-pill);
+      border: 1px solid transparent;
+      background: transparent;
+      transition: .18s ease;
+      white-space:nowrap;
+    }
+    nav ul li a:hover{
+      background: rgba(226,190,109,.16);
+      border-color: rgba(226,190,109,.26);
+      transform: translateY(-1px);
+    }
+    nav ul li a.active{
+      background: linear-gradient(135deg, rgba(226,190,109,.26), rgba(255,246,223,.75));
+      border-color: rgba(226,190,109,.35);
+      box-shadow: 0 12px 24px rgba(226,190,109,.18);
+      color:#7a5708;
+    }
+
+    .social-icons{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-inline-start: 8px;
+    }
+    .social-icon{
+      width:34px; height:34px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:50%;
+      background: rgba(255,246,223,.9);
+      border: 1px solid rgba(226,190,109,.35);
+      color:#7a5708;
+      box-shadow: 0 10px 20px rgba(226,190,109,.12);
+      transition:.18s ease;
+      text-decoration:none;
+    }
+    .social-icon:hover{
+      transform: translateY(-1px);
+      background: rgba(226,190,109,.18);
+    }
 
     /* لودر */
-    .screen-loader{ position: fixed; inset:0; display:none; align-items:center; justify-content:center; background: rgba(255,255,255,0.55); backdrop-filter: blur(3px); z-index: 9999; transition: opacity .2s ease; }
+    .screen-loader{
+      position: fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(255,255,255,.55);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+    }
     .screen-loader.show{ display:flex; }
-    .spinner{ width: 70px; height: 70px; border-radius: 50%; border: 4px solid #e9d9ac; border-top-color: var(--gold-main); animation: spin 0.9s linear infinite; box-shadow: 0 8px 28px #e2be6d55; }
-    @keyframes spin { to { transform: rotate(360deg);} }
+    .spinner{
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 4px solid rgba(226,190,109,.35);
+      border-top-color: var(--gold);
+      animation: spin .85s linear infinite;
+      box-shadow: 0 18px 50px rgba(226,190,109,.28);
+      background: rgba(255,255,255,.55);
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
 
-    /* زر ساعات العمل (أخضر) */
-    .btn-hours{ display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:14px; border:none; font-weight:800; cursor:pointer; background: var(--green-grad); color:#fff; box-shadow: var(--green-shadow); animation: breathe 1.8s ease-in-out infinite; }
-    .btn-hours i{ font-size:1.05em; }
-    @keyframes breathe{ 0%{ transform:scale(1); box-shadow:var(--green-shadow); } 50%{ transform:scale(1.045); box-shadow:0 12px 28px rgba(27,94,32,.55); } 100%{ transform:scale(1); box-shadow:var(--green-shadow); } }
+    /* الصفحة */
+    .page{
+      max-width: 980px;
+      margin: 18px auto 28px;
+      padding: 0 14px;
+    }
 
-    /* زر زجاجي */
-    .btn-glass{ background:#cb9816; color:#010101; border:1.8px solid #ffffff; border-radius:999px; backdrop-filter:none; box-shadow:0 2px 10px rgba(5, 5, 5, 0.748); transition:transform .15s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease; }
-    .btn-glass:hover{ background:#cb9816; color:#ffffff; border-color:#111111; transform:translateY(-1px); box-shadow:0 8px 20px rgba(0,0,0,.12); }
-    .btn-glass:active{ transform:translateY(0); box-shadow:0 2px 8px rgba(0,0,0,.10); }
+    .hero-strip{
+      margin-top: 14px;
+      border-radius: var(--r-xl);
+      padding: 16px 16px 14px;
+      background: linear-gradient(135deg, rgba(255,255,255,.80), rgba(255,246,223,.70));
+      border: 1px solid rgba(226,190,109,.30);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero-strip:before{
+      content:"";
+      position:absolute;
+      inset:-1px;
+      background: radial-gradient(700px 200px at 20% 20%, rgba(226,190,109,.25), transparent 55%),
+                  radial-gradient(600px 200px at 85% 80%, rgba(46,125,50,.18), transparent 55%);
+      pointer-events:none;
+      opacity:.9;
+    }
+    .hero-strip > *{ position:relative; z-index:1; }
 
-    /* ملاحظة تنظيف البشرة */
-    .clinic-note{ display:none; margin:8px 0 0; color:#7a5d16; background:#fff9e8; border:1px dashed #e8ca7c; border-radius:12px; padding:10px 12px; font-weight:700; text-align:right; }
+    .hero-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .hero-title h1{
+      margin:0;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color:#6b4b00;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .hero-title h1 i{
+      width:38px;height:38px;
+      border-radius: 14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(226,190,109,.18);
+      border: 1px solid rgba(226,190,109,.26);
+      box-shadow: 0 10px 20px rgba(226,190,109,.15);
+    }
+    .hero-sub{
+      margin: 6px 0 0;
+      color:#6b7280;
+      font-weight:700;
+      font-size:.92rem;
+    }
 
-    /* جدول الساعات */
-    .hours-table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; }
-    .hours-table th,  .hours-table td{ border:1px solid #eee2bf; padding:10px; text-align:center; }
-    .hours-table th{ background:#2e7d32; color:#fff; }
+    /* كروت */
+    .card{
+      margin-top: 14px;
+      border-radius: var(--r-xl);
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid rgba(226,190,109,.26);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
 
-    /* حاوية الملاحظة */
-    .note-wrap{ display:none; margin-top:10px; }
+    .card-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 12px;
+      border-radius: var(--r-pill);
+      background: rgba(255,246,223,.80);
+      border: 1px solid rgba(226,190,109,.26);
+      font-weight:900;
+      color:#6b4b00;
+      font-size: .88rem;
+      box-shadow: 0 10px 18px rgba(226,190,109,.10);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (min-width: 920px){
+      .grid.two{ grid-template-columns: 1fr 1fr; }
+    }
+
+    label{
+      display:block;
+      margin: 0 0 6px;
+      font-weight: 900;
+      color:#6b4b00;
+      font-size: .92rem;
+    }
+
+    .field{
+      position:relative;
+    }
+    .field i.prefix{
+      position:absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(107,75,0,.65);
+      font-size: 1rem;
+      pointer-events:none;
+    }
+
+    input, select, textarea{
+      width:100%;
+      border-radius: 16px;
+      border: 1.6px solid rgba(226,190,109,.40);
+      background: rgba(255,255,255,.75);
+      padding: 12px 12px;
+      font-size: 1rem;
+      outline:none;
+      transition: .16s ease;
+      color:#111827;
+    }
+    .field.has-icon input,
+    .field.has-icon select{
+      padding-right: 42px;
+    }
+    textarea{
+      min-height: 96px;
+      resize: vertical;
+      padding: 12px 12px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(226,190,109,.75);
+      box-shadow: var(--ring);
+      background: rgba(255,255,255,.92);
+      transform: translateY(-.5px);
+    }
+
+    .muted{
+      color: var(--muted);
+      font-weight:700;
+      font-size:.92rem;
+      text-align:center;
+      min-height: 22px;
+      margin-top: 8px;
+    }
+
+    .note{
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: rgba(46,125,50,.08);
+      border: 1px dashed rgba(46,125,50,.28);
+      color: #124b18;
+      font-weight:900;
+      text-align:center;
+      line-height:1.5;
+    }
+
+    /* أزرار */
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .row > *{ flex:1; }
+
+    .btn{
+      width:100%;
+      border:none;
+      border-radius: 18px;
+      padding: 12px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      transition: .16s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      user-select:none;
+    }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+
+    .btn-gold{
+      color:#5b3e00;
+      background: linear-gradient(135deg, rgba(226,190,109,.95), rgba(255,246,223,.92));
+      border: 1px solid rgba(226,190,109,.55);
+      box-shadow: 0 16px 40px rgba(226,190,109,.22);
+    }
+    .btn-gold:hover{ transform: translateY(-1px); box-shadow: 0 18px 48px rgba(226,190,109,.30); }
+
+    .btn-green{
+      color:#f0fff4;
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      border: 1px solid rgba(27,94,32,.45);
+      box-shadow: 0 16px 40px rgba(46,125,50,.28);
+    }
+    .btn-green:hover{ transform: translateY(-1px); box-shadow: 0 18px 52px rgba(46,125,50,.36); }
+
+    .btn-ghost{
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(226,190,109,.35);
+      color:#6b4b00;
+      box-shadow: 0 12px 30px rgba(15,23,42,.08);
+    }
+    .btn-ghost:hover{ transform: translateY(-1px); background: rgba(255,246,223,.75); }
+
+    /* زر ساعات العمل */
+    .btn-hours{
+      width:auto;
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      border:none;
+      font-weight:900;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      box-shadow: 0 14px 30px rgba(46,125,50,.28);
+      transition: .16s ease;
+    }
+    .btn-hours:hover{ transform: translateY(-1px); box-shadow: 0 16px 40px rgba(46,125,50,.35); }
+
+    /* ساعات العمل */
+    .hours-table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 18px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(226,190,109,.25);
+      box-shadow: var(--shadow2);
+    }
+    .hours-table th, .hours-table td{
+      border: 1px solid rgba(226,190,109,.20);
+      padding: 10px;
+      text-align:center;
+      font-weight:800;
+    }
+    .hours-table th{
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      font-weight:900;
+    }
+
+    /* فوتر */
+    footer{
+      margin-top: 18px;
+      text-align:center;
+      padding: 12px 10px;
+      color:#6b4b00;
+      font-weight:900;
+      background: rgba(255,255,255,.55);
+      border-top: 1px solid rgba(226,190,109,.25);
+      box-shadow: 0 -10px 30px rgba(15,23,42,.06);
+    }
+
+    /* تحسينات للجوال */
+    @media (max-width: 780px){
+      .header-inner{ gap:10px; }
+      nav ul{ gap:6px; }
+      nav ul li a{ padding: 7px 10px; font-size:.98rem; }
+      .brand{ min-width: unset; }
+      .brand img{ height:40px; }
+      .hero-title h1{ font-size: 1.02rem; }
+      .card{ padding: 14px; }
+      input, select, textarea{ border-radius: 16px; }
+    }
+
+    /* تقليل البلور على الجوال لو ثقيل */
+    @media (max-width: 600px){
+      .lux-bg{ filter: blur(14px) saturate(1.05); opacity:.90; }
+    }
   </style>
 </head>
+
 <body>
 
-  <div class="blur-bg-appointment" aria-hidden="true"></div>
+  <div class="lux-bg" aria-hidden="true"></div>
 
   <!-- شاشة التحميل -->
   <div id="screenLoader" class="screen-loader" aria-live="polite" aria-busy="true">
@@ -89,10 +492,11 @@
 
   <!-- الهيدر -->
   <header>
-    <div class="container header-flex">
-      <div class="logo-container">
-        <img src="images/logo phoenix-Photoroom.png" alt="شعار مجمع فينكس الطبي" class="logo-img" loading="eager" decoding="async">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار مجمع فينكس الطبي" loading="eager" decoding="async">
       </div>
+
       <nav aria-label="التنقل الرئيسي">
         <ul>
           <li><a href="index.html">الرئيسية</a></li>
@@ -112,206 +516,256 @@
     </div>
   </header>
 
-  <!-- تسجيل الدخول -->
-  <section id="loginSection" class="wrap">
-    <div class="title"><i class="fa fa-user-check"></i> تسجيل الدخول</div>
-
-    <label for="identity">رقم الهوية / الإقامة</label>
-    <input id="identity" type="text" placeholder="مثال: 1234567890" inputmode="numeric" maxlength="10" autocomplete="off">
-
-    <label for="mobile">رقم الجوال</label>
-    <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
-<!-- تنبيه خاص -->
-<p style="color:#b00020; font-weight:bold; margin:12px 0; text-align:center;">
-  🔔 تنبيه: خدمات الليزر متاحة للحجز داخل المجمع فقط.
-</p>
-
-<p style="text-align:center; margin-top:6px; font-weight:bold;">
-  للتواصل، الرجاء الضغط على أيقونة الواتساب الموجودة أعلى القائمة.
-</p>
-
-    
-
-    <!-- خانة رمز التحقق (تظهر بعد إرسال الكود) -->
-    <div id="otpGroup" style="display:none;">
-      <label for="otp">رمز التحقق (واتساب)</label>
-      <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-      <div class="row" style="margin-top:8px;">
-        <button id="resendOtp" class="btn btn-glass" type="button" style="display:none;">إعادة الإرسال</button>
+  <main class="page">
+    <!-- شريط علوي داخل الصفحة -->
+    <section class="hero-strip" aria-label="مقدمة">
+      <div class="hero-title">
+        <div>
+          <h1><i class="fa-solid fa-sparkles"></i> حجز موعد — مجمع فينكس الطبي</h1>
+          <p class="hero-sub">تسجيل دخول عبر واتساب ثم اختيار العيادة والوقت بكل سهولة.</p>
+        </div>
+        <span class="chip"><i class="fa-solid fa-shield-heart"></i> </span>
       </div>
-      <div id="otpTimer" class="muted"></div>
-    </div>
+    </section>
 
-    <div class="row" style="margin-top:8px;">
-      <!-- يظهر فقط عند اكتمال رقم الجوال -->
-      <button id="sendOtp" class="btn btn-glass" type="button" style="display:none;">إرسال كود واتساب</button>
-      <button id="loginBtn" class="btn btn-glass" type="button" disabled>تسجيل الدخول</button>
-    </div>
+    <!-- تسجيل الدخول -->
+    <section id="loginSection" class="card" aria-label="تسجيل الدخول">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-user-check"></i> تسجيل الدخول</span>
+        <span class="chip" style="background:rgba(46,125,50,.10); border-color:rgba(46,125,50,.22); color:#124b18;">
+          <i class="fa-brands fa-whatsapp"></i> تحقق واتساب
+        </span>
+      </div>
 
-    <div id="loginMsg" class="muted"></div>
+      <div class="grid two">
+        <div>
+          <label for="identity">رقم الهوية / الإقامة</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-id-card"></i>
+            <input id="identity" type="text" placeholder="مثال: 1234567890" inputmode="numeric" maxlength="10" autocomplete="off">
+          </div>
+        </div>
 
-    <p class="muted" style="margin-top:10px;">
-      لا تملك ملفًا؟
-      <button class="btn btn-glass" id="openNewFileBtn" type="button" style="padding:9px 12px;width:auto;">افتح ملف جديد</button>
-    </p>
-  </section>
+        <div>
+          <label for="mobile">رقم الجوال</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-phone"></i>
+            <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
+          </div>
+        </div>
+      </div>
 
+      <div class="note" style="margin-top:12px;">
+        🔔 تنبيه: خدمات الليزر متاحة للحجز داخل المجمع فقط. <br>
+        للتواصل اضغط أيقونة الواتساب أعلى الصفحة.
+      </div>
 
-  <!-- الحجز -->
-  <section id="bookingSection" class="wrap" style="display:none;">
-    <div class="title"><i class="fa-solid fa-calendar-check"></i> الحجز</div>
+      <!-- خانة OTP -->
+      <div id="otpGroup" style="display:none; margin-top:12px;">
+        <label for="otp">رمز التحقق (واتساب)</label>
+        <div class="field has-icon">
+          <i class="prefix fa-solid fa-key"></i>
+          <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+        </div>
 
-    <!-- زر: عرض ساعات العمل (أخضر) -->
-    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
-      <button id="toggleHours" type="button" class="btn-hours">
-        <i class="fa-solid fa-clock"></i> عرض ساعات العمل
-      </button>
-    </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="resendOtp" class="btn btn-ghost" type="button" style="display:none;">
+            <i class="fa-solid fa-rotate-right"></i> إعادة الإرسال
+          </button>
+        </div>
+        <div id="otpTimer" class="muted"></div>
+      </div>
 
-    <label for="clinic">اختر العيادة</label>
-    <select id="clinic">
-      <option value="">اختر العيادة</option>
-      
-      <option value="عيادة الاسنان 5 (NO.103)**الفترة الثانية">عيادة اسنان 5 الفترة المسائية(د.معاذ)</option>
-      <option value="عيادة الاسنان 1 (NO.100)**الفترة الاولى">عيادة الاسنان 1 الفترة الصباحية(د.عبير)</option>
-      <option value="عيادة الاسنان 1 (NO.100)**الفترة الثانية">عيادة الاسنان 1 الفترة المسائية(د.عبير)</option>
-      <option value="عيادة الاسنان 2 (NO.101)**الفترة الاولى">عيادة الاسنان 2 الفترة الصباحية(د.ريان)</option>
-      <option value="عيادة الاسنان 2 (NO.101)**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية(د.ريان)</option>
-      
-      <option value="عيادة الجلدية والتجميل (NO.200)**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
-      <option value="تشقير وتنظيف البشرة**الفترة الثانية"> تشقير وتنظيف البشرة الفترة المسائية</option>
-      <option value="النساء و الولادة (NO.400)**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
-      <option value="النساء و الولادة (NO.400)**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
-      <option value="عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية"> عيادة الاسنان6 الدكتور احمد خليل (زراعة اسنان) الفترة المسائية</option>
+      <div class="row" style="margin-top:12px;">
+        <button id="sendOtp" class="btn btn-green" type="button" style="display:none;">
+          <i class="fa-brands fa-whatsapp"></i> إرسال كود واتساب
+        </button>
+        <button id="loginBtn" class="btn btn-gold" type="button" disabled>
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> تسجيل الدخول
+        </button>
+      </div>
 
-    </select>
+      <div id="loginMsg" class="muted"></div>
 
-    <!-- ملاحظة خاصة لعيادة تنظيف البشرة فقط -->
-    <div id="dermNote" class="clinic-note">
-      
-    </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-ghost" id="openNewFileBtn" type="button" style="flex:1;">
+          <i class="fa-solid fa-folder-plus"></i> لا تملك ملفًا؟ افتح ملف جديد
+        </button>
+      </div>
+    </section>
 
-    <!-- نوع الخدمة / ملاحظة (تظهر بعد اختيار العيادة) -->
-    <div id="noteWrap" class="note-wrap">
-      <label for="note">نوع الخدمة / ملاحظة</label>
-      <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
-    </div>
-    
-    <label for="month" style="margin-top:10px;">اختر الشهر</label>
-    <select id="month">
-      <option value="">اختر الشهر</option>
-      <option value="12">ديسمبر</option>
-    </select>
+    <!-- الحجز -->
+    <section id="bookingSection" class="card" style="display:none;" aria-label="الحجز">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-calendar-check"></i> الحجز</span>
+        <button id="toggleHours" type="button" class="btn-hours">
+          <i class="fa-solid fa-clock"></i> ساعات العمل
+        </button>
+      </div>
 
-    <button id="fetchBtn" class="btn btn-glass" style="margin-top:10px;">عرض المواعيد</button>
+      <div class="grid two">
+        <div>
+          <label for="clinic">اختر العيادة</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-hospital"></i>
+            <select id="clinic">
+              <option value="">اختر العيادة</option>
 
-    <label for="time" style="margin-top:14px;">اختر الوقت</label>
-    <select id="time" disabled>
-      <option value="">يرجى البحث أولاً</option>
-    </select>
+              <option value="عيادة الاسنان 5 (NO.103)**الفترة الثانية">عيادة اسنان 5 الفترة المسائية(د.معاذ)</option>
+              <option value="عيادة الاسنان 1 (NO.100)**الفترة الاولى">عيادة الاسنان 1 الفترة الصباحية(د.عبير)</option>
+              <option value="عيادة الاسنان 1 (NO.100)**الفترة الثانية">عيادة الاسنان 1 الفترة المسائية(د.عبير)</option>
+              <option value="عيادة الاسنان 2 (NO.101)**الفترة الاولى">عيادة الاسنان 2 الفترة الصباحية(د.ريان)</option>
+              <option value="عيادة الاسنان 2 (NO.101)**الفترة الثانية">عيادة الاسنان 2 الفترة المسائية(د.ريان)</option>
 
-    <!-- تم تغيير وظيفة هذا الزر ليحجز مباشرة -->
-    <button id="bookNowBtn" class="btn btn-glass" style="margin-top:12px;" disabled>تأكيد الحجز</button>
+              <option value="عيادة الجلدية والتجميل (NO.200)**الفترة الثانية">عيادة الجلدية والتجميل الفترة المسائية</option>
+              <option value="تشقير وتنظيف البشرة**الفترة الثانية"> تشقير وتنظيف البشرة الفترة المسائية</option>
+              <option value="النساء و الولادة (NO.400)**الفترة الاولى">النساء و الولادة الفترة الصباحية</option>
+              <option value="النساء و الولادة (NO.400)**الفترة الثانية">النساء و الولادة الفترة المسائية</option>
+              <option value="عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية"> عيادة الاسنان6 الدكتور احمد خليل (زراعة اسنان) الفترة المسائية</option>
+            </select>
+          </div>
 
-    <div id="bkMsg" class="muted"></div>
-  </section>
+          <!-- ملاحظة خاصة لعيادة تنظيف البشرة فقط -->
+          <div id="dermNote" class="note" style="display:none; margin-top:10px;"></div>
+        </div>
 
-  <!-- قسم ساعات العمل -->
-  <section id="hoursSection" class="wrap" style="display:none;">
-    <div class="title"><i class="fa-solid fa-clock"></i> ساعات العمل</div>
+        <div>
+          <label for="month">اختر الشهر</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-calendar-days"></i>
+            <select id="month">
+              <option value="">اختر الشهر</option>
+              <option value="12">ديسمبر</option>
+            </select>
+          </div>
 
-    <div style="display:flex; justify-content:center; margin:6px 0 12px;">
-      <button id="toggleBooking" type="button" class="btn-hours">
-        <i class="fa-solid fa-calendar-check"></i> عرض الحجز
-      </button>
-    </div>
+          <button id="fetchBtn" class="btn btn-green" style="margin-top:10px;">
+            <i class="fa-solid fa-magnifying-glass"></i> عرض المواعيد
+          </button>
+        </div>
+      </div>
 
-    <div class="hours-table-wrap">
-      <table class="hours-table">
-        <thead>
-          <tr>
-            <th>القسم / الطبيب</th>
-            <th>الأيام</th>
-            <th>الفترة الصباحية</th>
-            <th>الفترة المسائية</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>عيادة الأسنان 1 (د. عبير)</td>
-            <td>السبت - الخميس</td>
-            <td>9:00 ص – 12:00 م</td>
-            <td>4:00 م – 9:00 م</td>
-          </tr>
-          <tr>
-            <td>عيادة الأسنان 2 (د. ريان)</td>
-            <td>السبت - الخميس</td>
-            <td>8:00 ص – 11:00 ص</td>
-            <td>4:00 م – 9:00 م</td>
-          </tr>
-          <tr>
-            <td>عيادة الأسنان 3 (د. معاذ)</td>
-            <td>السبت - الخميس</td>
-            <td>12:00 م – 8:00 م</td>
-            <td>-</td>
-          </tr>
-          <tr>
-            <td>عيادة الأسنان 4 (د. رونالدو)</td>
-            <td>السبت - الخميس</td>
-            <td>2:00 م – 10:00 م</td>
-            <td>-</td>
-          </tr>
-          <tr>
-            <td>عيادة الجلدية والتجميل (د. ولاء)</td>
-            <td>الأحد - الخميس</td>
-            <td>-</td>
-            <td>3:30 م – 10:30 م</td>
-          </tr>
-          <tr>
-            <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
-            <td>السبت - الخميس</td>
-            <td>-</td>
-            <td>2:00 م – 10:00 م</td>
-          </tr>
-          <tr>
-            <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
-            <td>السبت - الخميس</td>
-            <td>10:00 ص – 12:00 م</td>
-            <td>4:00 م – 10:00 م</td>
-          </tr>
-          <tr>
-            <td>عيادة النساء والولادة (د. حسناء)</td>
-            <td>السبت - الخميس</td>
-            <td>10:00 ص – 12:00 م</td>
-            <td>4:00 م – 10:00 م</td>
-          </tr>
-          <tr>
-            <td>عيادة الليزر (نساء) 1</td>
-            <td>السبت - الخميس</td>
-            <td>8:00 ص – 11:00 م</td>
-            <td>-</td>
-          </tr>
-          <tr>
-            <td>عيادة الليزر (نساء) 2</td>
-            <td>السبت - الخميس</td>
-            <td>8:00 ص – 11:00 م</td>
-            <td>-</td>
-          </tr>
-          <tr>
-            <td>عيادة الليزر (رجال)</td>
-            <td>السبت - الخميس</td>
-            <td>9:00 ص – 2:00 م</td>
-            <td></td>
-          </tr>
-          <tr>
-            <td colspan="4" style="background:#fffbe9;font-weight:bold;color:#bb7d0a;">
-              يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+      <!-- نوع الخدمة / ملاحظة -->
+      <div id="noteWrap" style="display:none; margin-top:12px;">
+        <label for="note">نوع الخدمة / ملاحظة</label>
+        <div class="field">
+          <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="time">اختر الوقت</label>
+        <div class="field has-icon">
+          <i class="prefix fa-solid fa-clock"></i>
+          <select id="time" disabled>
+            <option value="">يرجى البحث أولاً</option>
+          </select>
+        </div>
+
+        <button id="bookNowBtn" class="btn btn-gold" style="margin-top:12px;" disabled>
+          <i class="fa-solid fa-circle-check"></i> تأكيد الحجز
+        </button>
+
+        <div id="bkMsg" class="muted"></div>
+      </div>
+    </section>
+
+    <!-- ساعات العمل -->
+    <section id="hoursSection" class="card" style="display:none;" aria-label="ساعات العمل">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-clock"></i> ساعات العمل</span>
+        <button id="toggleBooking" type="button" class="btn-hours">
+          <i class="fa-solid fa-calendar-check"></i> الرجوع للحجز
+        </button>
+      </div>
+
+      <div style="overflow:auto;">
+        <table class="hours-table">
+          <thead>
+            <tr>
+              <th>القسم / الطبيب</th>
+              <th>الأيام</th>
+              <th>الفترة الصباحية</th>
+              <th>الفترة المسائية</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>عيادة الأسنان 1 (د. عبير)</td>
+              <td>السبت - الخميس</td>
+              <td>9:00 ص – 12:00 م</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 2 (د. ريان)</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 ص</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 3 (د. معاذ)</td>
+              <td>السبت - الخميس</td>
+              <td>12:00 م – 8:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 4 (د. رونالدو)</td>
+              <td>السبت - الخميس</td>
+              <td>2:00 م – 10:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+              <td>الأحد - الخميس</td>
+              <td>-</td>
+              <td>3:30 م – 10:30 م</td>
+            </tr>
+            <tr>
+              <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+              <td>السبت - الخميس</td>
+              <td>-</td>
+              <td>2:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة النساء والولادة (د. حسناء)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (نساء) 1</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (نساء) 2</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (رجال)</td>
+              <td>السبت - الخميس</td>
+              <td>9:00 ص – 2:00 م</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td colspan="4" style="background:rgba(255,246,223,.9);font-weight:900;color:#6b4b00;">
+                يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
   <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
 
@@ -527,7 +981,6 @@
     const isCleaning = v.startsWith('عيادة تنظيف البشرة'); // فقط تنظيف البشرة
     dermNote.style.display = isCleaning ? 'block' : 'none';
     noteWrap.style.display = v ? 'block' : 'none';
-    // تفريغ الأوقات عند تغيير العيادة
     resetTimes('clinic');
   });
 
@@ -547,9 +1000,9 @@
       timeSel.innerHTML = `<option value="">يرجى اختيار العيادة والشهر</option>`;
       return;
     }
-if (isLoadingTimes) return;
-isLoadingTimes = true;
-    // قفل الحقول + منع النقرات + إظهار اللودر
+    if (isLoadingTimes) return;
+    isLoadingTimes = true;
+
     fetchBtn.disabled = true;
     clinicSel.disabled = true;
     monthSel.disabled = true;
@@ -574,7 +1027,6 @@ isLoadingTimes = true;
       timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
       bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
     } finally {
-      // فتح الحقول من جديد بعد ظهور النتيجة
       isLoadingTimes = false;
       fetchBtn.disabled = false;
       clinicSel.disabled = false;
@@ -597,10 +1049,8 @@ isLoadingTimes = true;
       return;
     }
 
-    // خزّن لقطة التفاصيل لعرضها في success.html
     snapshotPendingForSuccess();
 
-    // قفل الواجهة + لودر
     bookNowBtn.disabled = true;
     fetchBtn.disabled = true;
     clinicSel.disabled = true;
@@ -619,7 +1069,6 @@ isLoadingTimes = true;
       const data = await res.json();
       const msg  = (data && data.msg) ? String(data.msg) : '';
 
-      // خزّن رسالة النتيجة وانتقل لنجاح
       localStorage.setItem('booking_result_msg', msg);
       window.location.href = 'success.html';
     } catch (e) {
@@ -654,5 +1103,6 @@ isLoadingTimes = true;
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
 </script>
+
 </body>
 </html>
