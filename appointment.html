@@ -598,6 +598,10 @@
     <section id="bookingSection" class="card" style="display:none;" aria-label="الحجز">
       <div class="card-head">
         <span class="chip"><i class="fa-solid fa-calendar-check"></i> الحجز</span>
+        <button id="logoutBtn" class="btn btn-ghost" style="margin-inline-start:auto;">
+  <i class="fa-solid fa-right-from-bracket"></i> تسجيل خروج
+</button>
+
         <button id="toggleHours" type="button" class="btn-hours">
           <i class="fa-solid fa-clock"></i> ساعات العمل
         </button>
@@ -1102,6 +1106,51 @@
 
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
+  // ===============================
+// AUTO LOGIN CHECK (ON LOAD)
+// ===============================
+(function autoLoginCheck() {
+  const screenLoader = document.getElementById('screenLoader');
+  const identity = localStorage.getItem('auth_identity');
+  const phone    = localStorage.getItem('auth_phone');
+
+  const loginSection   = document.getElementById('loginSection');
+  const bookingSection = document.getElementById('bookingSection');
+
+  if (identity && phone) {
+    // المستخدم معروف — لا Login ولا OTP
+    loginSection.style.display = 'none';
+    bookingSection.style.display = '';
+  } else {
+    // مستخدم جديد
+    bookingSection.style.display = 'none';
+    loginSection.style.display = '';
+  }
+})();
+// ===============================
+// LOGOUT HANDLER
+// ===============================
+document.getElementById('logoutBtn')?.addEventListener('click', () => {
+
+  // 1️⃣ مسح جلسة الواجهة فقط
+  localStorage.removeItem('auth_identity');
+  localStorage.removeItem('auth_phone');
+  localStorage.removeItem('auth_fileId');
+
+  // 2️⃣ إعادة الواجهة لتسجيل الدخول
+  document.getElementById('bookingSection').style.display = 'none';
+  document.getElementById('loginSection').style.display = '';
+
+  // 3️⃣ تنظيف الحقول
+  document.getElementById('identity').value = '';
+  document.getElementById('mobile').value   = '';
+  document.getElementById('otp').value      = '';
+
+  // 4️⃣ سكرول للأعلى
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+
 </script>
 
 </body>
