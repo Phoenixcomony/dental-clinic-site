@@ -1207,7 +1207,7 @@ const isDental5 =
 
     const inMorning = (t) => {
       const m = timeToMinutes(t);
-      return m >= 10 * 60 && m <= 11 * 60 + 30;
+      return m >= 9 * 60 && m <= 10 * 60 + 30;
     };
 
     const inEvening = (t) => {
