@@ -1342,6 +1342,19 @@ const clinicValue = await page.evaluate((name) => {
         let filtered = raw;
         if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
         if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
+        filtered = filtered.filter(x => {
+  const [D, M, Y] = (x.date || '').split('-').map(Number);
+  if (!D || !M || !Y) return true;
+
+  const day = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
+  // 6 = السبت
+
+  // ❌ منع الجلدية والتجميل فقط يوم السبت
+  if (day === 6 && isDermEvening) return false;
+
+  return true;
+});
+
 // 🚫 منع الجمعة لكل العيادات ما عدا الأسنان 5
 filtered = filtered.filter(x => {
   const [D, M, Y] = (x.date || '').split('-').map(Number);
