@@ -1347,6 +1347,18 @@ const clinicValue = await page.evaluate((name) => {
 
 const isMaab =
   baseClinicName.includes('مآب');
+  // ===== شرط خاص للدكتور مآب: يظهر فقط يوم الخميس =====
+filtered = filtered.filter(x => {
+  if (!isMaab) return true; // مو مآب → لا نغير شي
+
+  const [D, M, Y] = (x.date || '').split('-').map(Number);
+  if (!D || !M || !Y) return true;
+
+  const day = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
+  // الخميس = 4
+  return day === 4;
+});
+
 
         filtered = filtered.filter(x => {
   const [D, M, Y] = (x.date || '').split('-').map(Number);
