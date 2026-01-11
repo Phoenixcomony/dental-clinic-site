@@ -1178,6 +1178,8 @@ app.post('/api/times', async (req, res) => {
 
     // ===== إعدادات العيادات =====
     const baseClinicName = clinicStr.split('**')[0].trim();
+    const isMaab = clinicStr.includes('(د.مآب)');
+
     // تحديد عيادة الأسنان 5 (الوحيدة المسموح لها بالجمعة)
 const isDental5 =
   baseClinicName.includes('عيادة الاسنان 5') ||
@@ -1342,22 +1344,23 @@ const clinicValue = await page.evaluate((name) => {
         let filtered = raw;
         if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
         if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
-        const isHager =
-  baseClinicName.includes('هاجر');
-
-const isMaab =
-  baseClinicName.includes('مآب');
-  // ===== شرط خاص للدكتور مآب: يظهر فقط يوم الخميس =====
+        // ===== مآب: تظهر المواعيد فقط يوم الخميس =====
 filtered = filtered.filter(x => {
-  if (!isMaab) return true; // مو مآب → لا نغير شي
+  if (!isMaab) return true;
 
   const [D, M, Y] = (x.date || '').split('-').map(Number);
   if (!D || !M || !Y) return true;
 
   const day = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
-  // الخميس = 4
-  return day === 4;
+  return day === 4; // الخميس فقط
 });
+
+        const isHager =
+  baseClinicName.includes('هاجر');
+
+const isMaab =
+  baseClinicName.includes('مآب');
+
 
 
         filtered = filtered.filter(x => {
