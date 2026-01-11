@@ -1352,7 +1352,8 @@ filtered = filtered.filter(x => {
   if (!D || !M || !Y) return true;
 
   const day = new Date(Date.UTC(Y, M - 1, D)).getUTCDay();
-  return day === 4; // الخميس فقط
+  return day === 3 || day === 4; // الأربعاء + الخميس (اختبار)
+
 });
 
         const isHager =
