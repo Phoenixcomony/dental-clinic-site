@@ -1342,6 +1342,12 @@ const clinicValue = await page.evaluate((name) => {
         let filtered = raw;
         if (effectivePeriod === 'morning') filtered = raw.filter(x => inMorning(x.time24));
         if (effectivePeriod === 'evening') filtered = raw.filter(x => inEvening(x.time24));
+        const isHager =
+  baseClinicName.includes('هاجر');
+
+const isMaab =
+  baseClinicName.includes('مآب');
+
         filtered = filtered.filter(x => {
   const [D, M, Y] = (x.date || '').split('-').map(Number);
   if (!D || !M || !Y) return true;
