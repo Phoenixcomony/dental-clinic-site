@@ -1015,9 +1015,10 @@ monthSel.value = 'auto';
 
   // دالة لتفريغ النتائج وإجبار إعادة العرض
   function resetTimes(trigger=''){
-    timeSel.innerHTML = `<option value="">يرجى الضغط على "عرض المواعيد" بعد التغيير</option>`;
-    timeSel.disabled = true;
-    bookNowBtn.disabled = true;
+   timeSel.innerHTML = `<option value="">اختر عيادة لعرض الأوقات</option>`;
+timeSel.disabled = false;   // 🔥 لا تعطلها
+bookNowBtn.disabled = true;
+
     bkMsg.textContent = trigger === 'clinic'
       ? 'تم تغيير العيادة — اعرض المواعيد من جديد.'
       : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
@@ -1065,7 +1066,8 @@ clinicSel.addEventListener('change', ()=>{
     const month  = monthSel.value;
 
     bkMsg.textContent = '';
-    timeSel.disabled = true;
+    timeSel.disabled = false;
+
     bookNowBtn.disabled = true;
     timeSel.innerHTML = `<option>...جاري جلب الأوقات...</option>`;
 
@@ -1129,7 +1131,8 @@ clinicSel.addEventListener('change', ()=>{
     fetchBtn.disabled = true;
     clinicSel.disabled = true;
     monthSel.disabled = true;
-    timeSel.disabled = true;
+    timeSel.disabled = false;
+
     showLoader(true);
     bkMsg.textContent = 'جاري تأكيد الحجز...';
 
