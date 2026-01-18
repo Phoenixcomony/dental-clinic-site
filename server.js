@@ -252,6 +252,9 @@ const CLINICS_LIST = [
   "النساء و الولادة 2**الفترة الاولى",
   "النساء و الولادة 2**الفترة الثانية",
 ];
+// ===== Booking Queue (single worker) =====
+const bookingQueue = [];
+let processingBooking = false;
 
 // ===== Login Queue =====
 const loginQueue = [];
