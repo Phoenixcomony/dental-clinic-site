@@ -1027,21 +1027,10 @@ bookNowBtn.disabled = true;
   }
 
   // إظهار الملاحظة الخاصة لعيادة تنظيف البشرة فقط + إظهار خانة "نوع الخدمة/ملاحظة" عند اختيار أي عيادة
-  clinicSel.addEventListener('change', ()=>{
+ clinicSel.addEventListener('change', () => {
   const v = clinicSel.value || '';
-  const isCleaning = v.startsWith('عيادة تنظيف البشرة');
-  dermNote.style.display = isCleaning ? 'block' : 'none';
-  noteWrap.style.display = v ? 'block' : 'none';
+  const isCleaning = v.startsWith('تشقير وتنظيف البشرة');
 
-  // لو لم تُختر عيادة، لا تفعل شيء
-  if (!v) {
-    resetTimes('clinic');
-    return;
-  }
-
-clinicSel.addEventListener('change', ()=>{
-  const v = clinicSel.value || '';
-  const isCleaning = v.startsWith('عيادة تنظيف البشرة');
   dermNote.style.display = isCleaning ? 'block' : 'none';
   noteWrap.style.display = v ? 'block' : 'none';
 
@@ -1050,14 +1039,10 @@ clinicSel.addEventListener('change', ()=>{
     return;
   }
 
-  // 🔥 جلب المواعيد مباشرة بدون زر وبدون شهر
+  // 🔥 جلب المواعيد مباشرة
   fetchBtn.click();
 });
 
-
-  // 🔥 اجلب المواعيد تلقائيًا
-  fetchBtn.click();
-});
 
 
   // تفريغ الأوقات عند تغيير الشهر
@@ -1090,7 +1075,8 @@ clinicSel.addEventListener('change', ()=>{
       const r = await fetch('/api/times', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ clinic, month })
+        body: JSON.stringify({ clinic })
+
       });
       const data = await r.json();
       if (data.times && data.times.length) {
@@ -1122,10 +1108,11 @@ clinicSel.addEventListener('change', ()=>{
     const phone  = localStorage.getItem('auth_phone') || '';
     const note   = (noteInput.value || '').trim();
 
-    if (!clinic || !month || !time || !identityVal || !phone) {
-      bkMsg.textContent = 'الرجاء استكمال العيادة والشهر والوقت وتسجيل الدخول.';
-      return;
-    }
+   if (!clinic || !time || !identityVal || !phone) {
+  bkMsg.textContent = 'الرجاء اختيار العيادة والوقت وتسجيل الدخول.';
+  return;
+}
+
 
     snapshotPendingForSuccess();
 

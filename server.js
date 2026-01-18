@@ -1874,29 +1874,38 @@ async function selectPatientOnAppointments(page, identity) {
 
 
 /** ===== Booking queue (single) ===== */
-const bookingQueue = [];
-let processingBooking = false;
-
 app.post('/api/book', async (req, res) => {
-  bookingQueue.push({ req, res });
+  // ⬅️ ندخل الطلب في الطابور فقط
+  bookingQueue.push({ data: req.body });
+
+  // ⬅️ شغّل المعالجة (إن لم تكن تعمل)
   processQueue();
+
+  // ⬅️ نرجع فورًا للمستخدم
+  return res.json({
+    success: true,
+    go: 'success'
+  });
 });
+
 
 async function processQueue() {
   if (processingBooking || !bookingQueue.length) return;
   processingBooking = true;
 
-  const { req, res } = bookingQueue.shift();
+  const job = bookingQueue.shift();
+
   try {
-    const msg = await bookNow({ ...req.body });
-    res.json({ msg });
+    // 🔥 الحجز يتم في الخلفية فقط
+    await bookNow(job.data);
   } catch (e) {
-    res.json({ msg: '❌ فشل الحجز' });
+    console.error('[BOOKING FAILED]', e?.message || e);
   } finally {
     processingBooking = false;
-    processQueue();
+    processQueue(); // التالي في الطابور
   }
 }
+
 
 
 
