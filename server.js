@@ -1478,24 +1478,30 @@ filtered = filtered.filter(x => {
 });
 
         // تجميع تنظيف البشرة بالساعة
-        if (isCleaningDerm) {
-          const buckets = new Map();
-          for (const x of filtered) {
-            const H = +x.time24.split(':')[0];
-            const key = `${x.date}|${H}`;
-            if (!buckets.has(key)) buckets.set(key, x);
-          }
-          const hourly = [...buckets.values()].map(x => {
-            const H = +x.time24.split(':')[0];
-            const h12 = H % 12 || 12;
-            const am = H < 12;
-            return {
-              value: x.value,
-              label: `${x.date} - ${h12}:00 ${am ? 'ص' : 'م'}`
-            };
-          });
-          return hourly.sort((a,b)=>a.label.localeCompare(b.label,'ar'));
-        }
+      // ✅ تشقير وتنظيف البشرة — HH:00 فقط
+if (isCleaningDerm) {
+  const buckets = new Map();
+
+  for (const x of filtered) {
+    const [H, M = '0'] = x.time24.split(':').map(Number);
+
+    // ❌ تجاهل أي وقت ليس بداية ساعة
+    if (M !== 0) continue;
+
+    const key = `${x.date}|${H}`;
+    if (!buckets.has(key)) {
+      buckets.set(key, {
+        value: `${x.date}*${String(H).padStart(2,'0')}:00`,
+        label: `${x.date} - ${(H % 12 || 12)}:00 ${H < 12 ? 'ص' : 'م'}`
+      });
+    }
+  }
+
+  return [...buckets.values()].sort((a,b)=>
+    a.label.localeCompare(b.label,'ar')
+  );
+}
+
 
         return filtered.map(x => ({
           value: x.value,
@@ -2181,11 +2187,20 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ===== Warmup Prefetch (Railway-safe) =====
-setTimeout(() => {
-  prefetchAllClinicsTimes()
-    .then(() => console.log('[PREFETCH] warmup done'))
-    .catch(e => console.error('[PREFETCH] warmup error', e?.message));
-}, 5000); // انتظر 5 ثواني بعد الإقلاع
+// ===== Continuous PrefETCH Loop =====
+async function prefetchLoop() {
+  try {
+    await prefetchAllClinicsTimes();
+    console.log('[PREFETCH] cycle completed');
+  } catch (e) {
+    console.error('[PREFETCH] cycle error', e?.message);
+  } finally {
+    // ⏱️ بعد ما يخلص، يرجع يعيد الجلب
+    setTimeout(prefetchLoop, 60 * 1000); // كل دقيقة
+  }
+}
 
+// ⏳ أول تشغيل بعد الإقلاع
+setTimeout(prefetchLoop, 5000);
 
 
