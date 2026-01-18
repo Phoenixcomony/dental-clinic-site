@@ -66,6 +66,29 @@ async function setTimesCache(key, data) {
     3 * 60   // ⬅️ هنا 3 دقائق
   );
 }
+function clinicCacheKey(clinicStr) {
+  return PREFETCH_KEY_PREFIX + String(clinicStr || '').trim();
+}
+
+async function getClinicTimesFromRedis(clinicStr) {
+  const v = await redis.get(clinicCacheKey(clinicStr));
+  return v ? JSON.parse(v) : null;
+}
+
+async function setClinicTimesToRedis(clinicStr, times) {
+  await redis.set(
+    clinicCacheKey(clinicStr),
+    JSON.stringify({ ts: Date.now(), times: times || [] }),
+    'EX',
+    PREFETCH_TTL_SEC
+  );
+}
+
+/* ================= Prefetch Cache (All Clinics) ================= */
+const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
+const PREFETCH_KEY_PREFIX = 'prefetch_times_v1:';
+const PREFETCH_LOCK_KEY = 'prefetch_times_lock_v1';
+const PREFETCH_LOCK_SEC = 120;
 
 
 const timesInFlight = new Map();
@@ -112,6 +135,46 @@ async function getSharedBrowser() {
 async function resetSharedBrowser() {
   try { if (sharedBrowser) await sharedBrowser.close(); } catch {}
   sharedBrowser = null;
+}
+/* ================= Prefetch All Clinics Times ================= */
+async function prefetchAllClinicsTimes() {
+
+  // 🔒 Lock لمنع تشغيل متوازي
+  const locked = await redis.set(
+    PREFETCH_LOCK_KEY,
+    '1',
+    'NX',
+    'EX',
+    PREFETCH_LOCK_SEC
+  );
+
+  if (!locked) {
+    console.log('[PREFETCH] already running, skip');
+    return;
+  }
+
+  console.log('[PREFETCH] start fetching all clinics');
+
+  try {
+    for (const clinic of CLINICS_LIST) {
+      try {
+        console.log('[PREFETCH] clinic:', clinic);
+
+        // نستخدم نفس منطق /api/times لكن بدون month من المستخدم
+        const times = await fetchTimesForClinic30Days(clinic);
+
+        if (Array.isArray(times) && times.length) {
+          await setClinicTimesToRedis(clinic, times);
+        }
+
+      } catch (e) {
+        console.error('[PREFETCH] clinic failed:', clinic, e?.message);
+      }
+    }
+  } finally {
+    await redis.del(PREFETCH_LOCK_KEY);
+    console.log('[PREFETCH] done');
+  }
 }
 
 /* ================= Express ================= */
@@ -175,6 +238,21 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false },
   { user: "8888888888", pass: "8888888888", busy: false },
 ];
+const CLINICS_LIST = [
+  "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
+  "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
+  "عيادة الاسنان 1 (NO.100)**الفترة الثانية",
+  "عيادة الاسنان 2 (NO.101)**الفترة الاولى",
+  "عيادة الاسنان 2 (NO.101)**الفترة الثانية",
+  "عيادة الجلدية والتجميل (NO.200)**الفترة الثانية",
+  "تشقير وتنظيف البشرة**الفترة الثانية",
+  "النساء و الولادة (NO.400)**الفترة الاولى",
+  "النساء و الولادة (NO.400)**الفترة الثانية",
+  "عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية",
+  "النساء و الولادة 2**الفترة الاولى",
+  "النساء و الولادة 2**الفترة الثانية",
+];
+
 // ===== Login Queue =====
 const loginQueue = [];
 let activeLogins = 0;
@@ -1142,6 +1220,7 @@ async function applyOneMonthView(page){
   return didSet;
 }
 
+
 /** ===== /api/times ===== */
 app.post('/api/times', async (req, res) => {
   try {
@@ -1158,6 +1237,27 @@ app.post('/api/times', async (req, res) => {
       (/\*\*الفترة الاولى$/.test(clinicStr) ? 'morning' : null);
 
     const effectivePeriod = period || autoPeriod;
+    // ===== FAST PATH (Redis) =====
+const cachedPrefetch = await getClinicTimesFromRedis(clinic);
+
+if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
+
+  let times = cachedPrefetch.times;
+
+  if (effectivePeriod === 'morning') {
+    times = times.filter(t => t.label.includes('ص'));
+  }
+  if (effectivePeriod === 'evening') {
+    times = times.filter(t => t.label.includes('م'));
+  }
+
+  return res.json({
+    times,
+    cached: true,
+    source: 'prefetch'
+  });
+}
+
 
     // ===== الكاش =====
     const cacheKey = makeTimesKey({ clinic, month, period: effectivePeriod || '' });
@@ -1166,7 +1266,8 @@ app.post('/api/times', async (req, res) => {
   return res.json({ times: data, cached: true, shared: true });
 }
 
-    const cached = getTimesCache(cacheKey);
+   const cached = await getTimesCache(cacheKey);
+
     if (cached && cached.length > 0) {
       return res.json({ times: cached, cached: true });
     }
@@ -1424,6 +1525,94 @@ return res.json({ times, cached: false });
   }
 });
 
+/* ================= Fetch Times (1 month auto) ================= */
+async function fetchTimesForClinic30Days(clinic) {
+
+  const browser = await getSharedBrowser();
+  const page = await browser.newPage();
+  await prepPage(page);
+
+  try {
+    // تسجيل دخول
+    await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
+    await gotoAppointments(page);
+
+    // اختيار العيادة
+    const clinicValue = await page.evaluate((name) => {
+
+      // تنظيف البشرة (رابط ثابت)
+      if (name.startsWith('تشقير') || name.startsWith('عيادة تنظيف البشرة')) {
+        return 'appoint_display.php?clinic_id=137&per_id=2&day_no=7';
+      }
+
+      const normalize = s =>
+        String(s || '')
+          .replace(/\s+/g, ' ')
+          .replace(/[أإآ]/g, 'ا')
+          .replace(/ة/g, 'ه')
+          .trim();
+
+      const target = normalize(name);
+      const opts = Array.from(document.querySelectorAll('#clinic_id option'));
+
+      const f = opts.find(o =>
+        normalize(o.textContent) === target ||
+        normalize(o.value) === target
+      );
+
+      return f ? f.value : null;
+    }, clinic);
+
+    if (!clinicValue) {
+      throw new Error('clinic_not_found');
+    }
+
+    await page.evaluate((val) => {
+      const sel = document.querySelector('#clinic_id');
+      sel.value = val;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      if (val) window.location.href = val;
+    }, clinicValue);
+
+    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 120000 });
+
+    // ⭐ اختيار 1 month تلقائيًا
+    await applyOneMonthView(page);
+
+    // انتظار جدول المواعيد
+    await page.waitForSelector(
+      'input[type="radio"][name="ss"]',
+      { timeout: 45000 }
+    );
+
+    // قراءة الأوقات
+   const times = await page.evaluate(() => {
+  function to12h(t){
+    let [H,M='0']=t.split(':');
+    H=+H; M=String(+M).padStart(2,'0');
+    const am = H < 12;
+    let h = H % 12; if (h===0) h=12;
+    return `${h}:${M} ${am?'ص':'م'}`;
+  }
+
+  return Array.from(
+    document.querySelectorAll('input[type="radio"][name="ss"]:not(:disabled)')
+  ).map(r => {
+    const [date, time24] = (r.value || '').split('*');
+    return {
+      value: r.value,
+      label: `${date} - ${to12h(time24)}`
+    };
+  });
+});
+
+
+    return times || [];
+
+  } finally {
+    try { if (!WATCH) await page.close(); } catch (_) {}
+  }
+}
 
 
 
@@ -1964,6 +2153,12 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
 });
 
+// ===== Warmup Prefetch (Railway-safe) =====
+setTimeout(() => {
+  prefetchAllClinicsTimes()
+    .then(() => console.log('[PREFETCH] warmup done'))
+    .catch(e => console.error('[PREFETCH] warmup error', e?.message));
+}, 5000); // انتظر 5 ثواني بعد الإقلاع
 
 
 
