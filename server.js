@@ -1225,9 +1225,10 @@ async function applyOneMonthView(page){
 app.post('/api/times', async (req, res) => {
   try {
     const { clinic, month, period } = req.body || {};
-    if (!clinic || !month) {
-      return res.status(400).json({ times: [], error: 'العيادة أو الشهر مفقود' });
-    }
+   if (!clinic) {
+  return res.status(400).json({ times: [], error: 'العيادة مفقودة' });
+}
+
 
     const clinicStr = String(clinic || '');
 
