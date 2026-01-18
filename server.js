@@ -2023,6 +2023,20 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
 
     await delay(600);
     await clickReserveAndConfirm(page);
+    // 🧹 حذف كاش المواعيد للعيادة بعد حجز ناجح
+try {
+  const clinicKey = clinicCacheKey(clinic);
+  await redis.del(clinicKey);
+
+  // حذف أي كاش جزئي مرتبط
+  const pattern = `times:${clinic}*`;
+  const keys = await redis.keys(pattern);
+  if (keys.length) await redis.del(keys);
+} catch (e) {
+  console.warn('[REDIS CLEANUP FAILED]', e?.message || e);
+}
+
+    
     // ✅ تسجيل حجز فعلي ناجح
 incMetrics({ clinic });
 
