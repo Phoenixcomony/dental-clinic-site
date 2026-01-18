@@ -2051,6 +2051,31 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
 
     await delay(600);
     await clickReserveAndConfirm(page);
+    // 🧹 تنظيف كاش المواعيد للعيادة بعد حجز ناجح
+try {
+  // 1) حذف كاش الجلب المسبق (Prefetch)
+  const clinicKey = clinicCacheKey(clinic);
+  await redis.del(clinicKey);
+
+  // 2) حذف أي كاش مواعيد تفصيلي
+  const scan = async (cursor = '0') => {
+    const [next, keys] = await redis.scan(
+      cursor,
+      'MATCH',
+      `times:${clinic}*`,
+      'COUNT',
+      100
+    );
+    if (keys.length) await redis.del(keys);
+    if (next !== '0') await scan(next);
+  };
+  await scan();
+
+  console.log('[REDIS] cache cleared for clinic:', clinic);
+} catch (e) {
+  console.warn('[REDIS CLEANUP FAILED]', e?.message || e);
+}
+
     // 🧹 حذف كاش المواعيد للعيادة بعد حجز ناجح
 try {
   const clinicKey = clinicCacheKey(clinic);
