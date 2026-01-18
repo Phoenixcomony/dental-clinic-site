@@ -990,6 +990,13 @@
   const bkMsg = document.getElementById('bkMsg');
   const clinicSel = document.getElementById('clinic');
   const monthSel  = document.getElementById('month');
+  // إخفاء الشهر وزر عرض المواعيد (لم يعدا مستخدمين)
+monthSel.closest('.field').style.display = 'none';
+fetchBtn.style.display = 'none';
+
+// قيمة شكلية فقط للتوافق
+monthSel.value = 'auto';
+
   document.getElementById('month').closest('.field').style.display = 'none';
   const dermNote  = document.getElementById('dermNote');
   const noteWrap  = document.getElementById('noteWrap');
@@ -1029,11 +1036,21 @@
     return;
   }
 
-  // لو لم يُختر شهر بعد → انتظر
-  if (!monthSel.value) {
+clinicSel.addEventListener('change', ()=>{
+  const v = clinicSel.value || '';
+  const isCleaning = v.startsWith('عيادة تنظيف البشرة');
+  dermNote.style.display = isCleaning ? 'block' : 'none';
+  noteWrap.style.display = v ? 'block' : 'none';
+
+  if (!v) {
     resetTimes('clinic');
     return;
   }
+
+  // 🔥 جلب المواعيد مباشرة بدون زر وبدون شهر
+  fetchBtn.click();
+});
+
 
   // 🔥 اجلب المواعيد تلقائيًا
   fetchBtn.click();
@@ -1052,10 +1069,11 @@
     bookNowBtn.disabled = true;
     timeSel.innerHTML = `<option>...جاري جلب الأوقات...</option>`;
 
-    if (!clinic || !month) {
-      timeSel.innerHTML = `<option value="">يرجى اختيار العيادة والشهر</option>`;
-      return;
-    }
+    if (!clinic) {
+  timeSel.innerHTML = `<option value="">يرجى اختيار العيادة</option>`;
+  return;
+}
+
     if (isLoadingTimes) return;
     isLoadingTimes = true;
 
