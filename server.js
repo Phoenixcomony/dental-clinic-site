@@ -58,6 +58,35 @@ async function getTimesCache(key) {
 
 
 /* ================= Times Cache (Redis – 3 min) ================= */
+/* ================= Slot Lock (Immediate) ================= */
+const SLOT_LOCK_TTL_SEC = 15 * 60; // 15 دقيقة
+
+function slotLockKey(clinic, date, time) {
+  return `lock:slot:${clinic}:${date}:${time}`;
+}
+
+async function lockSlot(clinic, date, time, by) {
+  const key = slotLockKey(clinic, date, time);
+  const ok = await redis.set(
+    key,
+    JSON.stringify({ by, ts: Date.now() }),
+    'NX',
+    'EX',
+    SLOT_LOCK_TTL_SEC
+  );
+  return !!ok; // true إذا تم القفل
+}
+
+async function unlockSlot(clinic, date, time) {
+  const key = slotLockKey(clinic, date, time);
+  await redis.del(key);
+}
+
+async function isSlotLocked(clinic, date, time) {
+  const key = slotLockKey(clinic, date, time);
+  return !!(await redis.get(key));
+}
+
 async function setTimesCache(key, data) {
   await redis.set(
     `times:${key}`,
@@ -1545,7 +1574,17 @@ if (!Array.isArray(times) || times.length === 0) {
 }
 
 await setTimesCache(cacheKey, times);
-return res.json({ times, cached: false });
+// ⛔ إخفاء الأوقات المقفولة فورًا
+const visibleTimes = [];
+
+for (const t of times) {
+  const { date, time24 } = parseValueToDateTime(t);
+  const locked = await isSlotLocked(clinicStr, date, time24);
+  if (!locked) visibleTimes.push(t);
+}
+
+return res.json({ times: visibleTimes, cached: false });
+
 } finally {
   timesInFlight.delete(cacheKey);
 }
@@ -1906,18 +1945,42 @@ async function selectPatientOnAppointments(page, identity) {
 
 /** ===== Booking queue (single) ===== */
 app.post('/api/book', async (req, res) => {
-  // ⬅️ ندخل الطلب في الطابور فقط
-  bookingQueue.push({ data: req.body });
+  const { identity, clinic, time } = req.body || {};
 
-  // ⬅️ شغّل المعالجة (إن لم تكن تعمل)
+  if (!clinic || !time) {
+    return res.status(400).json({ success:false, message:'بيانات الحجز ناقصة' });
+  }
+
+  // time = "DD-MM-YYYY*HH:MM"
+  const [date, time24] = String(time).split('*');
+
+  // 🔒 قفل فوري
+  const locked = await lockSlot(
+    clinic,
+    date,
+    time24,
+    toAsciiDigits(identity || 'unknown')
+  );
+
+  if (!locked) {
+    return res.json({
+      success: false,
+      reason: 'slot_locked',
+      message: 'هذا الموعد تم حجزه قبل قليل'
+    });
+  }
+
+  // ⬅️ أدخل الحجز للطابور
+  bookingQueue.push({ data: req.body });
   processQueue();
 
-  // ⬅️ نرجع فورًا للمستخدم
+  // ⬅️ رجّع فورًا
   return res.json({
     success: true,
     go: 'success'
   });
 });
+
 
 
 async function processQueue() {
@@ -2126,11 +2189,20 @@ incMetrics({ clinic });
     if (account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
-  } catch (e) {
+    } catch (e) {
+
+    // 🔓 فك القفل إذا فشل الحجز
+    try {
+      const [date, time24] = String(time).split('*');
+      await unlockSlot(clinic, date, time24);
+    } catch (_) {}
+
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
+
     return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
+
 }
 
 
