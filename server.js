@@ -1335,18 +1335,6 @@ function parseValueToDateTime(valueOrObj) {
   const [date, time24] = String(v).split('*');
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
-async function filterLockedTimes(times, clinicStr) {
-  if (!Array.isArray(times)) return [];
-  const out = [];
-  for (const t of times) {
-    const { date, time24 } = parseValueToDateTime(t);
-    if (!date || !time24) continue;
-    if (!(await isSlotLocked(clinicStr, date, time24))) {
-      out.push(t);
-    }
-  }
-  return out;
-}
 
 function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
   if (!rules) return times || [];
@@ -1432,9 +1420,7 @@ const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
   const rules = findClinicRules(clinicStr);
   let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
-  const visibleTimes = await filterLockedTimes(times, clinicStr);
-return res.json({ times: visibleTimes, cached: true, source: 'prefetch' });
-
+  return res.json({ times, cached: true, source: 'prefetch' });
 }
 
 
@@ -1448,11 +1434,9 @@ return res.json({ times: visibleTimes, cached: true, source: 'prefetch' });
 
    const cached = await getTimesCache(cacheKey);
 
-   if (cached && cached.length > 0) {
-  const visibleTimes = await filterLockedTimes(cached, clinicStr);
-  return res.json({ times: visibleTimes, cached: true });
-}
-
+    if (cached && cached.length > 0) {
+      return res.json({ times: cached, cached: true });
+    }
 
     if (timesInFlight.has(cacheKey)) {
       const data = await timesInFlight.get(cacheKey);
