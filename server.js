@@ -1817,6 +1817,32 @@ async function selectPatientOnAppointments(page, identity) {
 
   // تأكد أن الحقل قابل للكتابة 100%
   await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
+  // 1️⃣ كتابة بطيئة جدًا
+await page.evaluate(() => {
+  const el = document.querySelector('#SearchBox120');
+  el.value = '';
+});
+for (const ch of String(identity)) {
+  await page.type('#SearchBox120', ch, { delay: 180 });
+}
+
+// 2️⃣ انتظر ظهور الاقتراح
+const li = await page.waitForSelector(
+  'li[onclick^="fillSearch120"]',
+  { visible: true, timeout: 15000 }
+);
+
+// 3️⃣ ضغط ماوس حقيقي (مهم جدًا)
+await page.evaluate(el => {
+  el.scrollIntoView({ block: 'center' });
+  el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  el.click();
+}, li);
+
+// 4️⃣ انتظر انعكاس الاختيار
+await page.waitForTimeout(600);
+
   await page.evaluate(() => {
     const el = document.querySelector('#SearchBox120');
     if (!el) return;
