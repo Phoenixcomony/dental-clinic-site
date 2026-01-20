@@ -59,7 +59,7 @@ async function getTimesCache(key) {
 
 /* ================= Times Cache (Redis – 3 min) ================= */
 /* ================= Slot Lock (Immediate) ================= */
-const SLOT_LOCK_TTL_SEC = 5 * 60; // 15 دقيقة
+const SLOT_LOCK_TTL_SEC = 15 * 60; // 15 دقيقة
 
 function slotLockKey(clinic, date, time) {
   return `lock:slot:${clinic}:${date}:${time}`;
@@ -92,8 +92,7 @@ async function setTimesCache(key, data) {
     `times:${key}`,
     JSON.stringify(data),
     'EX',
-60   // دقيقة واحدة
-  // ⬅️ هنا 3 دقائق
+    3 * 60   // ⬅️ هنا 3 دقائق
   );
 }
 function clinicCacheKey(clinicStr) {
@@ -115,7 +114,7 @@ async function setClinicTimesToRedis(clinicStr, times) {
 }
 
 /* ================= Prefetch Cache (All Clinics) ================= */
-const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 120); // 3 دقائق
+const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
 const PREFETCH_KEY_PREFIX = 'prefetch_times_v1:';
 const PREFETCH_LOCK_KEY = 'prefetch_times_lock_v1';
 const PREFETCH_LOCK_SEC = 120;
@@ -168,7 +167,6 @@ async function resetSharedBrowser() {
 }
 /* ================= Prefetch All Clinics Times ================= */
 async function prefetchAllClinicsTimes() {
-console.log('[PREFETCH] using dedicated account:', PREFETCH_ACCOUNT.user);
 
   // 🔒 Lock لمنع تشغيل متوازي
   const locked = await redis.set(
@@ -265,15 +263,10 @@ app.get('/', (req, res) => {
 
 /* ================= Imdad Accounts Pool ================= */
 const ACCOUNTS = [
+  { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
   { user: "8888888888", pass: "8888888888", busy: false },
 ];
-// حساب مخصص للجلب المسبق فقط (PREFETCH)
-const PREFETCH_ACCOUNT = {
-  user: "3333333333",
-  pass: "3333333333"
-};
-
 const CLINICS_LIST = [
   "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
   "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
@@ -387,7 +380,27 @@ function releaseAccount(acc) {
 }
 
 
-
+// helpers accounts
+async function acquireAccount() {
+  while (true) {
+    const i = ACCOUNTS.findIndex(a => !a.busy);
+    if (i !== -1) { ACCOUNTS[i].busy = true; return ACCOUNTS[i]; }
+    await sleep(200);
+  }
+}
+async function acquireAccountWithTimeout(ms = 20000) {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    const i = ACCOUNTS.findIndex(a => !a.busy);
+    if (i !== -1) { ACCOUNTS[i].busy = true; return ACCOUNTS[i]; }
+    await sleep(150);
+  }
+  throw new Error('imdad_busy');
+}
+function releaseAccount(a) {
+  const i = ACCOUNTS.findIndex(x => x.user === a.user);
+  if (i !== -1) ACCOUNTS[i].busy = false;
+}
 
 /** ===== Helpers ===== */
 function normalizeArabic(s=''){ return (s||'').replace(/\s+/g,' ').trim(); }
@@ -773,11 +786,7 @@ async function triggerSuggestions(page, selector) {
 async function waitAndPickFirstIdentitySuggestion(page, timeoutMs = 12000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
-    
-
     const picked = await page.evaluate(() => {
-      
-
       const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
       if (lis && lis.length) { lis[0].click(); return true; }
       return false;
@@ -1039,11 +1048,7 @@ app.post('/api/login', (req, res) => {
     let account;
     try {
       account = await acquireAccount();
-      console.log('[BOOK][2] account acquired', account.user);
-
       await loginToImdad(page, account);
-      console.log('[BOOK][3] logged in');
-
 
       const result = await searchSuggestionsByPhoneOnNavbar(page, phone05);
 
@@ -1451,12 +1456,8 @@ if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
       await prepPage(page);
 
       try {
-        await loginToImdad(page, PREFETCH_ACCOUNT);
-
+        await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
         await gotoAppointments(page);
-console.log('[PREFETCH] appointments page opened');
-
-
 
        // اختيار العيادة
 const clinicValue = await page.evaluate((name) => {
@@ -1597,10 +1598,6 @@ return res.json({ times: visibleTimes, cached: false });
 
 /* ================= Fetch Times (1 month auto) ================= */
 async function fetchTimesForClinic30Days(clinic) {
-if (global.__BOOKING_SELECT_PATIENT__) {
-  console.log('[PREFETCH] paused (selecting patient)');
-  return;
-}
 
   const browser = await getSharedBrowser();
   const page = await browser.newPage();
@@ -1793,14 +1790,13 @@ async function clickReserveAndConfirm(page) {
     ]);
   }
 
-  const radioChecked = await page.evaluate(() => {
-  const r = document.querySelector('input[type="radio"][name="ss"]:checked');
-  return !!r;
-});
+  const radioDisabled = await page.evaluate(() => {
+    const r = document.querySelector('input[type="radio"][name="ss"]:checked');
+    if (!r) return true;
+    return r.disabled === true;
+  });
 
-
-  if (ok || serverSaved || radioChecked) return true;
-
+  if (ok || serverSaved || radioDisabled) return true;
   if (BOOK_DEBUG) await dumpDebug('reserve-failed');
   throw new Error('لم تصل شاشة التأكيد من إمداد');
 }
@@ -1817,32 +1813,6 @@ async function selectPatientOnAppointments(page, identity) {
 
   // تأكد أن الحقل قابل للكتابة 100%
   await page.waitForSelector('#SearchBox120', { visible: true, timeout: 30000 });
-  // 1️⃣ كتابة بطيئة جدًا
-await page.evaluate(() => {
-  const el = document.querySelector('#SearchBox120');
-  el.value = '';
-});
-for (const ch of String(identity)) {
-  await page.type('#SearchBox120', ch, { delay: 180 });
-}
-
-// 2️⃣ انتظر ظهور الاقتراح
-const li = await page.waitForSelector(
-  'li[onclick^="fillSearch120"]',
-  { visible: true, timeout: 15000 }
-);
-
-// 3️⃣ ضغط ماوس حقيقي (مهم جدًا)
-await page.evaluate(el => {
-  el.scrollIntoView({ block: 'center' });
-  el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-  el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-  el.click();
-}, li);
-
-// 4️⃣ انتظر انعكاس الاختيار
-await page.waitForTimeout(600);
-
   await page.evaluate(() => {
     const el = document.querySelector('#SearchBox120');
     if (!el) return;
@@ -1864,21 +1834,6 @@ await page.waitForTimeout(600);
   for (const ch of idText) {
     await page.type('#SearchBox120', ch, { delay: TYPE_DELAY }).catch(()=>{});
   }
-// 🔔 إجبار إمداد على توليد الاقتراحات
-await page.evaluate(() => {
-  const el = document.querySelector('#SearchBox120');
-  if (!el) return;
-
-  ['input','keyup','keydown','change'].forEach(ev =>
-    el.dispatchEvent(new Event(ev, { bubbles: true }))
-  );
-
-  try {
-    if (typeof window.suggestme120 === 'function') {
-      window.suggestme120(el.value, new KeyboardEvent('keyup'));
-    }
-  } catch (_) {}
-});
 
   // تحفيز الاقتراحات بعد الكتابة
   await page.evaluate(() => {
@@ -1990,8 +1945,6 @@ await page.evaluate(() => {
 
 /** ===== Booking queue (single) ===== */
 app.post('/api/book', async (req, res) => {
-  console.log('[API] /api/book received', req.body?.clinic, req.body?.time);
-
   const { identity, clinic, time } = req.body || {};
 
   if (!clinic || !time) {
@@ -2016,15 +1969,6 @@ app.post('/api/book', async (req, res) => {
       message: 'هذا الموعد تم حجزه قبل قليل'
     });
   }
-const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
-const auth = getBookingAuth(idDigits);
-
-if (!auth || !auth.fileId) {
-  return res.json({
-    success: false,
-    message: 'انتهت صلاحية الجلسة، أعد تسجيل الدخول'
-  });
-}
 
   // ⬅️ أدخل الحجز للطابور
   bookingQueue.push({ data: req.body });
@@ -2040,41 +1984,28 @@ if (!auth || !auth.fileId) {
 
 
 async function processQueue() {
-  if (processingBooking) {
-    console.log('[QUEUE] busy, skip');
-    return;
-  }
-  if (!bookingQueue.length) {
-    console.log('[QUEUE] empty');
-    return;
-  }
-
+  if (processingBooking || !bookingQueue.length) return;
   processingBooking = true;
+
   const job = bookingQueue.shift();
 
-  console.log('[QUEUE] start job', job?.data?.clinic, job?.data?.time);
-
   try {
+    // 🔥 الحجز يتم في الخلفية فقط
     await bookNow(job.data);
   } catch (e) {
     console.error('[BOOKING FAILED]', e?.message || e);
   } finally {
     processingBooking = false;
-    console.log('[QUEUE] done job');
-    processQueue();
+    processQueue(); // التالي في الطابور
   }
 }
 
 
 
 
-
 /// ===== Booking flow (single) — V2 =====
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
-  console.log('[BOOK] start booking', clinic, time);
-
-  const browser = await launchBrowserSafe();
-
+  const browser = await getSharedBrowser();
 
   const page = await browser.newPage();
   await prepPage(page);
@@ -2095,8 +2026,6 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       return hit ? hit.value : null;
     }, String(clinic||'').trim());
     if (!clinicValue) throw new Error('');
-    console.log('[BOOK][5] clinic selected', clinicValue);
-
 
     await Promise.all([
       page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{}),
@@ -2123,35 +2052,9 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
         await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout:12000 }).catch(()=>{});
         await delay();
       }
-      console.log('[BOOK][6] month applied', month);
-
     }
 
-    // 🔐 استخدم fileId المحفوظ من تسجيل الدخول
-const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
-const auth = getBookingAuth(idDigits);
-console.log('[BOOK] auth check', idDigits, getBookingAuth(idDigits));
-
-if (!auth || !auth.fileId) {
-  throw new Error('لا يوجد fileId صالح للحجز');
-}
-console.log('[BOOK][7] selecting patient', auth.fileId);
-
-await selectPatientOnAppointments(page, auth.fileId);
-await gotoAppointments(page);
-console.log('[BOOK][8.5] appointments refreshed after patient select');
-
-
-// 🔍 تحقق أن المريض تم تحديده فعليًا داخل صفحة المواعيد
-const patientSelected = await page.evaluate(() => {
-  return !!document.querySelector('a[href^="stq_search2.php?id="]');
-});
-
-if (!patientSelected) {
-  throw new Error('فشل تحديد المريض داخل صفحة المواعيد');
-}
-
-
+    await selectPatientOnAppointments(page, toLocal05(phone));
 
     await delay();
 
@@ -2210,12 +2113,7 @@ if (!patientSelected) {
     if (!picked) throw new Error(' ');
 
     await delay(600);
-    console.log('[BOOK][11] clicking reserve');
-
     await clickReserveAndConfirm(page);
-    console.log('[BOOK][12] reserve confirmed');
-
-
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
   const clinicName = String(clinic || '').trim();
@@ -2286,15 +2184,12 @@ try {
     // ✅ تسجيل حجز فعلي ناجح
 incMetrics({ clinic });
 
-console.log('[BOOK][13] booking SUCCESS');
+
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
-    try { if (!WATCH) await browser.close(); } catch(_){}
-
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
     } catch (e) {
-      console.error('[BOOK][XX] FAILED AT STEP', e?.message || e);
 
     // 🔓 فك القفل إذا فشل الحجز
     try {
@@ -2304,7 +2199,6 @@ console.log('[BOOK][13] booking SUCCESS');
 
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
-try { if (!WATCH) await browser.close(); } catch(_){}
 
     return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
@@ -2449,7 +2343,7 @@ async function prefetchLoop() {
     console.error('[PREFETCH] cycle error', e?.message);
   } finally {
     // ⏱️ بعد ما يخلص، يرجع يعيد الجلب
-    setTimeout(prefetchLoop, 30 * 1000); // كل دقيقة
+    setTimeout(prefetchLoop, 60 * 1000); // كل دقيقة
   }
 }
 
