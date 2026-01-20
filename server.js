@@ -270,8 +270,8 @@ const ACCOUNTS = [
 ];
 // حساب مخصص للجلب المسبق فقط (PREFETCH)
 const PREFETCH_ACCOUNT = {
-  user: "",
-  pass: ""
+  user: "3333333333",
+  pass: "3333333333"
 };
 
 const CLINICS_LIST = [
