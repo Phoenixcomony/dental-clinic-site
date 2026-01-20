@@ -1953,6 +1953,8 @@ async function selectPatientOnAppointments(page, identity) {
 
 /** ===== Booking queue (single) ===== */
 app.post('/api/book', async (req, res) => {
+  console.log('[API] /api/book received', req.body?.clinic, req.body?.time);
+
   const { identity, clinic, time } = req.body || {};
 
   if (!clinic || !time) {
@@ -1992,27 +1994,39 @@ app.post('/api/book', async (req, res) => {
 
 
 async function processQueue() {
-  if (processingBooking || !bookingQueue.length) return;
-  processingBooking = true;
+  if (processingBooking) {
+    console.log('[QUEUE] busy, skip');
+    return;
+  }
+  if (!bookingQueue.length) {
+    console.log('[QUEUE] empty');
+    return;
+  }
 
+  processingBooking = true;
   const job = bookingQueue.shift();
 
+  console.log('[QUEUE] start job', job?.data?.clinic, job?.data?.time);
+
   try {
-    // 🔥 الحجز يتم في الخلفية فقط
     await bookNow(job.data);
   } catch (e) {
     console.error('[BOOKING FAILED]', e?.message || e);
   } finally {
     processingBooking = false;
-    processQueue(); // التالي في الطابور
+    console.log('[QUEUE] done job');
+    processQueue();
   }
 }
 
 
 
 
+
 /// ===== Booking flow (single) — V2 =====
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
+  console.log('[BOOK] start booking', clinic, time);
+
   const browser = await getSharedBrowser();
 
   const page = await browser.newPage();
