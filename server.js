@@ -2350,4 +2350,3 @@ async function prefetchLoop() {
 // ⏳ أول تشغيل بعد الإقلاع
 setTimeout(prefetchLoop, 5000);
 
-
