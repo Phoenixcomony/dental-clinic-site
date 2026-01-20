@@ -114,7 +114,8 @@ async function setClinicTimesToRedis(clinicStr, times) {
 }
 
 /* ================= Prefetch Cache (All Clinics) ================= */
-const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
+const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 30);
+// 3 دقائق
 const PREFETCH_KEY_PREFIX = 'prefetch_times_v1:';
 const PREFETCH_LOCK_KEY = 'prefetch_times_lock_v1';
 const PREFETCH_LOCK_SEC = 120;
@@ -2343,7 +2344,7 @@ async function prefetchLoop() {
     console.error('[PREFETCH] cycle error', e?.message);
   } finally {
     // ⏱️ بعد ما يخلص، يرجع يعيد الجلب
-    setTimeout(prefetchLoop, 60 * 1000); // كل دقيقة
+    setTimeout(prefetchLoop, 15 * 1000);// كل دقيقة
   }
 }
 
