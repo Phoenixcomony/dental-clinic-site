@@ -387,27 +387,7 @@ function releaseAccount(acc) {
 }
 
 
-// helpers accounts
-async function acquireAccount() {
-  while (true) {
-    const i = ACCOUNTS.findIndex(a => !a.busy);
-    if (i !== -1) { ACCOUNTS[i].busy = true; return ACCOUNTS[i]; }
-    await sleep(200);
-  }
-}
-async function acquireAccountWithTimeout(ms = 20000) {
-  const start = Date.now();
-  while (Date.now() - start < ms) {
-    const i = ACCOUNTS.findIndex(a => !a.busy);
-    if (i !== -1) { ACCOUNTS[i].busy = true; return ACCOUNTS[i]; }
-    await sleep(150);
-  }
-  throw new Error('imdad_busy');
-}
-function releaseAccount(a) {
-  const i = ACCOUNTS.findIndex(x => x.user === a.user);
-  if (i !== -1) ACCOUNTS[i].busy = false;
-}
+
 
 /** ===== Helpers ===== */
 function normalizeArabic(s=''){ return (s||'').replace(/\s+/g,' ').trim(); }
@@ -793,10 +773,10 @@ async function triggerSuggestions(page, selector) {
 async function waitAndPickFirstIdentitySuggestion(page, timeoutMs = 12000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
-    console.log('[BOOK][9] selecting time', time);
+    
 
     const picked = await page.evaluate(() => {
-      console.log('[BOOK][10] time picked', picked);
+      
 
       const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
       if (lis && lis.length) { lis[0].click(); return true; }
@@ -2047,7 +2027,8 @@ async function processQueue() {
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   console.log('[BOOK] start booking', clinic, time);
 
-  const browser = await getSharedBrowser();
+const browser = await launchBrowserSafe();
+
 
   const page = await browser.newPage();
   await prepPage(page);
@@ -2260,10 +2241,21 @@ incMetrics({ clinic });
 console.log('[BOOK][13] booking SUCCESS');
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
+    console.log('[BOOK][10] booking success reached before return', {
+  clinic,
+  time,
+  account: account?.user
+});
+
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
     } catch (e) {
-      console.error('[BOOK][XX] FAILED AT STEP', e?.message || e);
+      console.error('[BOOK][11] booking failed catch entered', {
+  clinic,
+  time,
+  error: e?.message || e
+});
+
 
     // 🔓 فك القفل إذا فشل الحجز
     try {
