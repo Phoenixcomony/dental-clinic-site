@@ -1790,13 +1790,14 @@ async function clickReserveAndConfirm(page) {
     ]);
   }
 
-  const radioDisabled = await page.evaluate(() => {
-    const r = document.querySelector('input[type="radio"][name="ss"]:checked');
-    if (!r) return true;
-    return r.disabled === true;
-  });
+  const radioChecked = await page.evaluate(() => {
+  const r = document.querySelector('input[type="radio"][name="ss"]:checked');
+  return !!r;
+});
 
-  if (ok || serverSaved || radioDisabled) return true;
+
+  if (ok || serverSaved || radioChecked) return true;
+
   if (BOOK_DEBUG) await dumpDebug('reserve-failed');
   throw new Error('لم تصل شاشة التأكيد من إمداد');
 }
@@ -2054,7 +2055,26 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       }
     }
 
-    await selectPatientOnAppointments(page, toLocal05(phone));
+    // 🔐 استخدم fileId المحفوظ من تسجيل الدخول
+const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
+const auth = getBookingAuth(idDigits);
+
+if (!auth || !auth.fileId) {
+  throw new Error('لا يوجد fileId صالح للحجز');
+}
+
+await selectPatientOnAppointments(page, auth.fileId);
+
+// 🔍 تحقق أن المريض تم تحديده فعليًا داخل صفحة المواعيد
+const patientSelected = await page.evaluate(() => {
+  return !!document.querySelector('a[href^="stq_search2.php?id="]');
+});
+
+if (!patientSelected) {
+  throw new Error('فشل تحديد المريض داخل صفحة المواعيد');
+}
+
+
 
     await delay();
 
