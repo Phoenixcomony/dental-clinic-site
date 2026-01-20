@@ -1864,6 +1864,21 @@ await page.waitForTimeout(600);
   for (const ch of idText) {
     await page.type('#SearchBox120', ch, { delay: TYPE_DELAY }).catch(()=>{});
   }
+// 🔔 إجبار إمداد على توليد الاقتراحات
+await page.evaluate(() => {
+  const el = document.querySelector('#SearchBox120');
+  if (!el) return;
+
+  ['input','keyup','keydown','change'].forEach(ev =>
+    el.dispatchEvent(new Event(ev, { bubbles: true }))
+  );
+
+  try {
+    if (typeof window.suggestme120 === 'function') {
+      window.suggestme120(el.value, new KeyboardEvent('keyup'));
+    }
+  } catch (_) {}
+});
 
   // تحفيز الاقتراحات بعد الكتابة
   await page.evaluate(() => {
