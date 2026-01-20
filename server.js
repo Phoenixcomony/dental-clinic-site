@@ -59,7 +59,7 @@ async function getTimesCache(key) {
 
 /* ================= Times Cache (Redis – 3 min) ================= */
 /* ================= Slot Lock (Immediate) ================= */
-const SLOT_LOCK_TTL_SEC = 15 * 60; // 15 دقيقة
+const SLOT_LOCK_TTL_SEC = 5 * 60; // 15 دقيقة
 
 function slotLockKey(clinic, date, time) {
   return `lock:slot:${clinic}:${date}:${time}`;
@@ -92,7 +92,8 @@ async function setTimesCache(key, data) {
     `times:${key}`,
     JSON.stringify(data),
     'EX',
-    3 * 60   // ⬅️ هنا 3 دقائق
+60   // دقيقة واحدة
+  // ⬅️ هنا 3 دقائق
   );
 }
 function clinicCacheKey(clinicStr) {
@@ -114,7 +115,7 @@ async function setClinicTimesToRedis(clinicStr, times) {
 }
 
 /* ================= Prefetch Cache (All Clinics) ================= */
-const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
+const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 120); // 3 دقائق
 const PREFETCH_KEY_PREFIX = 'prefetch_times_v1:';
 const PREFETCH_LOCK_KEY = 'prefetch_times_lock_v1';
 const PREFETCH_LOCK_SEC = 120;
@@ -269,8 +270,8 @@ const ACCOUNTS = [
 ];
 // حساب مخصص للجلب المسبق فقط (PREFETCH)
 const PREFETCH_ACCOUNT = {
-  user: "3333333333",
-  pass: "3333333333"
+  user: "",
+  pass: ""
 };
 
 const CLINICS_LIST = [
@@ -2394,7 +2395,7 @@ async function prefetchLoop() {
     console.error('[PREFETCH] cycle error', e?.message);
   } finally {
     // ⏱️ بعد ما يخلص، يرجع يعيد الجلب
-    setTimeout(prefetchLoop, 60 * 1000); // كل دقيقة
+    setTimeout(prefetchLoop, 30 * 1000); // كل دقيقة
   }
 }
 
