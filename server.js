@@ -793,7 +793,11 @@ async function triggerSuggestions(page, selector) {
 async function waitAndPickFirstIdentitySuggestion(page, timeoutMs = 12000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
+    console.log('[BOOK][9] selecting time', time);
+
     const picked = await page.evaluate(() => {
+      console.log('[BOOK][10] time picked', picked);
+
       const lis = document.querySelectorAll('li[onclick^="fillSearch12"]');
       if (lis && lis.length) { lis[0].click(); return true; }
       return false;
@@ -1055,7 +1059,11 @@ app.post('/api/login', (req, res) => {
     let account;
     try {
       account = await acquireAccount();
+      console.log('[BOOK][2] account acquired', account.user);
+
       await loginToImdad(page, account);
+      console.log('[BOOK][3] logged in');
+
 
       const result = await searchSuggestionsByPhoneOnNavbar(page, phone05);
 
@@ -1466,6 +1474,8 @@ if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
         await loginToImdad(page, PREFETCH_ACCOUNT);
 
         await gotoAppointments(page);
+        console.log('[BOOK][4] appointments page opened');
+
 
        // اختيار العيادة
 const clinicValue = await page.evaluate((name) => {
@@ -2058,6 +2068,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       return hit ? hit.value : null;
     }, String(clinic||'').trim());
     if (!clinicValue) throw new Error('');
+    console.log('[BOOK][5] clinic selected', clinicValue);
+
 
     await Promise.all([
       page.waitForNavigation({ waitUntil:'domcontentloaded', timeout: 30000 }).catch(()=>{}),
@@ -2084,6 +2096,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
         await page.waitForNavigation({ waitUntil:'domcontentloaded', timeout:12000 }).catch(()=>{});
         await delay();
       }
+      console.log('[BOOK][6] month applied', month);
+
     }
 
     // 🔐 استخدم fileId المحفوظ من تسجيل الدخول
@@ -2094,8 +2108,10 @@ console.log('[BOOK] auth check', idDigits, getBookingAuth(idDigits));
 if (!auth || !auth.fileId) {
   throw new Error('لا يوجد fileId صالح للحجز');
 }
+console.log('[BOOK][7] selecting patient', auth.fileId);
 
 await selectPatientOnAppointments(page, auth.fileId);
+console.log('[BOOK][8] patient selected OK');
 
 // 🔍 تحقق أن المريض تم تحديده فعليًا داخل صفحة المواعيد
 const patientSelected = await page.evaluate(() => {
@@ -2165,7 +2181,12 @@ if (!patientSelected) {
     if (!picked) throw new Error(' ');
 
     await delay(600);
+    console.log('[BOOK][11] clicking reserve');
+
     await clickReserveAndConfirm(page);
+    console.log('[BOOK][12] reserve confirmed');
+
+
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
   const clinicName = String(clinic || '').trim();
@@ -2236,12 +2257,13 @@ try {
     // ✅ تسجيل حجز فعلي ناجح
 incMetrics({ clinic });
 
-
+console.log('[BOOK][13] booking SUCCESS');
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
     return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
 
     } catch (e) {
+      console.error('[BOOK][XX] FAILED AT STEP', e?.message || e);
 
     // 🔓 فك القفل إذا فشل الحجز
     try {
