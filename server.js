@@ -167,6 +167,7 @@ async function resetSharedBrowser() {
 }
 /* ================= Prefetch All Clinics Times ================= */
 async function prefetchAllClinicsTimes() {
+console.log('[PREFETCH] using dedicated account:', PREFETCH_ACCOUNT.user);
 
   // 🔒 Lock لمنع تشغيل متوازي
   const locked = await redis.set(
@@ -263,10 +264,15 @@ app.get('/', (req, res) => {
 
 /* ================= Imdad Accounts Pool ================= */
 const ACCOUNTS = [
-  { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
   { user: "8888888888", pass: "8888888888", busy: false },
 ];
+// حساب مخصص للجلب المسبق فقط (PREFETCH)
+const PREFETCH_ACCOUNT = {
+  user: "3333333333",
+  pass: "3333333333"
+};
+
 const CLINICS_LIST = [
   "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
   "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
@@ -1456,7 +1462,8 @@ if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
       await prepPage(page);
 
       try {
-        await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
+        await loginToImdad(page, PREFETCH_ACCOUNT);
+
         await gotoAppointments(page);
 
        // اختيار العيادة
