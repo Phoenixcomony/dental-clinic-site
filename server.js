@@ -1597,6 +1597,10 @@ return res.json({ times: visibleTimes, cached: false });
 
 /* ================= Fetch Times (1 month auto) ================= */
 async function fetchTimesForClinic30Days(clinic) {
+if (global.__BOOKING_SELECT_PATIENT__) {
+  console.log('[PREFETCH] paused (selecting patient)');
+  return;
+}
 
   const browser = await getSharedBrowser();
   const page = await browser.newPage();
@@ -2093,7 +2097,9 @@ if (!auth || !auth.fileId) {
 console.log('[BOOK][7] selecting patient', auth.fileId);
 
 await selectPatientOnAppointments(page, auth.fileId);
-console.log('[BOOK][8] patient selected OK');
+await gotoAppointments(page);
+console.log('[BOOK][8.5] appointments refreshed after patient select');
+
 
 // 🔍 تحقق أن المريض تم تحديده فعليًا داخل صفحة المواعيد
 const patientSelected = await page.evaluate(() => {
