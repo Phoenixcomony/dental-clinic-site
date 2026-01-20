@@ -1979,6 +1979,15 @@ app.post('/api/book', async (req, res) => {
       message: 'هذا الموعد تم حجزه قبل قليل'
     });
   }
+const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
+const auth = getBookingAuth(idDigits);
+
+if (!auth || !auth.fileId) {
+  return res.json({
+    success: false,
+    message: 'انتهت صلاحية الجلسة، أعد تسجيل الدخول'
+  });
+}
 
   // ⬅️ أدخل الحجز للطابور
   bookingQueue.push({ data: req.body });
@@ -2079,6 +2088,7 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
     // 🔐 استخدم fileId المحفوظ من تسجيل الدخول
 const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
 const auth = getBookingAuth(idDigits);
+console.log('[BOOK] auth check', idDigits, getBookingAuth(idDigits));
 
 if (!auth || !auth.fileId) {
   throw new Error('لا يوجد fileId صالح للحجز');
