@@ -105,8 +105,9 @@ async function setTimesCache(key, data) {
   );
 }
 function clinicCacheKey(clinicStr) {
-  return PREFETCH_KEY_PREFIX + normalizeClinicKey(clinicStr);
+  return PREFETCH_KEY_PREFIX + clinicKey(clinicStr);
 }
+
 
 
 async function getClinicTimesFromRedis(clinicStr) {
