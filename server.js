@@ -201,9 +201,10 @@ async function prefetchAllClinicsTimes() {
         // نستخدم نفس منطق /api/times لكن بدون month من المستخدم
         const times = await fetchTimesForClinic30Days(clinic);
 
-        if (Array.isArray(times) && times.length) {
-          await setClinicTimesToRedis(clinic, times);
-        }
+      if (Array.isArray(times)) {
+  await setClinicTimesToRedis(clinic, times);
+}
+
 
       } catch (e) {
         console.error('[PREFETCH] clinic failed:', clinic, e?.message);
