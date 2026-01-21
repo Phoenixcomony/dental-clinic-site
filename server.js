@@ -1504,7 +1504,7 @@ const clinicValue = await page.evaluate((name) => {
 
   // ✅ تشقير وتنظيف البشرة لها رابط ثابت في إمداد
   if (name.startsWith('عيادة تنظيف البشرة')) {
-    return 'appoint_display.php?clinic_id=137&per_id=2&day_no=7';
+    return 'appoint_display.php?clinic_id=126&per_id=2&day_no=7';
   }
 
   const normalize = s =>
