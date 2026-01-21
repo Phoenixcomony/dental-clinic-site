@@ -116,13 +116,13 @@ async function getClinicTimesFromRedis(clinicStr) {
 
 async function setClinicTimesToRedis(clinicStr, times) {
   await redis.set(
-  clinicCacheKey(clinicKey(clinicStr)),
-
+    clinicCacheKey(clinicStr),
     JSON.stringify({ ts: Date.now(), times: times || [] }),
     'EX',
     PREFETCH_TTL_SEC
   );
 }
+
 
 /* ================= Prefetch Cache (All Clinics) ================= */
 const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
