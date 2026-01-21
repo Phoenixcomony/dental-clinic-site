@@ -1998,23 +1998,34 @@ async function processQueue() {
 
   const job = bookingQueue.shift();
 
-  try {
-    // 🔥 الحجز يتم في الخلفية فقط
-    await bookNow(job.data);
-  } catch (e) {
-    console.error(
-  '[BOOK][FAILED]',
-  'identity=', identity,
-  'clinic=', clinic,
-  'time=', time,
-  'error=', e?.message || e
-);
+ try {
+  console.log(
+    '[QUEUE][START]',
+    'identity=', job.data?.identity,
+    'clinic=', job.data?.clinic,
+    'time=', job.data?.time
+  );
 
-    console.error('[BOOKING FAILED]', e?.message || e);
-  } finally {
-    processingBooking = false;
-    processQueue(); // التالي في الطابور
-  }
+  await bookNow(job.data);
+
+  console.log(
+    '[QUEUE][DONE]',
+    'identity=', job.data?.identity
+  );
+
+} catch (e) {
+  console.error(
+    '[BOOK][FAILED]',
+    'identity=', job?.data?.identity,
+    'clinic=', job?.data?.clinic,
+    'time=', job?.data?.time,
+    'error=', e?.message || e
+  );
+} finally {
+  processingBooking = false;
+  processQueue(); // ⬅️ يبدأ اللي بعده فقط بعد ما يخلص هذا
+}
+
 }
 
 
@@ -2039,8 +2050,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   const delay = (ms=700)=>new Promise(r=>setTimeout(r,ms));
 
   try {
-    account = await acquireAccount();
-    await loginToImdad(page, account);
+    await loginToImdad(page, BOOKING_ACCOUNT);
+
 
     await gotoAppointments(page);
     await delay();
@@ -2220,7 +2231,7 @@ incMetrics({ clinic });
 
 
     try { if (!WATCH) await page.close(); } catch(_){}
-    if (account) releaseAccount(account);
+    
     return '✅ تم الحجز بنجاح (Booking Bot)';
 
 
@@ -2233,7 +2244,7 @@ incMetrics({ clinic });
     } catch (_) {}
 
     try { if (!WATCH) await page.close(); } catch(_){}
-    if (account) releaseAccount(account);
+    
 
     return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
   }
