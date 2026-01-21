@@ -1433,9 +1433,24 @@ const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
   const rules = findClinicRules(clinicStr);
-  let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
-  return res.json({ times, cached: true, source: 'prefetch' });
+  let times = applyClinicRulesToTimes(
+    cachedPrefetch.times,
+    clinicStr,
+    effectivePeriod,
+    rules
+  );
+
+  // ⛔ فلترة المواعيد المقفولة (مهم للتشقير)
+  const visibleTimes = [];
+  for (const t of times) {
+    const { date, time24 } = parseValueToDateTime(t);
+    const locked = await isSlotLocked(clinicStr, date, time24);
+    if (!locked) visibleTimes.push(t);
+  }
+
+  return res.json({ times: visibleTimes, cached: true, source: 'prefetch' });
 }
+
 
 
 
