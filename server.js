@@ -116,7 +116,8 @@ async function getClinicTimesFromRedis(clinicStr) {
 
 async function setClinicTimesToRedis(clinicStr, times) {
   await redis.set(
-    clinicCacheKey(clinicStr),
+  clinicCacheKey(clinicKey(clinicStr)),
+
     JSON.stringify({ ts: Date.now(), times: times || [] }),
     'EX',
     PREFETCH_TTL_SEC
@@ -203,7 +204,8 @@ async function prefetchAllClinicsTimes() {
         const times = await fetchTimesForClinic30Days(clinic);
 
       if (Array.isArray(times)) {
-  await setClinicTimesToRedis(clinic, times);
+  await setClinicTimesToRedis(clinicKey(clinic), times);
+
 }
 
 
@@ -423,6 +425,13 @@ function normalizeClinicKey(clinic) {
   return String(clinic || '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+function clinicKey(clinicStr) {
+  return normalizeClinicKey(
+    String(clinicStr || '')
+      .replace(/\*\*الفترة.*$/,'') // يحذف **الفترة الاولى / الثانية
+      .trim()
+  );
 }
 
 function isSaudi05(v){ const d = toAsciiDigits(v||'').replace(/\D/g,''); return /^05\d{8}$/.test(d); }
@@ -1420,7 +1429,8 @@ app.post('/api/times', async (req, res) => {
 }
 
 
-    const clinicStr = String(clinic || '');
+    const clinicStr = clinicKey(clinic);
+
 
     // تحديد الفترة تلقائيًا من اسم العيادة
     const autoPeriod =
@@ -1429,7 +1439,10 @@ app.post('/api/times', async (req, res) => {
 
     const effectivePeriod = period || autoPeriod;
     // ===== FAST PATH (Redis) =====
-const cachedPrefetch = await getClinicTimesFromRedis(clinic);
+const cachedPrefetch = await getClinicTimesFromRedis(
+  clinicKey(clinic)
+);
+
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
   const rules = findClinicRules(clinicStr);
@@ -2199,10 +2212,11 @@ if (!reserved) {
 
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
-  const clinicName = String(clinic || '').trim();
+ const clinicName = clinicKey(clinic);
 
   // 1️⃣ حذف Prefetch cache
-  await redis.del(clinicCacheKey(clinic));
+  await redis.del(clinicCacheKey(clinicKey(clinic)))
+
 
   // 2️⃣ حذف كل times cache الخاصة بالعيادة (SCAN آمن)
   let cursor = '0';
