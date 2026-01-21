@@ -68,8 +68,11 @@ async function getTimesCache(key) {
 const SLOT_LOCK_TTL_SEC = 15 * 60; // 15 دقيقة
 
 function slotLockKey(clinic, date, time) {
-  return `lock:slot:${clinic}:${date}:${time}`;
+  // ⬅️ للتشقير: نقفل الساعة كاملة
+  const hour = String(time || '').split(':')[0];
+  return `lock:slot:${clinic}:${date}:${hour}:00`;
 }
+
 
 async function lockSlot(clinic, date, time, by) {
   const key = slotLockKey(clinic, date, time);
