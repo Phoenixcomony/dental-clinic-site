@@ -1004,7 +1004,8 @@ app.post('/api/login', (req, res) => {
 
    async function handleLogin(req, res) {
   try {
-    const { identity, phone, otp } = req.body || {};
+    const { identity, phone } = req.body || {};
+
 
     const idDigits = toAsciiDigits(identity || '').replace(/\D/g,'');
     const phone05  = toLocal05(phone);
@@ -1031,14 +1032,8 @@ app.post('/api/login', (req, res) => {
     // ⬇️ من هنا فصاعدًا: مستخدم جديد فقط
     // ================================
 
-    // ✅ تحقق OTP فقط للمستخدم الجديد
-    if (!verifyOtpInline(phone, otp)) {
-      return res.json({
-        success: false,
-        reason: 'otp',
-        message: 'رمز التحقق غير صحيح'
-      });
-    }
+  // ❌ OTP disabled
+
 
     // ===== Puppeteer =====
     const browser = await getSharedBrowser();

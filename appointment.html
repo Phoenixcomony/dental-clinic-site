@@ -860,7 +860,8 @@
     const idDigits = (identity.value||'').replace(/\D/g,'');
     const okId = idDigits.length >= 9;              // قبول 9+ أرقام كحد أدنى
     const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
-    const ok = okId && phoneOK && okOtp;
+    const ok = okId && phoneOK;
+
 
     loginBtn.disabled = !ok;
     loginMsg.textContent = ok ? '' : 'أدخل رقم الهوية/الإقامة، رقم 05xxxxxxxx، وكود 6 أرقام.';
@@ -941,7 +942,6 @@
     const payload = {
       identity: (identity.value||'').trim(),
       phone: (mobile.value||'').trim(),
-      otp: (otpInput.value||'').trim()
     };
     showLoader(true);
     try{
