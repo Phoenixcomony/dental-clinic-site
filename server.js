@@ -105,8 +105,9 @@ async function setTimesCache(key, data) {
   );
 }
 function clinicCacheKey(clinicStr) {
-  return PREFETCH_KEY_PREFIX + String(clinicStr || '').trim();
+  return PREFETCH_KEY_PREFIX + normalizeClinicKey(clinicStr);
 }
+
 
 async function getClinicTimesFromRedis(clinicStr) {
   const v = await redis.get(clinicCacheKey(clinicStr));
@@ -418,6 +419,12 @@ function toAsciiDigits(s='') {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(s).replace(/[٠-٩]/g, d => map[d] || d);
 }
+function normalizeClinicKey(clinic) {
+  return String(clinic || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function isSaudi05(v){ const d = toAsciiDigits(v||'').replace(/\D/g,''); return /^05\d{8}$/.test(d); }
 function normalizePhoneIntl(v){
   const raw = toAsciiDigits(v||''); const d = raw.replace(/\D/g,'');
@@ -2180,7 +2187,7 @@ try {
   const clinicName = String(clinic || '').trim();
 
   // 1️⃣ حذف Prefetch cache
-  await redis.del(`prefetch_times_v1:${clinicName}`);
+  await redis.del(clinicCacheKey(clinic));
 
   // 2️⃣ حذف كل times cache الخاصة بالعيادة (SCAN آمن)
   let cursor = '0';
@@ -2234,7 +2241,8 @@ try {
   await redis.del(clinicKey);
 
   // حذف أي كاش جزئي مرتبط
-  const pattern = `times:${clinic}*`;
+  const pattern = `times:${normalizeClinicKey(clinic)}*`;
+
   const keys = await redis.keys(pattern);
   if (keys.length) await redis.del(keys);
 } catch (e) {
