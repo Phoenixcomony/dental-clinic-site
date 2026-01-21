@@ -1017,8 +1017,9 @@ clinicSel.addEventListener('change', ()=>{
     const clinic = clinicSel.value;
     const month  = monthSel.value;
     const time   = timeSel.value;
-    const identityVal = localStorage.getItem('auth_identity') || '';
-    const phone  = localStorage.getItem('auth_phone') || '';
+   const identityVal = identity.value.trim();
+const phone       = mobile.value.trim();
+
     const note   = (noteInput.value || '').trim();
 
    if (!clinic || !time || !identityVal || !phone) {
