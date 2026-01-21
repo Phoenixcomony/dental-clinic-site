@@ -532,8 +532,7 @@
     <section id="loginSection" class="card" aria-label="تسجيل الدخول">
       <div class="card-head">
         <span class="chip"><i class="fa-solid fa-user-check"></i> تسجيل الدخول</span>
-        <span class="chip" style="background:rgba(46,125,50,.10); border-color:rgba(46,125,50,.22); color:#124b18;">
-          <i class="fa-brands fa-whatsapp"></i> تحقق واتساب
+        
         </span>
       </div>
 
@@ -793,17 +792,7 @@
   // ===== Helpers =====
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
 
-  // ===== عناصر تسجيل الدخول =====
-  const sendOtpBtn = document.getElementById('sendOtp');
-  const resendOtpBtn = document.getElementById('resendOtp');
-  const loginBtn = document.getElementById('loginBtn');
-  const loginMsg = document.getElementById('loginMsg');
-  const identity = document.getElementById('identity');
-  const mobile = document.getElementById('mobile');
-  const otpInput = document.getElementById('otp');
-  const otpGroup = document.getElementById('otpGroup');
-  const otpTimerEl = document.getElementById('otpTimer');
-  const screenLoader = document.getElementById('screenLoader');
+ 
 
   // شاشة الانتظار
   const showLoader = (on)=> {
@@ -844,7 +833,7 @@ function updateLoginBtn(){
   ['input','change','keyup'].forEach(ev=>{
     identity.addEventListener(ev, updateLoginBtn);
     mobile.addEventListener(ev, updateLoginBtn);
-    otpInput.addEventListener(ev, updateLoginBtn);
+    
   });
   // حدّث عند التحميل
   updateLoginBtn();
@@ -911,7 +900,8 @@ function updateLoginBtn(){
 
   // تسجيل الدخول
   loginBtn.addEventListener('click', async ()=>{
-    loginBtn.disabled = true; sendOtpBtn.disabled = true; resendOtpBtn.disabled = true;
+    loginBtn.disabled = true;
+
     loginMsg.textContent = 'جارِ التحقق...';
     const payload = {
       identity: (identity.value||'').trim(),
@@ -927,7 +917,8 @@ function updateLoginBtn(){
 
       if(!data.success){
         loginMsg.textContent = data.message || 'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).';
-        loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
+        loginBtn.disabled = false;
+
         return;
       }
 
