@@ -859,9 +859,7 @@ const loginMsg  = document.getElementById('loginMsg');
       }
 
       // يوجد ملف
-      localStorage.setItem('auth_identity', payload.identity);
-      localStorage.setItem('auth_phone', payload.phone);
-      localStorage.setItem('auth_fileId', data.fileId || '');
+    
 
       if (data.hasIdentity === false) {
         loginMsg.textContent = 'نحتاج استكمال الهوية قبل الحجز...';
@@ -1083,27 +1081,7 @@ clinicSel.addEventListener('change', ()=>{
 
   toggleHoursBtn.addEventListener('click', showHours);
   toggleBookingBtn.addEventListener('click', showBooking);
-  // ===============================
-// AUTO LOGIN CHECK (ON LOAD)
-// ===============================
-(function autoLoginCheck() {
-  const screenLoader = document.getElementById('screenLoader');
-  const identity = localStorage.getItem('auth_identity');
-  const phone    = localStorage.getItem('auth_phone');
 
-  const loginSection   = document.getElementById('loginSection');
-  const bookingSection = document.getElementById('bookingSection');
-
-  if (identity && phone) {
-    // المستخدم معروف — لا Login ولا OTP
-    loginSection.style.display = 'none';
-    bookingSection.style.display = '';
-  } else {
-    // مستخدم جديد
-    bookingSection.style.display = 'none';
-    loginSection.style.display = '';
-  }
-})();
 // ===============================
 // LOGOUT HANDLER
 // ===============================
