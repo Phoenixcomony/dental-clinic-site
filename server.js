@@ -1578,15 +1578,22 @@ if (!Array.isArray(times) || times.length === 0) {
 
 await setTimesCache(cacheKey, times);
 // ⛔ إخفاء الأوقات المقفولة فورًا
+// ⛔ إخفاء الأوقات المقفولة فورًا (خصوصًا التشقير)
 const visibleTimes = [];
 
 for (const t of times) {
   const { date, time24 } = parseValueToDateTime(t);
+
+  // 🔒 تحقق Redis Lock (المصدر الحقيقي)
   const locked = await isSlotLocked(clinicStr, date, time24);
-  if (!locked) visibleTimes.push(t);
+
+  if (!locked) {
+    visibleTimes.push(t);
+  }
 }
 
 return res.json({ times: visibleTimes, cached: false });
+
 
 } finally {
   timesInFlight.delete(cacheKey);
