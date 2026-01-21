@@ -12,6 +12,12 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+// ===== Booking Bot Account (Dedicated) =====
+const BOOKING_ACCOUNT = {
+  user: process.env.BOOKING_USER,
+  pass: process.env.BOOKING_PASS
+};
+
 const INSTANCE_ID  = process.env.INSTANCE_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const SKIP_OTP_FOR_TESTING = process.env.SKIP_OTP_FOR_TESTING === 'true';
@@ -265,7 +271,7 @@ app.get('/', (req, res) => {
 const ACCOUNTS = [
   { user: "3333333333", pass: "3333333333", busy: false },
   { user: "5555555555", pass: "5555555555", busy: false },
-  { user: "8888888888", pass: "8888888888", busy: false },
+  
 ];
 const CLINICS_LIST = [
   "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
@@ -1042,8 +1048,10 @@ app.post('/api/login', (req, res) => {
 
     let account;
     try {
-      account = await acquireAccount();
-      await loginToImdad(page, account);
+      // 🔐 Booking bot uses dedicated account
+await loginToImdad(page, BOOKING_ACCOUNT);
+
+console.log('[BOOK][LOGIN OK]', 'booking bot logged in');
 
       const result = await searchSuggestionsByPhoneOnNavbar(page, phone05);
 
@@ -1078,7 +1086,7 @@ app.post('/api/login', (req, res) => {
 
     } catch (e) {
       try { await page.close(); } catch {}
-      if (account) releaseAccount(account);
+      
       return res.json({ success:false, message:'تعذر التحقق الآن' });
     }
 
@@ -1964,6 +1972,12 @@ app.post('/api/book', async (req, res) => {
       message: 'هذا الموعد تم حجزه قبل قليل'
     });
   }
+console.log(
+  '[QUEUE][ADD]',
+  'identity=', req.body?.identity,
+  'clinic=', req.body?.clinic,
+  'time=', req.body?.time
+);
 
   // ⬅️ أدخل الحجز للطابور
   bookingQueue.push({ data: req.body });
@@ -1988,6 +2002,14 @@ async function processQueue() {
     // 🔥 الحجز يتم في الخلفية فقط
     await bookNow(job.data);
   } catch (e) {
+    console.error(
+  '[BOOK][FAILED]',
+  'identity=', identity,
+  'clinic=', clinic,
+  'time=', time,
+  'error=', e?.message || e
+);
+
     console.error('[BOOKING FAILED]', e?.message || e);
   } finally {
     processingBooking = false;
@@ -2000,6 +2022,14 @@ async function processQueue() {
 
 /// ===== Booking flow (single) — V2 =====
 async function bookNow({ identity, name, phone, clinic, month, time, note }) {
+  console.log(
+  '[BOOK][START]',
+  'identity=', identity,
+  'phone=', phone,
+  'clinic=', clinic,
+  'time=', time
+);
+
   const browser = await getSharedBrowser();
 
   const page = await browser.newPage();
@@ -2108,7 +2138,16 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
     if (!picked) throw new Error(' ');
 
     await delay(600);
+    console.log('[BOOK][RESERVE]', 'click reserve', 'clinic=', clinic, 'time=', time);
+
     await clickReserveAndConfirm(page);
+    console.log(
+  '[BOOK][SUCCESS]',
+  'identity=', identity,
+  'clinic=', clinic,
+  'time=', time
+);
+
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
   const clinicName = String(clinic || '').trim();
@@ -2182,7 +2221,8 @@ incMetrics({ clinic });
 
     try { if (!WATCH) await page.close(); } catch(_){}
     if (account) releaseAccount(account);
-    return '✅ تم الحجز بنجاح بالحساب: ' + account.user;
+    return '✅ تم الحجز بنجاح (Booking Bot)';
+
 
     } catch (e) {
 
