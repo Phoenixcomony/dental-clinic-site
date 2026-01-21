@@ -428,12 +428,9 @@ function normalizeClinicKey(clinic) {
     .trim();
 }
 function clinicKey(clinicStr) {
-  return normalizeClinicKey(
-    String(clinicStr || '')
-      .replace(/\*\*الفترة.*$/,'') // يحذف **الفترة الاولى / الثانية
-      .trim()
-  );
+  return normalizeClinicKey(clinicStr);
 }
+
 
 function isSaudi05(v){ const d = toAsciiDigits(v||'').replace(/\D/g,''); return /^05\d{8}$/.test(d); }
 function normalizePhoneIntl(v){
