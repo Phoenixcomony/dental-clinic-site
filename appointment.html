@@ -560,26 +560,7 @@
         للتواصل اضغط أيقونة الواتساب أعلى الصفحة.
       </div>
 
-      <!-- خانة OTP -->
-      <div id="otpGroup" style="display:none; margin-top:12px;">
-        <label for="otp">رمز التحقق (واتساب)</label>
-        <div class="field has-icon">
-          <i class="prefix fa-solid fa-key"></i>
-          <input id="otp" type="text" placeholder="6 أرقام" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <button id="resendOtp" class="btn btn-ghost" type="button" style="display:none;">
-            <i class="fa-solid fa-rotate-right"></i> إعادة الإرسال
-          </button>
-        </div>
-        <div id="otpTimer" class="muted"></div>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
-        <button id="sendOtp" class="btn btn-green" type="button" style="display:none;">
-          <i class="fa-brands fa-whatsapp"></i> إرسال كود واتساب
-        </button>
+     
         <button id="loginBtn" class="btn btn-gold" type="button" disabled>
           <i class="fa-solid fa-arrow-right-to-bracket"></i> تسجيل الدخول
         </button>
@@ -852,20 +833,13 @@
     },1000);
   }
 
-  function updateLoginBtn(){
-    const phoneOK = isSaudi05(mobile.value);
-    // إظهار زر إرسال الكود بمجرد اكتمال رقم الجوال (حتى بدون الهوية)، إذا كانت خانة الكود مخفية
-    sendOtpBtn.style.display = phoneOK && otpGroup.style.display==='none' ? '' : 'none';
+function updateLoginBtn(){
+  const phoneOK = isSaudi05(mobile.value);
+  const idDigits = (identity.value||'').replace(/\D/g,'');
+  const okId = idDigits.length >= 9;
 
-    const idDigits = (identity.value||'').replace(/\D/g,'');
-    const okId = idDigits.length >= 9;              // قبول 9+ أرقام كحد أدنى
-    const okOtp  = /^\d{6}$/.test((otpInput.value||'').trim());
-    const ok = okId && phoneOK;
-
-
-    loginBtn.disabled = !ok;
-    loginMsg.textContent = ok ? '' : 'أدخل رقم الهوية/الإقامة، رقم 05xxxxxxxx، وكود 6 أرقام.';
-  }
+  loginBtn.disabled = !(okId && phoneOK);
+}
 
   ['input','change','keyup'].forEach(ev=>{
     identity.addEventListener(ev, updateLoginBtn);
