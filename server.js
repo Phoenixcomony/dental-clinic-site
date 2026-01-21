@@ -68,11 +68,8 @@ async function getTimesCache(key) {
 const SLOT_LOCK_TTL_SEC = 15 * 60; // 15 دقيقة
 
 function slotLockKey(clinic, date, time) {
-  // ⬅️ للتشقير: نقفل الساعة كاملة
-  const hour = String(time || '').split(':')[0];
-  return `lock:slot:${clinic}:${date}:${hour}:00`;
+  return `lock:slot:${clinic}:${date}:${time}`;
 }
-
 
 async function lockSlot(clinic, date, time, by) {
   const key = slotLockKey(clinic, date, time);
@@ -105,10 +102,8 @@ async function setTimesCache(key, data) {
   );
 }
 function clinicCacheKey(clinicStr) {
-  return PREFETCH_KEY_PREFIX + clinicKey(clinicStr);
+  return PREFETCH_KEY_PREFIX + String(clinicStr || '').trim();
 }
-
-
 
 async function getClinicTimesFromRedis(clinicStr) {
   const v = await redis.get(clinicCacheKey(clinicStr));
@@ -123,7 +118,6 @@ async function setClinicTimesToRedis(clinicStr, times) {
     PREFETCH_TTL_SEC
   );
 }
-
 
 /* ================= Prefetch Cache (All Clinics) ================= */
 const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
@@ -204,11 +198,9 @@ async function prefetchAllClinicsTimes() {
         // نستخدم نفس منطق /api/times لكن بدون month من المستخدم
         const times = await fetchTimesForClinic30Days(clinic);
 
-      if (Array.isArray(times)) {
-  await setClinicTimesToRedis(clinicKey(clinic), times);
-
-}
-
+        if (Array.isArray(times) && times.length) {
+          await setClinicTimesToRedis(clinic, times);
+        }
 
       } catch (e) {
         console.error('[PREFETCH] clinic failed:', clinic, e?.message);
@@ -422,16 +414,6 @@ function toAsciiDigits(s='') {
   const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
   return String(s).replace(/[٠-٩]/g, d => map[d] || d);
 }
-function normalizeClinicKey(clinic) {
-  return String(clinic || '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-function clinicKey(clinicStr) {
-  return normalizeClinicKey(clinicStr);
-}
-
-
 function isSaudi05(v){ const d = toAsciiDigits(v||'').replace(/\D/g,''); return /^05\d{8}$/.test(d); }
 function normalizePhoneIntl(v){
   const raw = toAsciiDigits(v||''); const d = raw.replace(/\D/g,'');
@@ -1427,8 +1409,7 @@ app.post('/api/times', async (req, res) => {
 }
 
 
-    const clinicStr = clinicKey(clinic);
-
+    const clinicStr = String(clinic || '');
 
     // تحديد الفترة تلقائيًا من اسم العيادة
     const autoPeriod =
@@ -1437,31 +1418,13 @@ app.post('/api/times', async (req, res) => {
 
     const effectivePeriod = period || autoPeriod;
     // ===== FAST PATH (Redis) =====
-const cachedPrefetch = await getClinicTimesFromRedis(
-  clinicKey(clinic)
-);
-
+const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
   const rules = findClinicRules(clinicStr);
-  let times = applyClinicRulesToTimes(
-    cachedPrefetch.times,
-    clinicStr,
-    effectivePeriod,
-    rules
-  );
-
-  // ⛔ فلترة المواعيد المقفولة (مهم للتشقير)
-  const visibleTimes = [];
-  for (const t of times) {
-    const { date, time24 } = parseValueToDateTime(t);
-    const locked = await isSlotLocked(clinicStr, date, time24);
-    if (!locked) visibleTimes.push(t);
-  }
-
-  return res.json({ times: visibleTimes, cached: true, source: 'prefetch' });
+  let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
+  return res.json({ times, cached: true, source: 'prefetch' });
 }
-
 
 
 
@@ -1615,22 +1578,15 @@ if (!Array.isArray(times) || times.length === 0) {
 
 await setTimesCache(cacheKey, times);
 // ⛔ إخفاء الأوقات المقفولة فورًا
-// ⛔ إخفاء الأوقات المقفولة فورًا (خصوصًا التشقير)
 const visibleTimes = [];
 
 for (const t of times) {
   const { date, time24 } = parseValueToDateTime(t);
-
-  // 🔒 تحقق Redis Lock (المصدر الحقيقي)
   const locked = await isSlotLocked(clinicStr, date, time24);
-
-  if (!locked) {
-    visibleTimes.push(t);
-  }
+  if (!locked) visibleTimes.push(t);
 }
 
 return res.json({ times: visibleTimes, cached: false });
-
 
 } finally {
   timesInFlight.delete(cacheKey);
@@ -1660,7 +1616,7 @@ async function fetchTimesForClinic30Days(clinic) {
 
       // تنظيف البشرة (رابط ثابت)
       if (name.startsWith('تشقير') || name.startsWith('عيادة تنظيف البشرة')) {
-        return 'appoint_display.php?clinic_id=137&per_id=2&day_no=7';
+        return 'appoint_display.php?clinic_id=126&per_id=2&day_no=7';
       }
 
       const normalize = s =>
@@ -2210,11 +2166,10 @@ if (!reserved) {
 
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
- const clinicName = clinicKey(clinic);
+  const clinicName = String(clinic || '').trim();
 
   // 1️⃣ حذف Prefetch cache
-  await redis.del(clinicCacheKey(clinicKey(clinic)))
-
+  await redis.del(`prefetch_times_v1:${clinicName}`);
 
   // 2️⃣ حذف كل times cache الخاصة بالعيادة (SCAN آمن)
   let cursor = '0';
@@ -2268,8 +2223,7 @@ try {
   await redis.del(clinicKey);
 
   // حذف أي كاش جزئي مرتبط
-  const pattern = `times:${normalizeClinicKey(clinic)}*`;
-
+  const pattern = `times:${clinic}*`;
   const keys = await redis.keys(pattern);
   if (keys.length) await redis.del(keys);
 } catch (e) {
