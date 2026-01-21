@@ -791,6 +791,20 @@
 <script>
   // ===== Helpers =====
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
+  // تفعيل زر تسجيل الدخول (يدعم أرقام عربية وإنجليزية)
+function updateLoginBtn(){
+  const phoneOK = isSaudi05(mobile.value);
+
+  // تحويل الأرقام العربية إلى إنجليزية
+  const toEn = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+  const idRaw = toEn(identity.value || '');
+  const idDigits = idRaw.replace(/\D/g,'');
+  const okId = idDigits.length >= 9;
+
+  loginBtn.disabled = !(okId && phoneOK);
+}
+
 // ===== عناصر أساسية =====
 const screenLoader = document.getElementById('screenLoader');
 
@@ -798,6 +812,10 @@ const identity  = document.getElementById('identity');
 const mobile    = document.getElementById('mobile');
 const loginBtn  = document.getElementById('loginBtn');
 const loginMsg  = document.getElementById('loginMsg');
+['input','change','keyup'].forEach(ev=>{
+  identity.addEventListener(ev, updateLoginBtn);
+  mobile.addEventListener(ev, updateLoginBtn);
+});
 
  
 
@@ -1103,7 +1121,7 @@ document.getElementById('logoutBtn')?.addEventListener('click', () => {
   // 3️⃣ تنظيف الحقول
   document.getElementById('identity').value = '';
   document.getElementById('mobile').value   = '';
-  document.getElementById('otp').value      = '';
+  
 
   // 4️⃣ سكرول للأعلى
   window.scrollTo({ top: 0, behavior: 'smooth' });
