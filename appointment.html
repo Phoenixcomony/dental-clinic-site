@@ -791,6 +791,13 @@
 <script>
   // ===== Helpers =====
   const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
+// ===== عناصر أساسية =====
+const screenLoader = document.getElementById('screenLoader');
+
+const identity  = document.getElementById('identity');
+const mobile    = document.getElementById('mobile');
+const loginBtn  = document.getElementById('loginBtn');
+const loginMsg  = document.getElementById('loginMsg');
 
  
 
@@ -800,96 +807,7 @@
     else { screenLoader.classList.remove('show'); document.body.style.pointerEvents='auto'; }
   };
 
-  // OTP 60s cooldown (UI فقط؛ السيرفر لديه Throttle أيضًا)
-  let otpCooldown = 0, otpTimer = null;
-  function formatSecs(s){ return s + 'ث'; }
-
-  function startOtpTimer(startFrom=60){
-    otpCooldown = startFrom;
-    resendOtpBtn.style.display = 'none';
-    otpTimerEl.textContent = 'سيصل الكود خلال لحظات — يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
-    otpTimer && clearInterval(otpTimer);
-    otpTimer = setInterval(()=>{
-      otpCooldown--;
-      if(otpCooldown<=0){
-        clearInterval(otpTimer); otpTimer=null;
-        otpTimerEl.textContent = 'انتهى الوقت. يمكنك إعادة الإرسال.';
-        resendOtpBtn.style.display = '';
-        resendOtpBtn.disabled = false;
-      }else{
-        otpTimerEl.textContent = 'يمكنك إعادة الإرسال بعد ' + formatSecs(otpCooldown);
-      }
-    },1000);
-  }
-
-function updateLoginBtn(){
-  const phoneOK = isSaudi05(mobile.value);
-  const idDigits = (identity.value||'').replace(/\D/g,'');
-  const okId = idDigits.length >= 9;
-
-  loginBtn.disabled = !(okId && phoneOK);
-}
-
-  ['input','change','keyup'].forEach(ev=>{
-    identity.addEventListener(ev, updateLoginBtn);
-    mobile.addEventListener(ev, updateLoginBtn);
-    
-  });
-  // حدّث عند التحميل
-  updateLoginBtn();
-
-  async function sendOtp(phone){
-    loginMsg.textContent = 'جاري إرسال الكود...';
-    showLoader(true);
-    try{
-      const r = await fetch('/send-otp', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ phone })
-      });
-      const data = await r.json();
-      if (data.success) {
-        loginMsg.textContent = 'تم إرسال الكود على الواتساب';
-        startOtpTimer(60);
-        return true;
-      } else {
-        if (data.retryAfter){
-          loginMsg.textContent = 'يرجى الانتظار ' + data.retryAfter + 'ث قبل إعادة الإرسال.';
-          startOtpTimer(Number(data.retryAfter)||60);
-        } else {
-          loginMsg.textContent = data.message || 'تعذر الإرسال';
-        }
-        return false;
-      }
-    }catch{
-      loginMsg.textContent = 'تعذر الاتصال بالخادم';
-      return false;
-    }finally{
-      showLoader(false);
-    }
-  }
-
-  // إرسال كود واتساب
-  sendOtpBtn.addEventListener('click', async ()=>{
-    const phone = mobile.value.trim();
-    if(!isSaudi05(phone)){ loginMsg.textContent = 'الرقم بصيغة 05xxxxxxxx'; return; }
-
-    // إظهار خانة الكود وإخفاء زر الإرسال
-    sendOtpBtn.style.display = 'none';
-    otpGroup.style.display = '';
-    otpInput.value = '';
-    updateLoginBtn();
-
-    await sendOtp(phone);
-  });
-
-  // إعادة الإرسال
-  resendOtpBtn.addEventListener('click', async ()=>{
-    const phone = mobile.value.trim();
-    if(!isSaudi05(phone)) return;
-    resendOtpBtn.disabled = true;
-    const ok = await sendOtp(phone);
-    if(!ok) resendOtpBtn.disabled = false;
-  });
+ 
 
   // فتح ملف جديد
   document.getElementById('openNewFileBtn').addEventListener('click', ()=>{
@@ -940,7 +858,8 @@ function updateLoginBtn(){
       window.scrollTo({top:0, behavior:'smooth'});
     }catch(e){
       loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
-      loginBtn.disabled = false; sendOtpBtn.disabled = false; resendOtpBtn.disabled = false;
+      loginBtn.disabled = false;
+
     }finally{
       showLoader(false);
     }
