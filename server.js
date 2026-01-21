@@ -2151,7 +2151,12 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
     await delay(600);
     console.log('[BOOK][RESERVE]', 'click reserve', 'clinic=', clinic, 'time=', time);
 
-    await clickReserveAndConfirm(page);
+   const reserved = await clickReserveAndConfirm(page);
+
+if (!reserved) {
+  throw new Error('BOOKING_NOT_CONFIRMED');
+}
+
     console.log(
   '[BOOK][SUCCESS]',
   'identity=', identity,
@@ -2235,19 +2240,19 @@ incMetrics({ clinic });
     return '✅ تم الحجز بنجاح (Booking Bot)';
 
 
-    } catch (e) {
+  } catch (e) {
 
-    // 🔓 فك القفل إذا فشل الحجز
-    try {
-      const [date, time24] = String(time).split('*');
-      await unlockSlot(clinic, date, time24);
-    } catch (_) {}
+  // 🔓 فك القفل إذا فشل الحجز
+  try {
+    const [date, time24] = String(time).split('*');
+    await unlockSlot(clinic, date, time24);
+  } catch (_) {}
 
-    try { if (!WATCH) await page.close(); } catch(_){}
-    
+  try { if (!WATCH) await page.close(); } catch(_){}
 
-    return '❌ فشل الحجز: ' + (e?.message || 'حدث خطأ غير متوقع');
-  }
+  throw e; // ✅ مهم: لا ترجع نص فشل
+}
+
 
 }
 
