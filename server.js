@@ -118,6 +118,49 @@ async function setClinicTimesToRedis(clinicStr, times) {
     PREFETCH_TTL_SEC
   );
 }
+async function removeBookedSlotFromCaches({ clinicName, date, time24 }) {
+  const slotValue = `${date}*${String(time24||'').trim()}`;
+
+  // prefetch
+  const pKey = `prefetch_times_v1:${clinicName}`;
+  const pref = await redis.get(pKey);
+  if (pref) {
+    const obj = JSON.parse(pref);
+    const arr = Array.isArray(obj?.times) ? obj.times : [];
+    const filtered = arr.filter(t =>
+      String((t.value||t)).trim() !== slotValue
+    );
+    await redis.set(
+      pKey,
+      JSON.stringify({ ts: Date.now(), times: filtered }),
+      'EX',
+      PREFETCH_TTL_SEC
+    );
+  }
+
+  // times:*
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(
+      cursor,
+      'MATCH',
+      `times:${clinicName}|*`,
+      'COUNT',
+      200
+    );
+    cursor = next;
+
+    for (const k of keys) {
+      const v = await redis.get(k);
+      if (!v) continue;
+      const arr = JSON.parse(v);
+      const filtered = arr.filter(t =>
+        String((t.value||t)).trim() !== slotValue
+      );
+      await redis.set(k, JSON.stringify(filtered), 'EX', 180);
+    }
+  } while (cursor !== '0');
+}
 
 /* ================= Prefetch Cache (All Clinics) ================= */
 const PREFETCH_TTL_SEC = Number(process.env.PREFETCH_TTL_SEC || 180); // 3 دقائق
@@ -2163,6 +2206,12 @@ if (!reserved) {
   'clinic=', clinic,
   'time=', time
 );
+const [date, time24] = String(time).split('*');
+await removeBookedSlotFromCaches({
+  clinicName: String(clinic).trim(),
+  date,
+  time24
+});
 
     // ================== REDIS CLEAN (AFTER BOOKING) ==================
 try {
