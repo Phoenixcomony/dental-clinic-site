@@ -1436,7 +1436,26 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
       }
     }
 
-    out = [...buckets.values()].sort((a,b)=>a.label.localeCompare(b.label,'ar'));
+    out = [...buckets.values()].sort((a, b) => {
+  const [da, ta] = a.value.split('*');
+  const [db, tb] = b.value.split('*');
+
+  const [D1, M1, Y1] = da.split('-').map(Number);
+  const [D2, M2, Y2] = db.split('-').map(Number);
+
+  const dateA = new Date(Y1, M1 - 1, D1);
+  const dateB = new Date(Y2, M2 - 1, D2);
+
+  if (dateA.getTime() !== dateB.getTime()) {
+    return dateA - dateB;
+  }
+
+  const [h1] = ta.split(':').map(Number);
+  const [h2] = tb.split(':').map(Number);
+
+  return h1 - h2;
+});
+
   }
 
   return out;
