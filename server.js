@@ -2300,7 +2300,9 @@ try {
 
     
     // ✅ تسجيل حجز فعلي ناجح
-incMetrics({ clinic });
+const safeClinic = String(clinic || '').trim() || 'غير محدد';
+incMetrics({ clinic: safeClinic });
+
 
 
     try { if (!WATCH) await page.close(); } catch(_){}
