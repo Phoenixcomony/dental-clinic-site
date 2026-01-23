@@ -267,7 +267,7 @@ app.use((req, res, next) => {
 });
 
 /* Static files */
-app.use(express.static(path.join(__dirname)));
+
 // ✅ دعم المسارات العربية (SEO Slugs)
 app.get('/:slug', (req, res, next) => {
   try {
@@ -2408,6 +2408,7 @@ app.post('/api/stats/reset', (req, res) => {
   saveMetrics();
   res.json({ ok: true });
 });
+app.use(express.static(path.join(__dirname)));
 
 /** ===== /api/open (headful viewer) ===== */
 app.post('/api/open', async (req, res) => {
