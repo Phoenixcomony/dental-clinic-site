@@ -2447,6 +2447,23 @@ app.get('/health', async (req, res) => {
     res.status(500).json({ ok: false });
   }
 });
+// ===== تسجيل نجاح الحجز (إحصائيات) =====
+app.post('/api/stats/booking-success', async (req, res) => {
+  try {
+    const { clinic, date } = req.body || {};
+    if (!clinic || !date) return res.json({ ok: true });
+
+    await redis.incr('stats:total');
+    await redis.incr(`stats:date:${date}`);
+    await redis.incr(`stats:clinic:${clinic}`);
+    await redis.incr(`stats:dateclinic:${date}:${clinic}`);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[STATS][ERR]', e);
+    res.json({ ok: true });
+  }
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);

@@ -128,12 +128,22 @@
       chainHint.textContent = `سيقوم النظام بإكمال ${slotsCount - 1} خانة إضافية تلقائيًا في الخلفية، لا يلزم أي إجراء من طرفك.`;
     }
 
-    // تتبّع النجاح
-    (async ()=>{
-      try{
-        
-      }catch(e){ console.warn('track-success failed', e); }
-    })();
+ // تتبّع نجاح الحجز (إرسال إحصائية)
+(async ()=>{
+  try{
+    await fetch('/api/stats/booking-success', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clinic: clinicLbl,
+        date: timeVal ? timeVal.split('*')[0] : ''
+      })
+    });
+  }catch(e){
+    console.warn('track-success failed', e);
+  }
+})();
+
 
     // تنظيف القيم المؤقتة
     [
