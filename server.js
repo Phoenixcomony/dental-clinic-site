@@ -12,6 +12,19 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+
+
+
+const ensureDir = (dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+};
+
+ensureDir(path.join(__dirname, 'uploads/banners'));
+ensureDir(path.join(__dirname, 'uploads/packages'));
+ensureDir(path.join(__dirname, 'data'));
+
 // ===== Booking Bot Account (Dedicated) =====
 const BOOKING_ACCOUNT = {
   user: process.env.BOOKING_USER,
@@ -296,11 +309,15 @@ app.get('/:slug', (req, res, next) => {
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const type = req.body.type;
-    if (type === 'banner') cb(null, 'uploads/banners');
-    else cb(null, 'uploads/packages');
-  },
+ destination: (req, file, cb) => {
+  const type = req.body.type;
+  const dir =
+    type === 'banner'
+      ? path.join(__dirname, 'uploads/banners')
+      : path.join(__dirname, 'uploads/packages');
+
+  cb(null, dir);
+},
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     const name = Date.now() + '-' + Math.random().toString(36).slice(2);
@@ -2359,7 +2376,7 @@ const STAFF_KEY = process.env.STAFF_KEY || '';
 
 function ensureDir(p) {
   try {
-    const dir = path.dirname(p);
+    ensureMetricsDir(p);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   } catch (e) { console.error('[metrics] ensureDir error:', e?.message || e); }
 }
@@ -2499,9 +2516,10 @@ app.post('/api/staff/upload', upload.single('image'), (req, res) => {
     }
 
     const filePath = `/uploads/${type === 'banner' ? 'banners' : 'packages'}/${req.file.filename}`;
-    const dataFile = type === 'banner'
-      ? 'data/banners.json'
-      : 'data/packages.json';
+const dataFile = type === 'banner'
+  ? path.join(__dirname, 'data/banners.json')
+  : path.join(__dirname, 'data/packages.json');
+
 
     const list = fs.existsSync(dataFile)
       ? JSON.parse(fs.readFileSync(dataFile, 'utf8'))
@@ -2531,6 +2549,7 @@ app.get('/api/packages', (req, res) => {
     : [];
   res.json(list);
 });
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
