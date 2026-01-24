@@ -609,5 +609,37 @@
       if (e.key === 'Escape') closeViewer();
     });
   </script>
+  <script>
+/* تحميل الباقات من السيرفر */
+fetch('/api/packages')
+  .then(res => res.json())
+  .then(list => {
+    if (!Array.isArray(list) || !list.length) return;
+
+    const grid = document.querySelector('.section.dark .grid');
+    if (!grid) return;
+
+    grid.innerHTML = ''; // ⬅️ مسح الباقات الثابتة
+
+    list.forEach(src => {
+      const card = document.createElement('article');
+      card.className = 'card';
+
+      card.innerHTML = `
+        <div class="media-frame">
+          <img src="${src}" loading="lazy" alt="باقة">
+        </div>
+        <div class="card-body">
+          <p class="card-title">باقة</p>
+          <p class="card-muted">عرض خاص</p>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
+  })
+  .catch(err => console.error('packages load error', err));
+</script>
+
 </body>
 </html>
