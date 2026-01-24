@@ -102,14 +102,12 @@
       box-shadow:0 2px 15px #f0b88e55;
     }
     .main-slider-banner img{
-      width:100%;
-      height:220px;
-      object-fit:contain;
-      object-position:center;
-      display:block;
-      transition:opacity .6s;
-      background:transparent;
-    }
+  width:100%;
+  height:220px;
+  object-fit: cover;
+  object-position: center;
+}
+
 
     /* الأقسام */
     .section{ padding:48px 16px; margin:28px 0; background:rgba(255,255,255,.75); }
@@ -580,49 +578,7 @@ fetch('/api/banners')
   .catch(err => console.error('banner load error', err));
 </script>
 
-    let bannerIndex = 0;
-    const bannerImg = document.getElementById('mainBannerImg');
-    setInterval(() => {
-      bannerIndex = (bannerIndex + 1) % bannerImgs.length;
-      bannerImg.style.opacity = "0";
-      setTimeout(() => {
-        bannerImg.src = bannerImgs[bannerIndex];
-        bannerImg.style.opacity = "1";
-      }, 300);
-    }, 3200);
-
-    // تكبير الصور عند النقر
-    const zoomableImages = document.querySelectorAll('.media-frame img');
-    const imgViewer = document.getElementById('imgViewer');
-    const imgViewerImg = document.getElementById('imgViewerImg');
-    const imgViewerBg = imgViewer.querySelector('.img-viewer-bg');
-    const imgCloseBtn = imgViewer.querySelector('.img-close');
-
-    function openViewer(src, alt) {
-      imgViewerImg.src = src;
-      imgViewerImg.alt = alt || '';
-      imgViewer.classList.add('show');
-      imgViewer.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeViewer() {
-      imgViewer.classList.remove('show');
-      imgViewer.setAttribute('aria-hidden', 'true');
-      imgViewerImg.src = '';
-    }
-
-    zoomableImages.forEach((img) => {
-      img.addEventListener('click', () => {
-        openViewer(img.src, img.alt);
-      });
-    });
-
-    imgViewerBg.addEventListener('click', closeViewer);
-    imgCloseBtn.addEventListener('click', closeViewer);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeViewer();
-    });
+   
   </script>
   <script>
 /* تحميل الباقات من السيرفر */
