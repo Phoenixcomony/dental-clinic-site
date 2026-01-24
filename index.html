@@ -58,8 +58,14 @@
     nav ul li{ margin:0; padding:0; display:flex; align-items:center; }
     nav ul li a{
       color:#000; text-decoration:none; padding:8px 14px; font-weight:700; border-radius:999px;
-      font-size:1.02em; transition:.25s; display:inline-block; background:transparent;
+      font-size:1.02em; transition:.25s; display:inline-block; background:transparent; 
       line-height:1.2;
+      .card{
+  width:100%;
+  max-width:260px;        /* ⬅️ هذا السطر المهم */
+  margin:0 auto;          /* ⬅️ توسيط داخل العمود */
+}
+
     }
     nav ul li a:hover, nav ul li a.active{ background:#fff; color:#00487c; box-shadow:0 2px 8px rgba(0,72,124,.11); }
 
