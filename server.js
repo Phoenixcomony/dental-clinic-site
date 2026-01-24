@@ -2513,19 +2513,28 @@ app.get('/api/packages', (req, res) => {
 
 /* ---------- Admin APIs (protected) ---------- */
 // Add banner (multipart: file)
-app.post('/api/admin/banners', requireStaff, uploadBanner.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ ok:false, error:'file_required' });
+app.post('/api/admin/banners', requireStaff, uploadBanner.array('files', 20), (req, res) => {
+  const files = req.files || [];
+  if (!files.length) {
+    return res.status(400).json({ ok:false, error:'files_required' });
+  }
 
   const banners = readJsonArray(BANNERS_JSON);
-  const item = {
-    id: genId('bnr'),
-    src: `/uploads/banners/${req.file.filename}`
-  };
-  banners.unshift(item);
-  writeJsonArray(BANNERS_JSON, banners);
+  const added = [];
 
-  res.json({ ok:true, banner: item, banners });
+  for (const f of files) {
+    const item = {
+      id: genId('bnr'),
+      src: `/uploads/banners/${f.filename}`
+    };
+    banners.unshift(item);
+    added.push(item);
+  }
+
+  writeJsonArray(BANNERS_JSON, banners);
+  res.json({ ok:true, added, banners });
 });
+
 
 // Delete banner
 app.delete('/api/admin/banners/:id', requireStaff, (req, res) => {
@@ -2548,23 +2557,35 @@ app.delete('/api/admin/banners/:id', requireStaff, (req, res) => {
 });
 
 // Add package (multipart: file + fields title/desc)
-app.post('/api/admin/packages', requireStaff, uploadPackage.single('file'), (req, res) => {
+app.post('/api/admin/packages', requireStaff, uploadPackage.array('files', 20), (req, res) => {
   const { title, desc } = req.body || {};
-  if (!req.file) return res.status(400).json({ ok:false, error:'file_required' });
-  if (!String(title||'').trim()) return res.status(400).json({ ok:false, error:'title_required' });
+  const files = req.files || [];
+
+  if (!String(title||'').trim()) {
+    return res.status(400).json({ ok:false, error:'title_required' });
+  }
+  if (!files.length) {
+    return res.status(400).json({ ok:false, error:'files_required' });
+  }
 
   const packages = readJsonArray(PACKAGES_JSON);
-  const item = {
-    id: genId('pkg'),
-    img: `/uploads/packages/${req.file.filename}`,
-    title: String(title).trim(),
-    desc: String(desc||'').trim()
-  };
-  packages.unshift(item);
-  writeJsonArray(PACKAGES_JSON, packages);
+  const added = [];
 
-  res.json({ ok:true, package: item, packages });
+  for (const f of files) {
+    const item = {
+      id: genId('pkg'),
+      img: `/uploads/packages/${f.filename}`,
+      title: String(title).trim(),
+      desc: String(desc||'').trim()
+    };
+    packages.unshift(item);
+    added.push(item);
+  }
+
+  writeJsonArray(PACKAGES_JSON, packages);
+  res.json({ ok:true, added, packages });
 });
+
 
 // Delete package
 app.delete('/api/admin/packages/:id', requireStaff, (req, res) => {
