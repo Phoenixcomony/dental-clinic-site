@@ -3,6 +3,7 @@
 // ===============================
 console.log('RUN:', __filename);
 console.log('PWD:', process.cwd());
+const multer = require('multer');
 
 const express = require('express');
 const cors = require('cors');
@@ -2409,6 +2410,181 @@ app.post('/api/stats/reset', (req, res) => {
   res.json({ ok: true });
 });
 app.use(express.static(path.join(__dirname)));
+/* =========================================================
+ *   CMS: Banners + Packages (Upload / List / Delete)
+ *   Storage: /data/*.json + /uploads/*
+ * ========================================================= */
+
+
+// dirs
+const DATA_DIR = path.join(__dirname, 'data');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const BANNERS_DIR = path.join(UPLOADS_DIR, 'banners');
+const PACKAGES_DIR = path.join(UPLOADS_DIR, 'packages');
+
+function ensureDirSync(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+ensureDirSync(DATA_DIR);
+ensureDirSync(UPLOADS_DIR);
+ensureDirSync(BANNERS_DIR);
+ensureDirSync(PACKAGES_DIR);
+
+const BANNERS_JSON = path.join(DATA_DIR, 'banners.json');
+const PACKAGES_JSON = path.join(DATA_DIR, 'packages.json');
+
+function readJsonArray(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return [];
+    const txt = fs.readFileSync(filePath, 'utf8');
+    const data = JSON.parse(txt);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+function writeJsonArray(filePath, arr) {
+  ensureDirSync(path.dirname(filePath));
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(arr, null, 2), 'utf8');
+  fs.renameSync(tmp, filePath);
+}
+function genId(prefix='id') {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+// auth middleware (admin only)
+function requireStaff(req, res, next) {
+  if (!STAFF_KEY) return res.status(500).json({ ok:false, error:'STAFF_KEY not set' });
+
+  const key =
+    req.headers['x-staff-key'] ||
+    req.query.key ||
+    req.body?.key ||
+    '';
+
+  if (String(key) !== String(STAFF_KEY)) {
+    return res.status(403).json({ ok:false, error:'Forbidden' });
+  }
+  next();
+}
+
+// multer storage
+function makeStorage(destDir) {
+  return multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, destDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
+      cb(null, `${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
+    }
+  });
+}
+function imageFileFilter(_req, file, cb) {
+  const ok = /image\/(png|jpe?g|webp)/i.test(file.mimetype || '');
+  cb(ok ? null : new Error('only_images_allowed'), ok);
+}
+
+const uploadBanner = multer({
+  storage: makeStorage(BANNERS_DIR),
+  fileFilter: imageFileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB
+});
+const uploadPackage = multer({
+  storage: makeStorage(PACKAGES_DIR),
+  fileFilter: imageFileFilter,
+  limits: { fileSize: 2 * 1024 * 1024 } // 2MB
+});
+
+// serve uploads
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+/* ---------- Public APIs for frontend ---------- */
+// banners: [{id, src}]
+app.get('/api/banners', (req, res) => {
+  const list = readJsonArray(BANNERS_JSON);
+  res.json({ ok:true, banners: list });
+});
+
+// packages: [{id, img, title, desc}]
+app.get('/api/packages', (req, res) => {
+  const list = readJsonArray(PACKAGES_JSON);
+  res.json({ ok:true, packages: list });
+});
+
+/* ---------- Admin APIs (protected) ---------- */
+// Add banner (multipart: file)
+app.post('/api/admin/banners', requireStaff, uploadBanner.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ ok:false, error:'file_required' });
+
+  const banners = readJsonArray(BANNERS_JSON);
+  const item = {
+    id: genId('bnr'),
+    src: `/uploads/banners/${req.file.filename}`
+  };
+  banners.unshift(item);
+  writeJsonArray(BANNERS_JSON, banners);
+
+  res.json({ ok:true, banner: item, banners });
+});
+
+// Delete banner
+app.delete('/api/admin/banners/:id', requireStaff, (req, res) => {
+  const id = String(req.params.id || '');
+  const banners = readJsonArray(BANNERS_JSON);
+  const idx = banners.findIndex(x => String(x.id) === id);
+  if (idx === -1) return res.status(404).json({ ok:false, error:'not_found' });
+
+  const [removed] = banners.splice(idx, 1);
+  writeJsonArray(BANNERS_JSON, banners);
+
+  // delete file
+  try {
+    const local = removed?.src ? path.join(__dirname, removed.src.replace(/^\//,''))
+                              : '';
+    if (local && fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true, removed, banners });
+});
+
+// Add package (multipart: file + fields title/desc)
+app.post('/api/admin/packages', requireStaff, uploadPackage.single('file'), (req, res) => {
+  const { title, desc } = req.body || {};
+  if (!req.file) return res.status(400).json({ ok:false, error:'file_required' });
+  if (!String(title||'').trim()) return res.status(400).json({ ok:false, error:'title_required' });
+
+  const packages = readJsonArray(PACKAGES_JSON);
+  const item = {
+    id: genId('pkg'),
+    img: `/uploads/packages/${req.file.filename}`,
+    title: String(title).trim(),
+    desc: String(desc||'').trim()
+  };
+  packages.unshift(item);
+  writeJsonArray(PACKAGES_JSON, packages);
+
+  res.json({ ok:true, package: item, packages });
+});
+
+// Delete package
+app.delete('/api/admin/packages/:id', requireStaff, (req, res) => {
+  const id = String(req.params.id || '');
+  const packages = readJsonArray(PACKAGES_JSON);
+  const idx = packages.findIndex(x => String(x.id) === id);
+  if (idx === -1) return res.status(404).json({ ok:false, error:'not_found' });
+
+  const [removed] = packages.splice(idx, 1);
+  writeJsonArray(PACKAGES_JSON, packages);
+
+  // delete file
+  try {
+    const local = removed?.img ? path.join(__dirname, removed.img.replace(/^\//,''))
+                              : '';
+    if (local && fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true, removed, packages });
+});
 
 /** ===== /api/open (headful viewer) ===== */
 app.post('/api/open', async (req, res) => {

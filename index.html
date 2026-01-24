@@ -322,7 +322,8 @@
 <section class="section dark" data-aos="fade-up">
   <h3 class="title">باقات مجمع فينكس الطبي</h3>
 
-  <div class="grid">
+<div class="grid" id="packagesGrid">
+
 
     <article class="card" data-aos="zoom-in">
       <div class="media-frame">
@@ -542,39 +543,76 @@
   <!-- AOS -->
   <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
   <script> AOS.init({ duration: 800, once: true }); </script>
+<script>
+async function loadPackages() {
+  try {
+    const res = await fetch('/api/packages');
+    const data = await res.json();
+    const grid = document.getElementById('packagesGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    (data?.packages || []).forEach(pkg => {
+      const art = document.createElement('article');
+      art.className = 'card';
+      art.setAttribute('data-aos', 'zoom-in');
+
+      art.innerHTML = `
+        <div class="media-frame">
+          <img loading="lazy" src="${pkg.img}" alt="${pkg.title}">
+        </div>
+        <div class="card-body">
+          <p class="card-title">${pkg.title}</p>
+          <p class="card-muted">${pkg.desc || ''}</p>
+        </div>
+      `;
+
+      grid.appendChild(art);
+    });
+
+    if (window.AOS) AOS.refreshHard();
+  } catch (e) {
+    console.warn('Failed to load packages');
+  }
+}
+
+loadPackages();
+</script>
 
   <!-- سلايدر البنرات + تكبير الصور -->
   <script>
     // سلايدر البنر الرئيسي
-    const bannerImgs = [
-     
-        "images/WhatsApp Image 2026-01-03 at 12.28.53 PM.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.54 PM.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.54 PMQ.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.54 PMW.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.55 PM.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.55 PMR.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.56 PMG.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.56 PMT.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMC.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMF.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMV.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.58 PMX.jpeg",
-  "images/WhatsApp Image 2026-01-03 at 12.28.59 PMZ.jpeg",
-  "images/WhatsApp Image 2026-01-17 at 3.30.42 PMs.jpeg",
-  "images/WhatsApp Image 2026-01-17 at 3.30.42 PMa.jpeg",
-  "images/WhatsApp Image 2026-01-17 at 3.30.41 PM.jpeg"
-];
-    let bannerIndex = 0;
-    const bannerImg = document.getElementById('mainBannerImg');
-    setInterval(() => {
-      bannerIndex = (bannerIndex + 1) % bannerImgs.length;
-      bannerImg.style.opacity = "0";
-      setTimeout(() => {
-        bannerImg.src = bannerImgs[bannerIndex];
-        bannerImg.style.opacity = "1";
-      }, 300);
-    }, 3200);
+    let bannerImgs = [];
+let bannerIndex = 0;
+const bannerImg = document.getElementById('mainBannerImg');
+
+async function loadBanners() {
+  try {
+    const res = await fetch('/api/banners');
+    const data = await res.json();
+    bannerImgs = (data?.banners || []).map(b => b.src);
+
+    if (bannerImgs.length) {
+      bannerImg.src = bannerImgs[0];
+    }
+  } catch (e) {
+    console.warn('Failed to load banners');
+  }
+}
+
+loadBanners();
+
+setInterval(() => {
+  if (!bannerImgs.length) return;
+  bannerIndex = (bannerIndex + 1) % bannerImgs.length;
+  bannerImg.style.opacity = "0";
+  setTimeout(() => {
+    bannerImg.src = bannerImgs[bannerIndex];
+    bannerImg.style.opacity = "1";
+  }, 300);
+}, 3200);
+
 
     // تكبير الصور عند النقر
     const zoomableImages = document.querySelectorAll('.media-frame img');
