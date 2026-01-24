@@ -3,7 +3,7 @@
 // ===============================
 console.log('RUN:', __filename);
 console.log('PWD:', process.cwd());
-
+const multer = require('multer');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -295,6 +295,30 @@ app.get('/:slug', (req, res, next) => {
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const type = req.body.type;
+    if (type === 'banner') cb(null, 'uploads/banners');
+    else cb(null, 'uploads/packages');
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const name = Date.now() + '-' + Math.random().toString(36).slice(2);
+    cb(null, name + ext);
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only images allowed'));
+    }
+    cb(null, true);
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err?.type === 'entity.aborted') {
     console.warn('⚠️ Request aborted by client');
@@ -2466,6 +2490,46 @@ app.post('/api/stats/booking-success', async (req, res) => {
     console.error('[STATS][ERR]', e);
     res.json({ ok: true });
   }
+});
+app.post('/api/staff/upload', upload.single('image'), (req, res) => {
+  try {
+    const { type } = req.body;
+    if (!req.file || !type) {
+      return res.status(400).json({ success: false });
+    }
+
+    const filePath = `/uploads/${type === 'banner' ? 'banners' : 'packages'}/${req.file.filename}`;
+    const dataFile = type === 'banner'
+      ? 'data/banners.json'
+      : 'data/packages.json';
+
+    const list = fs.existsSync(dataFile)
+      ? JSON.parse(fs.readFileSync(dataFile, 'utf8'))
+      : [];
+
+    list.push(filePath);
+    fs.writeFileSync(dataFile, JSON.stringify(list, null, 2));
+
+    res.json({ success: true, path: filePath });
+  } catch (e) {
+    res.status(500).json({ success: false });
+  }
+});
+// ===== API جلب الصور (للبنرات والباقات) =====
+app.get('/api/banners', (req, res) => {
+  const file = path.join(__dirname, 'data/banners.json');
+  const list = fs.existsSync(file)
+    ? JSON.parse(fs.readFileSync(file, 'utf8'))
+    : [];
+  res.json(list);
+});
+
+app.get('/api/packages', (req, res) => {
+  const file = path.join(__dirname, 'data/packages.json');
+  const list = fs.existsSync(file)
+    ? JSON.parse(fs.readFileSync(file, 'utf8'))
+    : [];
+  res.json(list);
 });
 
 app.listen(PORT, '0.0.0.0', () => {

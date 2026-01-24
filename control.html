@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>لوحة التحكم | مجمع فينكس الطبي</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+  --gold:#b89023;
+  --dark:#0f0f12;
+  --gray:#1b1b1f;
+  --light:#f5f5f5;
+}
+
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  font-family:'Cairo',sans-serif;
+  background:var(--dark);
+  color:#fff;
+}
+
+/* ===== Header ===== */
+.header{
+  height:60px;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 18px;
+}
+
+.logo{
+  font-weight:800;
+  color:var(--gold);
+  letter-spacing:1px;
+}
+
+.burger{
+  font-size:26px;
+  cursor:pointer;
+}
+
+/* ===== Sidebar ===== */
+.sidebar{
+  position:fixed;
+  top:0;
+  right:-260px;
+  width:260px;
+  height:100%;
+  background:var(--gray);
+  transition:.3s;
+  padding-top:60px;
+  z-index:100;
+}
+
+.sidebar.show{
+  right:0;
+}
+
+.sidebar button{
+  width:100%;
+  padding:16px;
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:1.05rem;
+  text-align:right;
+  cursor:pointer;
+  border-bottom:1px solid #333;
+}
+
+.sidebar button:hover,
+.sidebar button.active{
+  background:#000;
+  color:var(--gold);
+}
+
+/* ===== Overlay ===== */
+.overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:none;
+  z-index:90;
+}
+.overlay.show{ display:block; }
+
+/* ===== Main ===== */
+.main{
+  padding:30px 16px;
+  max-width:900px;
+  margin:auto;
+}
+
+.card{
+  background:#000;
+  border-radius:18px;
+  padding:25px;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+}
+
+h2{
+  margin-top:0;
+  color:var(--gold);
+  text-align:center;
+}
+
+/* ===== Upload ===== */
+.preview{
+  width:100%;
+  max-height:300px;
+  object-fit:contain;
+  display:none;
+  background:#111;
+  border-radius:14px;
+  margin-bottom:18px;
+}
+
+input[type=file]{ display:none; }
+
+.upload-btn{
+  display:block;
+  text-align:center;
+  padding:12px;
+  border-radius:30px;
+  background:#111;
+  border:1px dashed var(--gold);
+  color:var(--gold);
+  cursor:pointer;
+  margin-bottom:18px;
+}
+
+.save-btn{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:30px;
+  background:var(--gold);
+  color:#000;
+  font-weight:800;
+  font-size:1rem;
+  cursor:pointer;
+}
+
+.save-btn:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.status{
+  margin-top:15px;
+  text-align:center;
+  font-weight:700;
+}
+.ok{ color:#4cff4c; }
+.err{ color:#ff4c4c; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">PHOENIX CONTROL</div>
+  <div class="burger" onclick="toggleMenu()">☰</div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar" class="sidebar">
+  <button class="active" onclick="selectType('banner',this)">إدارة البنرات</button>
+  <button onclick="selectType('package',this)">إدارة الباقات</button>
+</div>
+
+<div id="overlay" class="overlay" onclick="toggleMenu()"></div>
+
+<!-- Main -->
+<div class="main">
+  <div class="card">
+    <h2 id="title">إدارة البنرات</h2>
+
+    <img id="preview" class="preview">
+
+    <label class="upload-btn">
+      اختر صورة
+      <input type="file" id="fileInput" accept="image/*">
+    </label>
+
+    <button id="saveBtn" class="save-btn" disabled>حفظ الصورة</button>
+
+    <div id="status" class="status"></div>
+  </div>
+</div>
+
+<script>
+let currentType = 'banner';
+let file = null;
+
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+const title = document.getElementById('title');
+const preview = document.getElementById('preview');
+const fileInput = document.getElementById('fileInput');
+const saveBtn = document.getElementById('saveBtn');
+const statusEl = document.getElementById('status');
+
+function toggleMenu(){
+  sidebar.classList.toggle('show');
+  overlay.classList.toggle('show');
+}
+
+function selectType(type,btn){
+  currentType = type;
+  title.textContent = type === 'banner' ? 'إدارة البنرات' : 'إدارة الباقات';
+
+  document.querySelectorAll('.sidebar button')
+    .forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  toggleMenu();
+}
+
+fileInput.onchange = e => {
+  file = e.target.files[0];
+  if(!file) return;
+
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  saveBtn.disabled = false;
+};
+
+saveBtn.onclick = async () => {
+  statusEl.textContent = 'جاري الحفظ...';
+  statusEl.className = 'status';
+
+  const form = new FormData();
+  form.append('image', file);
+  form.append('type', currentType);
+
+  try{
+    const res = await fetch('/api/staff/upload',{
+      method:'POST',
+      body:form
+    });
+    const r = await res.json();
+
+    if(r.success){
+      statusEl.textContent = 'تم حفظ الصورة بنجاح';
+      statusEl.classList.add('ok');
+      saveBtn.disabled = true;
+    }else throw '';
+  }catch{
+    statusEl.textContent = 'فشل الحفظ';
+    statusEl.classList.add('err');
+  }
+};
+</script>
+
+</body>
+</html>
