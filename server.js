@@ -2374,7 +2374,8 @@ incMetrics({ clinic: safeClinic });
 const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
 const STAFF_KEY = process.env.STAFF_KEY || '';
 
-function ensureDir(p) {
+function ensureMetricsDir(p) {
+
   try {
     ensureMetricsDir(p);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -2389,7 +2390,8 @@ function safeReadJSON(p, fallback) {
 }
 function safeWriteJSON(p, obj) {
   try {
-    ensureDir(p);
+    ensureMetricsDir(p);
+
     const tmp = p + '.tmp';
     const bak = p + '.bak';
     fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
