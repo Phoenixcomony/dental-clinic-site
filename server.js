@@ -4,6 +4,21 @@
 console.log('RUN:', __filename);
 console.log('PWD:', process.cwd());
 const multer = require('multer');
+// ================= MULTER (Uploads) =================
+const storageBanner = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, BANNERS_DIR),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+
+const storagePackage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, PACKAGES_DIR),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+
+const uploadBanner  = multer({ storage: storageBanner });
+const uploadPackage = multer({ storage: storagePackage });
 
 const express = require('express');
 const cors = require('cors');
@@ -32,11 +47,14 @@ const CHROMIUM_PATH =
   process.env.CHROME_PATH ||
   null;
 /* ================= Redis ================= */
+/* ================= Redis ================= */
 const redis = new Redis(process.env.REDIS_URL, {
   retryStrategy(times) {
     return Math.min(times * 100, 2000);
   }
 });
+
+ 
 
 
 /* ================= WATCH ================= */
@@ -44,6 +62,40 @@ const WATCH = process.env.WATCH === '1' || process.env.DEBUG_BROWSER === '1';
 
 redis.on('connect', () => console.log('🟢 Redis connected'));
 redis.on('error', e => console.error('🔴 Redis error', e.message));
+// ================= PERSISTENT CMS STORAGE (Railway Volume) =================
+const PERSIST_ROOT = process.env.PERSIST_ROOT || '/data';
+
+const UPLOADS_DIR  = path.join(PERSIST_ROOT, 'uploads');
+const BANNERS_DIR  = path.join(UPLOADS_DIR, 'banners');
+const PACKAGES_DIR = path.join(UPLOADS_DIR, 'packages');
+
+function ensureDirSafe(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+ensureDirSafe(UPLOADS_DIR);
+ensureDirSafe(BANNERS_DIR);
+ensureDirSafe(PACKAGES_DIR);
+
+// serve uploaded images
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Redis CMS keys
+const REDIS_BANNERS_KEY  = 'cms:banners';
+const REDIS_PACKAGES_KEY = 'cms:packages';
+
+async function readRedisArray(key) {
+  const v = await redis.get(key);
+  return v ? JSON.parse(v) : [];
+}
+
+async function writeRedisArray(key, arr) {
+  await redis.set(key, JSON.stringify(arr || []));
+}
+
+function genId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
 
 /* ================= Login Cache (Redis – 24h) ================= */
 async function getLoginCache(identityDigits) {
@@ -2333,6 +2385,18 @@ incMetrics({ clinic: safeClinic });
  * ========================================================= */
 const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
 const STAFF_KEY = process.env.STAFF_KEY || '';
+// ================= ADMIN AUTH =================
+function requireStaff(req, res, next) {
+  const key =
+    req.headers['x-staff-key'] ||
+    req.query.key ||
+    req.body?.key;
+
+  if (!STAFF_KEY || key !== STAFF_KEY) {
+    return res.status(403).json({ ok:false, error:'Forbidden' });
+  }
+  next();
+}
 
 function ensureDir(p) {
   try {
@@ -2410,202 +2474,7 @@ app.post('/api/stats/reset', (req, res) => {
   res.json({ ok: true });
 });
 app.use(express.static(path.join(__dirname)));
-/* =========================================================
- *   CMS: Banners + Packages (Upload / List / Delete)
- *   Storage: /data/*.json + /uploads/*
- * ========================================================= */
 
-
-// dirs
-const DATA_DIR = path.join(__dirname, 'data');
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-const BANNERS_DIR = path.join(UPLOADS_DIR, 'banners');
-const PACKAGES_DIR = path.join(UPLOADS_DIR, 'packages');
-
-function ensureDirSync(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-ensureDirSync(DATA_DIR);
-ensureDirSync(UPLOADS_DIR);
-ensureDirSync(BANNERS_DIR);
-ensureDirSync(PACKAGES_DIR);
-
-const BANNERS_JSON = path.join(DATA_DIR, 'banners.json');
-const PACKAGES_JSON = path.join(DATA_DIR, 'packages.json');
-
-function readJsonArray(filePath) {
-  try {
-    if (!fs.existsSync(filePath)) return [];
-    const txt = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(txt);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
-}
-function writeJsonArray(filePath, arr) {
-  ensureDirSync(path.dirname(filePath));
-  const tmp = filePath + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(arr, null, 2), 'utf8');
-  fs.renameSync(tmp, filePath);
-}
-function genId(prefix='id') {
-  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-// auth middleware (admin only)
-function requireStaff(req, res, next) {
-  if (!STAFF_KEY) return res.status(500).json({ ok:false, error:'STAFF_KEY not set' });
-
-  const key =
-    req.headers['x-staff-key'] ||
-    req.query.key ||
-    req.body?.key ||
-    '';
-
-  if (String(key) !== String(STAFF_KEY)) {
-    return res.status(403).json({ ok:false, error:'Forbidden' });
-  }
-  next();
-}
-
-// multer storage
-function makeStorage(destDir) {
-  return multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, destDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').toLowerCase() || '.jpg';
-      cb(null, `${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
-    }
-  });
-}
-function imageFileFilter(_req, file, cb) {
-  const ok = /image\/(png|jpe?g|webp)/i.test(file.mimetype || '');
-  cb(ok ? null : new Error('only_images_allowed'), ok);
-}
-
-const uploadBanner = multer({
-  storage: makeStorage(BANNERS_DIR),
-  fileFilter: imageFileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 } // 2MB
-});
-const uploadPackage = multer({
-  storage: makeStorage(PACKAGES_DIR),
-  fileFilter: imageFileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 } // 2MB
-});
-
-// serve uploads
-app.use('/uploads', express.static(UPLOADS_DIR));
-
-/* ---------- Public APIs for frontend ---------- */
-// banners: [{id, src}]
-app.get('/api/banners', (req, res) => {
-  const list = readJsonArray(BANNERS_JSON);
-  res.json({ ok:true, banners: list });
-});
-
-// packages: [{id, img, title, desc}]
-app.get('/api/packages', (req, res) => {
-  const list = readJsonArray(PACKAGES_JSON);
-  res.json({ ok:true, packages: list });
-});
-
-/* ---------- Admin APIs (protected) ---------- */
-// Add banner (multipart: file)
-app.post('/api/admin/banners', requireStaff, uploadBanner.array('files', 20), (req, res) => {
-  const files = req.files || [];
-  if (!files.length) {
-    return res.status(400).json({ ok:false, error:'files_required' });
-  }
-
-  const banners = readJsonArray(BANNERS_JSON);
-  const added = [];
-
-  for (const f of files) {
-    const item = {
-      id: genId('bnr'),
-      src: `/uploads/banners/${f.filename}`
-    };
-    banners.unshift(item);
-    added.push(item);
-  }
-
-  writeJsonArray(BANNERS_JSON, banners);
-  res.json({ ok:true, added, banners });
-});
-
-
-// Delete banner
-app.delete('/api/admin/banners/:id', requireStaff, (req, res) => {
-  const id = String(req.params.id || '');
-  const banners = readJsonArray(BANNERS_JSON);
-  const idx = banners.findIndex(x => String(x.id) === id);
-  if (idx === -1) return res.status(404).json({ ok:false, error:'not_found' });
-
-  const [removed] = banners.splice(idx, 1);
-  writeJsonArray(BANNERS_JSON, banners);
-
-  // delete file
-  try {
-    const local = removed?.src ? path.join(__dirname, removed.src.replace(/^\//,''))
-                              : '';
-    if (local && fs.existsSync(local)) fs.unlinkSync(local);
-  } catch {}
-
-  res.json({ ok:true, removed, banners });
-});
-
-// Add package (multipart: file + fields title/desc)
-app.post('/api/admin/packages', requireStaff, uploadPackage.array('files', 20), (req, res) => {
-  const { title, desc } = req.body || {};
-  const files = req.files || [];
-
-  if (!String(title||'').trim()) {
-    return res.status(400).json({ ok:false, error:'title_required' });
-  }
-  if (!files.length) {
-    return res.status(400).json({ ok:false, error:'files_required' });
-  }
-
-  const packages = readJsonArray(PACKAGES_JSON);
-  const added = [];
-
-  for (const f of files) {
-    const item = {
-      id: genId('pkg'),
-      img: `/uploads/packages/${f.filename}`,
-      title: String(title).trim(),
-      desc: String(desc||'').trim()
-    };
-    packages.unshift(item);
-    added.push(item);
-  }
-
-  writeJsonArray(PACKAGES_JSON, packages);
-  res.json({ ok:true, added, packages });
-});
-
-
-// Delete package
-app.delete('/api/admin/packages/:id', requireStaff, (req, res) => {
-  const id = String(req.params.id || '');
-  const packages = readJsonArray(PACKAGES_JSON);
-  const idx = packages.findIndex(x => String(x.id) === id);
-  if (idx === -1) return res.status(404).json({ ok:false, error:'not_found' });
-
-  const [removed] = packages.splice(idx, 1);
-  writeJsonArray(PACKAGES_JSON, packages);
-
-  // delete file
-  try {
-    const local = removed?.img ? path.join(__dirname, removed.img.replace(/^\//,''))
-                              : '';
-    if (local && fs.existsSync(local)) fs.unlinkSync(local);
-  } catch {}
-
-  res.json({ ok:true, removed, packages });
-});
 
 /** ===== /api/open (headful viewer) ===== */
 app.post('/api/open', async (req, res) => {
@@ -2663,6 +2532,79 @@ app.post('/api/stats/booking-success', async (req, res) => {
     console.error('[STATS][ERR]', e);
     res.json({ ok: true });
   }
+});
+// ================= CMS: BANNERS =================
+app.get('/api/banners', async (req, res) => {
+  const banners = await readRedisArray(REDIS_BANNERS_KEY);
+  res.json({ banners });
+});
+
+app.post('/api/admin/banners', requireStaff, uploadBanner.any(), async (req, res) => {
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ ok:false });
+
+  const banners = await readRedisArray(REDIS_BANNERS_KEY);
+  const added = files.map(f => ({
+    id: genId('bnr'),
+    src: `/uploads/banners/${f.filename}`
+  }));
+
+  await writeRedisArray(REDIS_BANNERS_KEY, [...added, ...banners]);
+  res.json({ ok:true });
+});
+
+app.delete('/api/admin/banners/:id', requireStaff, async (req, res) => {
+  const banners = await readRedisArray(REDIS_BANNERS_KEY);
+  const idx = banners.findIndex(b => b.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok:false });
+
+  const [removed] = banners.splice(idx, 1);
+  await writeRedisArray(REDIS_BANNERS_KEY, banners);
+
+  try {
+    const local = path.join(UPLOADS_DIR, removed.src.replace('/uploads/', ''));
+    if (fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true });
+});
+
+// ================= CMS: PACKAGES =================
+app.get('/api/packages', async (req, res) => {
+  const packages = await readRedisArray(REDIS_PACKAGES_KEY);
+  res.json({ packages });
+});
+
+app.post('/api/admin/packages', requireStaff, uploadPackage.single('file'), async (req, res) => {
+  const { title, desc } = req.body;
+  if (!req.file || !title) return res.status(400).json({ ok:false });
+
+  const packages = await readRedisArray(REDIS_PACKAGES_KEY);
+  const item = {
+    id: genId('pkg'),
+    img: `/uploads/packages/${req.file.filename}`,
+    title: title.trim(),
+    desc: (desc || '').trim()
+  };
+
+  await writeRedisArray(REDIS_PACKAGES_KEY, [item, ...packages]);
+  res.json({ ok:true });
+});
+
+app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
+  const packages = await readRedisArray(REDIS_PACKAGES_KEY);
+  const idx = packages.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok:false });
+
+  const [removed] = packages.splice(idx, 1);
+  await writeRedisArray(REDIS_PACKAGES_KEY, packages);
+
+  try {
+    const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
+    if (fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
