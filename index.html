@@ -60,12 +60,7 @@
       color:#000; text-decoration:none; padding:8px 14px; font-weight:700; border-radius:999px;
       font-size:1.02em; transition:.25s; display:inline-block; background:transparent; 
       line-height:1.2;
-      .card{
-  width:100%;
-  max-width:260px;        /* ⬅️ هذا السطر المهم */
-  margin:0 auto;          /* ⬅️ توسيط داخل العمود */
-}
-
+      
     }
     nav ul li a:hover, nav ul li a.active{ background:#fff; color:#00487c; box-shadow:0 2px 8px rgba(0,72,124,.11); }
 
@@ -130,15 +125,21 @@
     }
 
     /* كرت الباقة / الجديد – برواز شفاف */
-    .card{
-      background:transparent;
-      border-radius:24px;
-      border:1px solid rgba(255,255,255,0.35);
-      box-shadow:0 6px 22px rgba(0,0,0,.18);
-      overflow:hidden;
-      transition:transform .18s, box-shadow .18s, border-color .18s;
-      display:flex; flex-direction:column;
-    }
+   .card{
+  background:transparent;
+  border-radius:24px;
+  border:1px solid rgba(255,255,255,0.35);
+  box-shadow:0 6px 22px rgba(0,0,0,.18);
+  overflow:hidden;
+  transition:transform .18s, box-shadow .18s, border-color .18s;
+  display:flex;
+  flex-direction:column;
+
+  width:100%;
+  max-width:260px;
+  margin:0 auto;
+}
+
     .section:not(.dark) .card{
       border-color:rgba(0,0,0,0.06);
       box-shadow:0 4px 18px rgba(0,0,0,.08);
