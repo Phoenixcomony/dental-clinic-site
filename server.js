@@ -63,20 +63,23 @@ function ensureDirSafe(dir) {
 ensureDirSafe(UPLOADS_DIR);
 ensureDirSafe(BANNERS_DIR);
 ensureDirSafe(PACKAGES_DIR);
-// ================= MULTER (Uploads) =================
+
+const multer = require('multer');
+
+// ===== MULTER (Banners) =====
 const storageBanner = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, BANNERS_DIR),
   filename: (_req, file, cb) =>
     cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
+const uploadBanner = multer({ storage: storageBanner });
 
+// ===== MULTER (Packages) =====
 const storagePackage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, PACKAGES_DIR),
   filename: (_req, file, cb) =>
     cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
-
-const uploadBanner  = multer({ storage: storageBanner });
 const uploadPackage = multer({ storage: storagePackage });
 
 // serve uploaded images
@@ -2584,15 +2587,13 @@ app.post(
   uploadPackage.single('file'),
   async (req, res) => {
     try {
-      console.log('📦 PACKAGE BODY:', req.body);
       console.log('📦 PACKAGE FILE:', req.file);
-
-      const { title, desc } = req.body;
+      console.log('📦 PACKAGE BODY:', req.body);
 
       if (!req.file) {
         return res.status(400).json({ error: 'file_missing' });
       }
-      if (!title) {
+      if (!req.body.title) {
         return res.status(400).json({ error: 'title_missing' });
       }
 
@@ -2601,15 +2602,14 @@ app.post(
       const item = {
         id: genId('pkg'),
         img: `/uploads/packages/${req.file.filename}`,
-        title: title.trim(),
-        desc: (desc || '').trim()
+        title: req.body.title.trim(),
+        desc: (req.body.desc || '').trim()
       };
 
       await writeRedisArray(REDIS_PACKAGES_KEY, [item, ...packages]);
-
       res.json({ ok: true, item });
     } catch (err) {
-      console.error('❌ PACKAGE ERROR FULL:', err);
+      console.error('❌ PACKAGE ERROR:', err);
       res.status(500).json({ error: 'server_error' });
     }
   }
