@@ -144,24 +144,26 @@
     }
 
     /* إطار الصورة – يناسب أي صورة طولية/عرضية */
-    .media-frame{
-      aspect-ratio:4/5;
-      width:100%;
-      overflow:hidden;
-      background:radial-gradient(circle at top,#fff,#f5ede0);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:4px;
-    }
-    .media-frame img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      object-position:center;
-      display:block;
-      cursor:pointer; /* للنقر لتكبير الصورة */
-    }
+  .media-frame{
+  aspect-ratio:4 / 5;
+  width:100%;
+  max-height:420px;          /* ⬅️ هذا السطر هو المفتاح */
+  overflow:hidden;
+  background:radial-gradient(circle at top,#fff,#f5ede0);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px;
+}
+
+.media-frame img{
+  width:100%;
+  height:100%;               /* ⬅️ مهم */
+  object-fit:contain;        /* نفس سلوك الكود الأصلي */
+  object-position:center;
+  display:block;
+}
+
 
     /* شريط زجاجي للنص (باقة / عرض خاص) */
     .card-body{
@@ -265,10 +267,15 @@
       .section{ padding:36px 12px; }
       .section .title{ font-size:1.25rem; }
       .grid{ --min: 160px; gap:12px; }
+        .media-frame{
+    max-height:300px;
+  }
+
       .img-viewer-content{
         max-width:94vw;
         max-height:80vh;
         border-radius:18px;
+        
       }
     }
 
