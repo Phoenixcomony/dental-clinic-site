@@ -58,9 +58,8 @@
     nav ul li{ margin:0; padding:0; display:flex; align-items:center; }
     nav ul li a{
       color:#000; text-decoration:none; padding:8px 14px; font-weight:700; border-radius:999px;
-      font-size:1.02em; transition:.25s; display:inline-block; background:transparent; 
+      font-size:1.02em; transition:.25s; display:inline-block; background:transparent;
       line-height:1.2;
-      
     }
     nav ul li a:hover, nav ul li a.active{ background:#fff; color:#00487c; box-shadow:0 2px 8px rgba(0,72,124,.11); }
 
@@ -95,26 +94,21 @@
     .btn:hover{ background:#fffdfb; transform:translateY(-1px); }
 
     /* بانر العروض الرئيسي */
-   .main-slider-banner{
-  margin:16px auto 0;
-  width:100%;
-  max-width:900px;
-  height:260px;              /* ⬅️ مهم */
-  border-radius:24px;
-  overflow:hidden;
-  background:#000;           /* ⬅️ مهم جدًا */
-  box-shadow:0 6px 24px rgba(0,0,0,.25);
-}
-
-   .main-slider-banner img{
-  width:100%;
-  height:100%;
-  object-fit:contain;        /* نحافظ عليه */
-  background:#000;           /* ⬅️ هذا الحل */
-  display:block;
-}
-
-
+    .main-slider-banner{
+      margin:16px auto 0; display:flex; justify-content:center; align-items:center;
+      width:100%; max-width:900px; border-radius:24px; overflow:hidden;
+      background:radial-gradient(circle at center,#ffffff,#f4e7d5);
+      box-shadow:0 2px 15px #f0b88e55;
+    }
+    .main-slider-banner img{
+      width:100%;
+      height:220px;
+      object-fit:contain;
+      object-position:center;
+      display:block;
+      transition:opacity .6s;
+      background:transparent;
+    }
 
     /* الأقسام */
     .section{ padding:48px 16px; margin:28px 0; background:rgba(255,255,255,.75); }
@@ -130,21 +124,15 @@
     }
 
     /* كرت الباقة / الجديد – برواز شفاف */
-   .card{
-  background:transparent;
-  border-radius:24px;
-  border:1px solid rgba(255,255,255,0.35);
-  box-shadow:0 6px 22px rgba(0,0,0,.18);
-  overflow:hidden;
-  transition:transform .18s, box-shadow .18s, border-color .18s;
-  display:flex;
-  flex-direction:column;
-
-  width:100%;
-  max-width:260px;
-  margin:0 auto;
-}
-
+    .card{
+      background:transparent;
+      border-radius:24px;
+      border:1px solid rgba(255,255,255,0.35);
+      box-shadow:0 6px 22px rgba(0,0,0,.18);
+      overflow:hidden;
+      transition:transform .18s, box-shadow .18s, border-color .18s;
+      display:flex; flex-direction:column;
+    }
     .section:not(.dark) .card{
       border-color:rgba(0,0,0,0.06);
       box-shadow:0 4px 18px rgba(0,0,0,.08);
@@ -156,26 +144,24 @@
     }
 
     /* إطار الصورة – يناسب أي صورة طولية/عرضية */
-  .media-frame{
-  aspect-ratio:4 / 5;
-  width:100%;
-  max-height:420px;          /* ⬅️ هذا السطر هو المفتاح */
-  overflow:hidden;
-  background:radial-gradient(circle at top,#fff,#f5ede0);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:4px;
-}
-
-.media-frame img{
-  width:100%;
-  height:100%;               /* ⬅️ مهم */
-  object-fit:contain;        /* نفس سلوك الكود الأصلي */
-  object-position:center;
-  display:block;
-}
-
+    .media-frame{
+      aspect-ratio:4/5;
+      width:100%;
+      overflow:hidden;
+      background:radial-gradient(circle at top,#fff,#f5ede0);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:4px;
+    }
+    .media-frame img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      object-position:center;
+      display:block;
+      cursor:pointer; /* للنقر لتكبير الصورة */
+    }
 
     /* شريط زجاجي للنص (باقة / عرض خاص) */
     .card-body{
@@ -279,15 +265,10 @@
       .section{ padding:36px 12px; }
       .section .title{ font-size:1.25rem; }
       .grid{ --min: 160px; gap:12px; }
-        .media-frame{
-    max-height:300px;
-  }
-
       .img-viewer-content{
         max-width:94vw;
         max-height:80vh;
         border-radius:18px;
-        
       }
     }
 
@@ -563,61 +544,70 @@
   <script> AOS.init({ duration: 800, once: true }); </script>
 
   <!-- سلايدر البنرات + تكبير الصور -->
-<script>
-fetch('/api/banners')
-  .then(res => res.json())
-  .then(banners => {
-    if (!Array.isArray(banners) || !banners.length) return;
-
-    let i = 0;
-    const img = document.getElementById('mainBannerImg');
-    img.src = banners[0];
-
+  <script>
+    // سلايدر البنر الرئيسي
+    const bannerImgs = [
+     
+        "images/WhatsApp Image 2026-01-03 at 12.28.53 PM.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.54 PM.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.54 PMQ.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.54 PMW.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.55 PM.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.55 PMR.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.56 PMG.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.56 PMT.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMC.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMF.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.57 PMV.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.58 PMX.jpeg",
+  "images/WhatsApp Image 2026-01-03 at 12.28.59 PMZ.jpeg",
+  "images/WhatsApp Image 2026-01-17 at 3.30.42 PMs.jpeg",
+  "images/WhatsApp Image 2026-01-17 at 3.30.42 PMa.jpeg",
+  "images/WhatsApp Image 2026-01-17 at 3.30.41 PM.jpeg"
+];
+    let bannerIndex = 0;
+    const bannerImg = document.getElementById('mainBannerImg');
     setInterval(() => {
-      i = (i + 1) % banners.length;
-      img.style.opacity = "0";
+      bannerIndex = (bannerIndex + 1) % bannerImgs.length;
+      bannerImg.style.opacity = "0";
       setTimeout(() => {
-        img.src = banners[i];
-        img.style.opacity = "1";
+        bannerImg.src = bannerImgs[bannerIndex];
+        bannerImg.style.opacity = "1";
       }, 300);
     }, 3200);
-  })
-  .catch(err => console.error('banner load error', err));
-</script>
 
-   
-  </script>
-  <script>
-/* تحميل الباقات من السيرفر */
-fetch('/api/packages')
-  .then(res => res.json())
-  .then(list => {
-    if (!Array.isArray(list) || !list.length) return;
+    // تكبير الصور عند النقر
+    const zoomableImages = document.querySelectorAll('.media-frame img');
+    const imgViewer = document.getElementById('imgViewer');
+    const imgViewerImg = document.getElementById('imgViewerImg');
+    const imgViewerBg = imgViewer.querySelector('.img-viewer-bg');
+    const imgCloseBtn = imgViewer.querySelector('.img-close');
 
-    const grid = document.querySelector('.section.dark .grid');
-    if (!grid) return;
+    function openViewer(src, alt) {
+      imgViewerImg.src = src;
+      imgViewerImg.alt = alt || '';
+      imgViewer.classList.add('show');
+      imgViewer.setAttribute('aria-hidden', 'false');
+    }
 
-    grid.innerHTML = ''; // ⬅️ مسح الباقات الثابتة
+    function closeViewer() {
+      imgViewer.classList.remove('show');
+      imgViewer.setAttribute('aria-hidden', 'true');
+      imgViewerImg.src = '';
+    }
 
-    list.forEach(src => {
-      const card = document.createElement('article');
-      card.className = 'card';
-
-      card.innerHTML = `
-        <div class="media-frame">
-          <img src="${src}" loading="lazy" alt="باقة">
-        </div>
-        <div class="card-body">
-          <p class="card-title">باقة</p>
-          <p class="card-muted">عرض خاص</p>
-        </div>
-      `;
-
-      grid.appendChild(card);
+    zoomableImages.forEach((img) => {
+      img.addEventListener('click', () => {
+        openViewer(img.src, img.alt);
+      });
     });
-  })
-  .catch(err => console.error('packages load error', err));
-</script>
 
+    imgViewerBg.addEventListener('click', closeViewer);
+    imgCloseBtn.addEventListener('click', closeViewer);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeViewer();
+    });
+  </script>
 </body>
 </html>
