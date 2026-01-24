@@ -3,22 +3,8 @@
 // ===============================
 console.log('RUN:', __filename);
 console.log('PWD:', process.cwd());
-const multer = require('multer');
-// ================= MULTER (Uploads) =================
-const storageBanner = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, BANNERS_DIR),
-  filename: (_req, file, cb) =>
-    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
-});
 
-const storagePackage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, PACKAGES_DIR),
-  filename: (_req, file, cb) =>
-    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
-});
 
-const uploadBanner  = multer({ storage: storageBanner });
-const uploadPackage = multer({ storage: storagePackage });
 
 const express = require('express');
 const cors = require('cors');
@@ -64,10 +50,11 @@ redis.on('connect', () => console.log('🟢 Redis connected'));
 redis.on('error', e => console.error('🔴 Redis error', e.message));
 // ================= PERSISTENT CMS STORAGE (Railway Volume) =================
 const PERSIST_ROOT = process.env.PERSIST_ROOT || '/data';
-
+const multer = require('multer');
 const UPLOADS_DIR  = path.join(PERSIST_ROOT, 'uploads');
 const BANNERS_DIR  = path.join(UPLOADS_DIR, 'banners');
 const PACKAGES_DIR = path.join(UPLOADS_DIR, 'packages');
+
 
 function ensureDirSafe(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -76,6 +63,21 @@ function ensureDirSafe(dir) {
 ensureDirSafe(UPLOADS_DIR);
 ensureDirSafe(BANNERS_DIR);
 ensureDirSafe(PACKAGES_DIR);
+// ================= MULTER (Uploads) =================
+const storageBanner = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, BANNERS_DIR),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+
+const storagePackage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, PACKAGES_DIR),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+
+const uploadBanner  = multer({ storage: storageBanner });
+const uploadPackage = multer({ storage: storagePackage });
 
 // serve uploaded images
 
