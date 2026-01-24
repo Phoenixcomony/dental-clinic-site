@@ -116,15 +116,14 @@
     .section .title{ text-align:center; font-size:1.6rem; margin:0 0 22px; color:#222; }
     .section.dark .title{ color:#fff; }
 
-    .grid{
-  --min: 240px;
+   .grid{
   display:grid;
   gap:18px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   max-width:1200px;
   margin:0 auto;
-  justify-content:center;
+  grid-template-columns: repeat(4, 1fr);
 }
+
 
 
     /* كرت الباقة / الجديد – برواز شفاف */
@@ -273,9 +272,7 @@
         max-width:94vw;
         max-height:80vh;
         border-radius:18px;
-        .grid{
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
+     
 
       }
     }
@@ -287,6 +284,32 @@
       padding:10px 0;
       font-weight:600;
     }
+    @media (max-width:600px){
+  :root{ --header-h:74px; }
+
+  nav ul{ gap:4px !important; flex-wrap:wrap !important; padding:2px 0 !important; }
+  nav ul li a{ font-size:.86em; padding:6px 10px; }
+
+  .hero h2{ font-size:1.25rem; }
+  .hero p{ font-size:.95rem; }
+
+  .main-slider-banner img{ height:180px; }
+
+  /* ✅ الباقات للجوال */
+  .grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap:12px;
+  }
+
+  .media-frame{
+    aspect-ratio: 3 / 4;
+  }
+
+  .card-body{
+    padding:8px 10px;
+  }
+}
+
   </style>
 </head>
 <body>
