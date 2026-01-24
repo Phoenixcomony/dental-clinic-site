@@ -78,7 +78,7 @@ ensureDirSafe(BANNERS_DIR);
 ensureDirSafe(PACKAGES_DIR);
 
 // serve uploaded images
-app.use('/uploads', express.static(UPLOADS_DIR));
+
 
 // Redis CMS keys
 const REDIS_BANNERS_KEY  = 'cms:banners';
@@ -310,6 +310,7 @@ async function prefetchAllClinicsTimes() {
 
 /* ================= Express ================= */
 const app = express();
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 /* 🔁 تحويل الدومين بدون www إلى www (أول شيء) */
 app.use((req, res, next) => {
