@@ -52,7 +52,8 @@
     <h3>إضافة باقة</h3>
     <input id="pkgTitle" type="text" placeholder="العنوان">
     <input id="pkgDesc" type="text" placeholder="الوصف">
-  <input id="pkgFile" type="file" accept="image/*" multiple>
+  <input id="pkgFile" type="file" accept="image/*">
+
 
     <button class="btn primary" onclick="addPackage()">حفظ</button>
     <hr>
@@ -119,22 +120,27 @@ async function delBanner(id){
   loadAll();
 }
 async function addPackage(){
-  const t=document.getElementById('pkgTitle').value.trim();
-  const d=document.getElementById('pkgDesc').value.trim();
-  const files = document.getElementById('pkgFile').files;
-if(!t || !files.length) return alert('العنوان والصور مطلوبة');
+  const t = document.getElementById('pkgTitle').value.trim();
+  const d = document.getElementById('pkgDesc').value.trim();
+  const f = document.getElementById('pkgFile').files[0];
 
-const fd = new FormData();
-for (const f of files) {
-  fd.append('files', f);
-}
-fd.append('title', t);
-fd.append('desc', d);
+  if(!t || !f) return alert('العنوان والصورة مطلوبة');
 
-  const r=await fetch('/api/admin/packages',{method:'POST',headers:staffHeaders(),body:fd});
+  const fd = new FormData();
+  fd.append('file', f);
+  fd.append('title', t);
+  fd.append('desc', d);
+
+  const r = await fetch('/api/admin/packages',{
+    method:'POST',
+    headers: staffHeaders(),
+    body: fd
+  });
+
   if(!r.ok) return alert('فشل');
   loadAll();
 }
+
 async function delPackage(id){
   if(!confirm('تأكيد الحذف؟')) return;
   await fetch('/api/admin/packages/'+id,{method:'DELETE',headers:staffHeaders()});

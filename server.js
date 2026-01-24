@@ -2587,33 +2587,31 @@ app.post(
   uploadPackage.single('file'),
   async (req, res) => {
     try {
-      console.log('📦 PACKAGE FILE:', req.file);
-      console.log('📦 PACKAGE BODY:', req.body);
+      console.log('[PKG] body=', req.body);
+      console.log('[PKG] file=', req.file);
 
-      if (!req.file) {
-        return res.status(400).json({ error: 'file_missing' });
-      }
-      if (!req.body.title) {
-        return res.status(400).json({ error: 'title_missing' });
+      const { title, desc } = req.body;
+      if (!req.file || !title) {
+        return res.status(400).json({ ok: false, reason: 'missing file or title' });
       }
 
-      const packages = await readRedisArray(REDIS_PACKAGES_KEY);
-
+      const packages = await readRedisArray(REDIS_PACKAGES_KEY) || [];
       const item = {
         id: genId('pkg'),
         img: `/uploads/packages/${req.file.filename}`,
-        title: req.body.title.trim(),
-        desc: (req.body.desc || '').trim()
+        title: title.trim(),
+        desc: (desc || '').trim()
       };
 
       await writeRedisArray(REDIS_PACKAGES_KEY, [item, ...packages]);
-      res.json({ ok: true, item });
-    } catch (err) {
-      console.error('❌ PACKAGE ERROR:', err);
-      res.status(500).json({ error: 'server_error' });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[PKG][ERROR]', e);
+      res.status(500).json({ ok: false, error: e.message });
     }
   }
 );
+
 
 
 app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
