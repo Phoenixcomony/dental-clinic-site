@@ -117,11 +117,15 @@
     .section.dark .title{ color:#fff; }
 
     .grid{
-      --min: 240px;
-      display:grid; gap:18px;
-      grid-template-columns: repeat(auto-fit, minmax(var(--min),1fr));
-      max-width:1200px; margin:0 auto;
-    }
+  --min: 240px;
+  display:grid;
+  gap:18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  max-width:1200px;
+  margin:0 auto;
+  justify-content:center;
+}
+
 
     /* كرت الباقة / الجديد – برواز شفاف */
     .card{
@@ -269,6 +273,10 @@
         max-width:94vw;
         max-height:80vh;
         border-radius:18px;
+        .grid{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
       }
     }
 
