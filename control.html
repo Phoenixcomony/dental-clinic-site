@@ -247,24 +247,29 @@
 <body>
 
 <div class="wrap">
+  <!-- مفتاح الدخول (ظاهر دائمًا) -->
+<div class="auth-box">
+  <span>🔐 مفتاح الدخول</span>
+  <input id="key" type="password" placeholder="STAFF_KEY">
+</div>
+
+<!-- المحتوى المقفل -->
+<div id="adminApp" style="display:none">
+
 
   <!-- Header -->
 
   <div class="header">
     <div class="header-top">
       <div class="title">لوحة التحكم الإدارية – مجمع فينكس الطبي</div>
-      <div class="auth-box">
-        <span> مفتاح الدخول</span>
-        <input id="key" type="password" placeholder="STAFF_KEY">
-      </div>
-    </div>
+      
 
-```
+
 <div class="tabs">
   <button id="tabB" class="active">البنرات</button>
   <button id="tabP">الباقات</button>
 </div>
-```
+
 
   </div>
 
@@ -274,14 +279,14 @@
     <h3>إدارة البنرات</h3>
     <div class="desc">رفع – عرض – حذف البنرات بشكل مباشر</div>
 
-```
+
 <div class="form-row">
   <input id="bannerFile" type="file" accept="image/*" multiple>
   <button class="btn primary" onclick="addBanner()">حفظ البنرات</button>
 </div>
 
 <div id="banners" class="row"></div>
-```
+
 
   </section>
 
@@ -291,7 +296,7 @@
     <h3>إدارة الباقات</h3>
     <div class="desc">إضافة – تعديل – حذف الباقات التسويقية</div>
 
-```
+
 <div class="form-row">
   <input id="pkgTitle" type="text" placeholder="عنوان الباقة">
   <input id="pkgDesc" type="text" placeholder="وصف مختصر">
@@ -300,11 +305,12 @@
 </div>
 
 <div id="packages" class="row"></div>
-```
+
 
   </section>
 
 </div>
+</div> <!-- نهاية adminApp -->
 
 <script>
 const tabB = document.getElementById('tabB');
@@ -404,6 +410,16 @@ async function delPackage(id){
   await fetch('/api/admin/packages/'+id,{method:'DELETE',headers:staffHeaders()});
   loadAll();
 }
+</script>
+<script>
+const REAL_KEY = '123456'; // غيره
+
+const input = document.getElementById('key');
+const app   = document.getElementById('adminApp');
+
+input.addEventListener('input', () => {
+  app.style.display = input.value === REAL_KEY ? 'block' : 'none';
+});
 </script>
 
 </body>
