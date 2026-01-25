@@ -388,6 +388,7 @@ const CLINICS_LIST = [
   "عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية",
   "النساء و الولادة 2**الفترة الاولى",
   "النساء و الولادة 2**الفترة الثانية",
+  "عيادة الاسنان 4 (NO.102)**الفترة الثانية",
 ];
 // ================= CLINICS CONFIG =================
 const CLINIC_RULES = {
@@ -407,6 +408,12 @@ const CLINIC_RULES = {
   },
   dental_5: {
     match: /عيادة الاسنان 5/,
+    evening: { from: 14*60, to: 21*60+30 },
+    allowFriday: true,
+    allowSaturday: true
+     },
+  dental_4: {
+    match: /"عيادة الاسنان 4 /,
     evening: { from: 14*60, to: 21*60+30 },
     allowFriday: true,
     allowSaturday: true
