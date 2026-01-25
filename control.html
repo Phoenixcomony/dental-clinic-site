@@ -1,64 +1,309 @@
 <!DOCTYPE html>
+
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>لوحة التحكم | فينكس</title>
+
+  <!-- Google Font -->
+
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+
   <style>
-    body{font-family:Cairo,Arial,sans-serif;background:#f6f7f9;margin:0}
-    .wrap{max-width:1100px;margin:24px auto;padding:16px}
-    h1{margin:0 0 12px}
-    .tabs{display:flex;gap:8px;margin:12px 0}
-    .tabs button{padding:8px 14px;border-radius:999px;border:1px solid #ddd;background:#fff;cursor:pointer}
-    .tabs button.active{background:#111;color:#fff}
-    .panel{display:none;background:#fff;border:1px solid #e6e6e6;border-radius:12px;padding:16px}
+    :root{
+      --bg:#f6f7f9;
+      --card:#ffffff;
+      --text:#111111;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --primary:#111111;
+      --danger:#b00000;
+      --radius:16px;
+      --shadow:0 10px 30px rgba(0,0,0,.06);
+      --shadow-soft:0 6px 18px rgba(0,0,0,.05);
+    }
+
+    *{box-sizing:border-box}
+
+    body{
+      font-family:'Cairo',Arial,sans-serif;
+      background:var(--bg);
+      margin:0;
+      color:var(--text);
+    }
+
+    .wrap{
+      max-width:1200px;
+      margin:32px auto;
+      padding:20px;
+    }
+
+    /* ===== Header ===== */
+    .header{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:20px 24px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      margin-bottom:20px;
+    }
+
+    .header-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+
+    .title{
+      font-size:22px;
+      font-weight:700;
+    }
+
+    .auth-box{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      background:#fafafa;
+      border:1px solid var(--border);
+      border-radius:999px;
+      padding:6px 12px;
+    }
+
+    .auth-box span{font-size:14px;color:var(--muted)}
+
+    .auth-box input{
+      border:none;
+      outline:none;
+      background:transparent;
+      font-family:inherit;
+      padding:6px 8px;
+      width:160px;
+    }
+
+    /* ===== Tabs ===== */
+    .tabs{
+      display:flex;
+      gap:10px;
+      background:#f0f1f3;
+      padding:6px;
+      border-radius:999px;
+      width:fit-content;
+    }
+
+    .tabs button{
+      border:none;
+      background:transparent;
+      padding:10px 22px;
+      border-radius:999px;
+      cursor:pointer;
+      font-family:inherit;
+      font-size:14px;
+      color:var(--muted);
+      transition:.25s ease;
+    }
+
+    .tabs button.active{
+      background:var(--primary);
+      color:#fff;
+      box-shadow:var(--shadow-soft);
+    }
+
+    /* ===== Panels ===== */
+    .panel{
+      display:none;
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:22px;
+      margin-top:20px;
+      animation:fade .4s ease;
+    }
+
     .panel.active{display:block}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .card{border:1px solid #eee;border-radius:12px;padding:10px;width:180px}
-    .card img{width:100%;height:140px;object-fit:contain;background:#fafafa;border-radius:8px}
-    .danger{background:#ffeded;border:1px solid #ffd1d1;color:#b00000}
-    .btn{padding:6px 10px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer}
-    .btn.primary{background:#111;color:#fff;border-color:#111}
-    .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    input[type="text"], input[type="password"]{padding:8px;border-radius:8px;border:1px solid #ddd}
+
+    @keyframes fade{
+      from{opacity:0;transform:translateY(10px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+
+    .panel h3{
+      margin:0 0 6px;
+      font-size:18px;
+    }
+
+    .panel .desc{
+      font-size:13px;
+      color:var(--muted);
+      margin-bottom:16px;
+    }
+
+    /* ===== Forms ===== */
+    .form-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+
+    input[type="text"], input[type="password"], input[type="file"]{
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      font-family:inherit;
+      background:#fafafa;
+    }
+
+    /* ===== Buttons ===== */
+    .btn{
+      padding:10px 16px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      font-family:inherit;
+      transition:.25s ease;
+    }
+
+    .btn:hover{transform:translateY(-1px)}
+
+    .btn.primary{
+      background:var(--primary);
+      color:#fff;
+      border-color:var(--primary);
+    }
+
+    .btn.danger{
+      background:#ffeded;
+      border:1px solid #ffd1d1;
+      color:var(--danger);
+    }
+
+    /* ===== Grid ===== */
+    .row{
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+      gap:16px;
+      margin-top:18px;
+    }
+
+    /* ===== Cards ===== */
+    .card{
+      background:#fff;
+      border-radius:14px;
+      box-shadow:var(--shadow-soft);
+      padding:10px;
+      position:relative;
+      overflow:hidden;
+      transition:.3s ease;
+    }
+
+    .card:hover{
+      transform:translateY(-6px);
+      box-shadow:0 18px 45px rgba(0,0,0,.08);
+    }
+
+    .card img{
+      width:100%;
+      height:150px;
+      object-fit:contain;
+      background:#fafafa;
+      border-radius:10px;
+    }
+
+    .card .title{
+      font-size:14px;
+      font-weight:700;
+      margin-top:8px;
+    }
+
+    .card .sub{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .card .danger{
+      position:absolute;
+      top:8px;
+      left:8px;
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+    }
+
+    @media(max-width:600px){
+      .auth-box{width:100%;justify-content:space-between}
+      .tabs{width:100%}
+      .tabs button{flex:1}
+    }
+
   </style>
+
 </head>
 <body>
+
 <div class="wrap">
-  <h1>لوحة التحكم</h1>
 
-  <div class="top">
-    <input id="key" type="password" placeholder="STAFF_KEY">
-    <span>أدخل المفتاح ثم ابدأ</span>
-  </div>
+  <!-- Header -->
 
-  <div class="tabs">
-    <button id="tabB" class="active">البنرات</button>
-    <button id="tabP">الباقات</button>
+  <div class="header">
+    <div class="header-top">
+      <div class="title">لوحة التحكم الإدارية – مجمع فينكس الطبي</div>
+      <div class="auth-box">
+        <span> مفتاح الدخول</span>
+        <input id="key" type="password" placeholder="STAFF_KEY">
+      </div>
+    </div>
+
+```
+<div class="tabs">
+  <button id="tabB" class="active">البنرات</button>
+  <button id="tabP">الباقات</button>
+</div>
+```
+
   </div>
 
   <!-- البنرات -->
-  <section id="panelB" class="panel active">
-    <h3>إضافة بنر</h3>
-    <input id="bannerFile" type="file" accept="image/*" multiple>
 
-    <button class="btn primary" onclick="addBanner()">حفظ</button>
-    <hr>
-    <div id="banners" class="row"></div>
+  <section id="panelB" class="panel active">
+    <h3>إدارة البنرات</h3>
+    <div class="desc">رفع – عرض – حذف البنرات بشكل مباشر</div>
+
+```
+<div class="form-row">
+  <input id="bannerFile" type="file" accept="image/*" multiple>
+  <button class="btn primary" onclick="addBanner()">حفظ البنرات</button>
+</div>
+
+<div id="banners" class="row"></div>
+```
+
   </section>
 
   <!-- الباقات -->
+
   <section id="panelP" class="panel">
-    <h3>إضافة باقة</h3>
-    <input id="pkgTitle" type="text" placeholder="العنوان">
-    <input id="pkgDesc" type="text" placeholder="الوصف">
+    <h3>إدارة الباقات</h3>
+    <div class="desc">إضافة – تعديل – حذف الباقات التسويقية</div>
+
+```
+<div class="form-row">
+  <input id="pkgTitle" type="text" placeholder="عنوان الباقة">
+  <input id="pkgDesc" type="text" placeholder="وصف مختصر">
   <input id="pkgFile" type="file" accept="image/*">
+  <button class="btn primary" onclick="addPackage()">حفظ الباقة</button>
+</div>
 
+<div id="packages" class="row"></div>
+```
 
-    <button class="btn primary" onclick="addPackage()">حفظ</button>
-    <hr>
-    <div id="packages" class="row"></div>
   </section>
+
 </div>
 
 <script>
@@ -66,8 +311,20 @@ const tabB = document.getElementById('tabB');
 const tabP = document.getElementById('tabP');
 const panelB = document.getElementById('panelB');
 const panelP = document.getElementById('panelP');
-tabB.onclick=()=>{tabB.classList.add('active');tabP.classList.remove('active');panelB.classList.add('active');panelP.classList.remove('active')}
-tabP.onclick=()=>{tabP.classList.add('active');tabB.classList.remove('active');panelP.classList.add('active');panelB.classList.remove('active')}
+
+tabB.onclick=()=>{
+  tabB.classList.add('active');
+  tabP.classList.remove('active');
+  panelB.classList.add('active');
+  panelP.classList.remove('active')
+}
+
+tabP.onclick=()=>{
+  tabP.classList.add('active');
+  tabB.classList.remove('active');
+  panelP.classList.add('active');
+  panelB.classList.remove('active')
+}
 
 function staffHeaders(){
   return { 'x-staff-key': document.getElementById('key').value };
@@ -89,13 +346,14 @@ function renderBanners(list){
     el.appendChild(c);
   });
 }
+
 function renderPackages(list){
   const el = document.getElementById('packages'); el.innerHTML='';
   list.forEach(x=>{
     const c=document.createElement('div'); c.className='card';
     c.innerHTML=`<img src="${x.img}">
-      <div>${x.title}</div>
-      <div style="opacity:.7">${x.desc||''}</div>
+      <div class="title">${x.title}</div>
+      <div class="sub">${x.desc||''}</div>
       <button class="btn danger" onclick="delPackage('${x.id}')">حذف</button>`;
     el.appendChild(c);
   });
@@ -103,22 +361,22 @@ function renderPackages(list){
 
 async function addBanner(){
   const files = document.getElementById('bannerFile').files;
-if(!files.length) return alert('اختر صورة أو أكثر');
+  if(!files.length) return alert('اختر صورة أو أكثر');
 
-const fd = new FormData();
-for (const f of files) {
-  fd.append('files', f);
-}
+  const fd = new FormData();
+  for (const f of files) fd.append('files', f);
 
   const r=await fetch('/api/admin/banners',{method:'POST',headers:staffHeaders(),body:fd});
   if(!r.ok) return alert('فشل');
   loadAll();
 }
+
 async function delBanner(id){
   if(!confirm('تأكيد الحذف؟')) return;
   await fetch('/api/admin/banners/'+id,{method:'DELETE',headers:staffHeaders()});
   loadAll();
 }
+
 async function addPackage(){
   const t = document.getElementById('pkgTitle').value.trim();
   const d = document.getElementById('pkgDesc').value.trim();
@@ -147,5 +405,6 @@ async function delPackage(id){
   loadAll();
 }
 </script>
+
 </body>
 </html>
