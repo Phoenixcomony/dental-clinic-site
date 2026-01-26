@@ -268,7 +268,9 @@
 <div class="tabs">
   <button id="tabB" class="active">البنرات</button>
   <button id="tabP">الباقات</button>
+  <button id="tabC">العيادات</button>
 </div>
+
 
 
   </div>
@@ -308,6 +310,21 @@
 
 
   </section>
+<section id="panelC" class="panel">
+  <h3>إدارة العيادات</h3>
+  <div class="desc">إضافة – حذف العيادات وربطها بالبوت</div>
+
+  <div class="form-row">
+    <input id="c_id" type="text" placeholder="ID (مثال: dent2_pm)">
+    <input id="c_label" type="text" placeholder="اسم العيادة الظاهر">
+    <input id="c_imdad" type="text" placeholder="imdad_key">
+    <input id="c_from" type="text" placeholder="من (16:00)">
+    <input id="c_to" type="text" placeholder="إلى (21:00)">
+    <button class="btn primary" onclick="addClinic()">إضافة عيادة</button>
+  </div>
+
+  <div id="clinics" class="row"></div>
+</section>
 
 </div>
 </div> <!-- نهاية adminApp -->
@@ -317,6 +334,8 @@ const tabB = document.getElementById('tabB');
 const tabP = document.getElementById('tabP');
 const panelB = document.getElementById('panelB');
 const panelP = document.getElementById('panelP');
+const tabC   = document.getElementById('tabC');
+const panelC = document.getElementById('panelC');
 
 tabB.onclick=()=>{
   tabB.classList.add('active');
@@ -331,6 +350,13 @@ tabP.onclick=()=>{
   panelP.classList.add('active');
   panelB.classList.remove('active')
 }
+tabC.onclick = () => {
+  [tabB, tabP, tabC].forEach(t => t.classList.remove('active'));
+  [panelB, panelP, panelC].forEach(p => p.classList.remove('active'));
+  tabC.classList.add('active');
+  panelC.classList.add('active');
+  loadClinicsAdmin();
+};
 
 function staffHeaders(){
   return { 'x-staff-key': document.getElementById('key').value };
@@ -410,7 +436,52 @@ async function delPackage(id){
   await fetch('/api/admin/packages/'+id,{method:'DELETE',headers:staffHeaders()});
   loadAll();
 }
+async function loadClinicsAdmin(){
+  const r = await fetch('/api/admin/clinics');
+  const d = await r.json();
+  const el = document.getElementById('clinics');
+  el.innerHTML='';
+  (d.clinics||[]).forEach(c=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`
+      <div class="title">${c.label}</div>
+      <div class="sub">${c.imdad_key}</div>
+      <div class="sub">${c.rules.time_from} → ${c.rules.time_to}</div>
+      <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
+    `;
+    el.appendChild(card);
+  });
+}
+
+async function addClinic(){
+  const body={
+    id: c_id.value.trim(),
+    label: c_label.value.trim(),
+    imdad_key: c_imdad.value.trim(),
+    time_from: c_from.value.trim(),
+    time_to: c_to.value.trim()
+  };
+  const r=await fetch('/api/admin/clinics',{
+    method:'POST',
+    headers:{'Content-Type':'application/json', ...staffHeaders()},
+    body:JSON.stringify(body)
+  });
+  if(!r.ok) return alert('فشل الإضافة');
+  loadClinicsAdmin();
+}
+
+async function delClinic(id){
+  if(!confirm('تأكيد الحذف؟')) return;
+  await fetch('/api/admin/clinics/'+id,{
+    method:'DELETE',
+    headers: staffHeaders()
+  });
+  loadClinicsAdmin();
+}
+
 </script>
+
 <script>
 const REAL_KEY = 'AQZa123@'; // غيره
 
