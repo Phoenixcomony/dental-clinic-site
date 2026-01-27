@@ -2658,5 +2658,6 @@ async function prefetchLoop() {
 }
 
 // ⏳ أول تشغيل بعد الإقلاع
-setTimeout(prefetchLoop, 5000);
+// setTimeout(prefetchLoop, 5000);
+
 
