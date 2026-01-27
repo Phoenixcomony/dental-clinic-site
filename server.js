@@ -9,7 +9,7 @@ console.log('PWD:', process.cwd());
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
+
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -634,12 +634,27 @@ function launchOpts() {
 
 
 async function launchBrowserSafe() {
-  return await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  try {
+    return await puppeteer.launch(launchOpts());
+  } catch (e) {
+    try {
+      // Fallback للـ headless-shell عند الحاجة
+      const root = path.join(BASE_DL_DIR || '/app/.cache/puppeteer', 'chrome-headless-shell');
+      let shell = null;
+      if (fs.existsSync(root)) {
+        const rels = fs.readdirSync(root).filter(n=>n.startsWith('linux-')).sort((a,b)=>b.localeCompare(a));
+        for (const r of rels) {
+          const p = path.join(root, r, 'chrome-headless-shell-linux64', 'chrome-headless-shell');
+          if (fs.existsSync(p)) { shell = p; break; }
+        }
+      }
+      if (!shell) throw e;
+      const opt = launchOpts();
+      opt.executablePath = shell;
+      return await puppeteer.launch(opt);
+    } catch (e2) { throw e2; }
+  }
 }
-
 
 async function prepPage(page){
   if (!WATCH) await page.setViewport({ width: 1280, height: 900 });
@@ -2643,6 +2658,5 @@ async function prefetchLoop() {
 }
 
 // ⏳ أول تشغيل بعد الإقلاع
-// setTimeout(prefetchLoop, 5000);
-
+setTimeout(prefetchLoop, 5000);
 
