@@ -13,34 +13,6 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-// ================= Clinics Storage =================
-const CLINICS_PATH = path.join(__dirname, 'data', 'clinics.json');
-const CLINICS_DIR  = path.dirname(CLINICS_PATH);
-
-if (!fs.existsSync(CLINICS_DIR)) fs.mkdirSync(CLINICS_DIR, { recursive: true });
-
-function readClinics() {
-  try {
-    if (!fs.existsSync(CLINICS_PATH)) return [];
-    const txt = fs.readFileSync(CLINICS_PATH, 'utf8');
-    const data = JSON.parse(txt || '[]');
-    return Array.isArray(data) ? data : (data?.clinics || []);
-  } catch (e) {
-    console.error('[CLINICS] read error', e?.message || e);
-    return [];
-  }
-}
-
-function writeClinics(list) {
-  try {
-    fs.writeFileSync(CLINICS_PATH, JSON.stringify(list || [], null, 2));
-    return true;
-  } catch (e) {
-    console.error('[CLINICS] write error', e?.message || e);
-    return false;
-  }
-}
-
 const Redis = require('ioredis');
 // ===== Booking Bot Account (Dedicated) =====
 const BOOKING_ACCOUNT = {
@@ -2664,55 +2636,6 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
     if (fs.existsSync(local)) fs.unlinkSync(local);
   } catch {}
 
-  res.json({ ok:true });
-});
-// ================= Clinics API (Public) =================
-app.get('/api/clinics', (req, res) => {
-  const clinics = readClinics()
-    .filter(c => c.enabled !== false)
-    .map(c => ({ id: c.id, label: c.label, imdad_key: c.imdad_key }));
-
-  res.json({ clinics });
-});
-
-// ================= Clinics API (Admin) =================
-// (اربطها بنفس حماية لوحة التحكم عندك)
-// إذا عندك requireStaff موجود: استخدمه.
-// إذا ما عندك، خلها بدون حماية مؤقتًا.
-
-const clinicGuard = (typeof requireStaff === 'function') ? requireStaff : (req,res,next)=>next();
-
-app.get('/api/admin/clinics', clinicGuard, (req, res) => {
-  res.json({ clinics: readClinics() });
-});
-
-app.post('/api/admin/clinics', clinicGuard, (req, res) => {
-  const { id, label, imdad_key } = req.body || {};
-  if (!id || !label || !imdad_key) {
-    return res.status(400).json({ ok:false, msg:'بيانات ناقصة' });
-  }
-
-  const list = readClinics();
-  if (list.find(c => c.id === id)) {
-    return res.status(409).json({ ok:false, msg:'المعرف موجود مسبقًا' });
-  }
-
-  list.push({ id, label, imdad_key, enabled: true });
-  writeClinics(list);
-
-  res.json({ ok:true });
-});
-
-app.delete('/api/admin/clinics/:id', clinicGuard, (req, res) => {
-  const id = req.params.id;
-  const list = readClinics();
-  const next = list.filter(c => c.id !== id);
-
-  if (next.length === list.length) {
-    return res.status(404).json({ ok:false, msg:'غير موجودة' });
-  }
-
-  writeClinics(next);
   res.json({ ok:true });
 });
 
