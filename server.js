@@ -2625,6 +2625,34 @@ app.delete('/api/admin/clinics/:id', requireStaff, (req, res) => {
   writeClinics(next);
   res.json({ success: true });
 });
+// ================= UPDATE CLINIC =================
+app.put('/api/admin/clinics/:id', requireStaff, (req, res) => {
+  const { id } = req.params;
+  const { label, value, from, to } = req.body;
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({ ok:false, error:'Missing fields' });
+  }
+
+  const clinics = readClinics();
+  const idx = clinics.findIndex(c => c.id === id);
+
+  if (idx === -1) {
+    return res.status(404).json({ ok:false, error:'Clinic not found' });
+  }
+
+  clinics[idx] = {
+    ...clinics[idx],
+    label,
+    value,
+    from,
+    to
+  };
+
+  writeClinics(clinics);
+
+  res.json({ success:true, clinic: clinics[idx] });
+});
 
 
 // ================= CMS: BANNERS =================
