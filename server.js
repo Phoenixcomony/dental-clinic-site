@@ -1745,9 +1745,17 @@ let times = filtered.map(x => ({
   value: x.value,
   label: `${x.date} - ${to12h(x.time24)}`
 }));
+// ✅ طبق تحديد الوقت من لوحة التحكم (هنا المكان الصح)
+times = applyClinicRulesToTimes(
+  times,
+  clinicStr,
+  effectivePeriod,
+  rules,
+  clinics
+);
 
 // طبّق القواعد (وقت/ايام/تشقير)
-times = applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics);
+
 
 
 // خزنه كـ Prefetch-style (اختياري)
