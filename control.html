@@ -297,7 +297,21 @@
   <section id="panelP" class="panel">
     <h3>إدارة الباقات</h3>
     <div class="desc">إضافة – تعديل – حذف الباقات التسويقية</div>
-<!-- العيادات -->
+
+
+
+<div class="form-row">
+  <input id="pkgTitle" type="text" placeholder="عنوان الباقة">
+  <input id="pkgDesc" type="text" placeholder="وصف مختصر">
+  <input id="pkgFile" type="file" accept="image/*">
+  <button class="btn primary" onclick="addPackage()">حفظ الباقة</button>
+</div>
+
+<div id="packages" class="row"></div>
+
+
+  </section>
+  <!-- العيادات -->
 <section id="panelC" class="panel">
   <h3>إدارة العيادات</h3>
   <div class="desc">إضافة – تحديد وقت – حذف العيادات</div>
@@ -313,18 +327,6 @@
   <div id="clinics" class="row"></div>
 </section>
 
-
-<div class="form-row">
-  <input id="pkgTitle" type="text" placeholder="عنوان الباقة">
-  <input id="pkgDesc" type="text" placeholder="وصف مختصر">
-  <input id="pkgFile" type="file" accept="image/*">
-  <button class="btn primary" onclick="addPackage()">حفظ الباقة</button>
-</div>
-
-<div id="packages" class="row"></div>
-
-
-  </section>
 
 </div>
 </div> <!-- نهاية adminApp -->
