@@ -14,6 +14,33 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+// ================= CLINICS STORAGE =================
+const CLINICS_FILE = path.join(process.env.PERSIST_ROOT || '/data', 'clinics.json');
+
+
+function readClinics() {
+  try {
+    if (!fs.existsSync(CLINICS_FILE)) return [];
+    const raw = fs.readFileSync(CLINICS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('[CLINICS] read error', e.message);
+    return [];
+  }
+}
+
+function writeClinics(list) {
+  try {
+    fs.writeFileSync(CLINICS_FILE, JSON.stringify(list, null, 2));
+  } catch (e) {
+    console.error('[CLINICS] write error', e.message);
+  }
+}
+
+function genClinicId() {
+  return 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+}
+
 // ===== Booking Bot Account (Dedicated) =====
 const BOOKING_ACCOUNT = {
   user: process.env.BOOKING_USER,
@@ -39,6 +66,35 @@ const redis = new Redis(process.env.REDIS_URL, {
     return Math.min(times * 100, 2000);
   }
 });
+// ===============================
+// CLINICS SOURCE (REDIS ONLY)
+// ===============================
+const CLINICS_KEY = 'clinics:list';
+
+async function getClinicsFromRedis() {
+  const raw = await redis.get(CLINICS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function saveClinicsToRedis(list) {
+  await redis.set(CLINICS_KEY, JSON.stringify(list));
+}
+async function syncClinicsToRuntime() {
+  const clinics = await getClinicsFromRedis();
+
+  // تحديث قائمة البوت
+  global.CLINICS_LIST = clinics.map(c => c.value);
+
+  // تنظيف كاش prefetch
+  for (const c of global.CLINICS_LIST) {
+    await redis.del(`prefetch_times_v1:${c}`);
+  }
+
+  // إعادة تشغيل prefetch
+  setTimeout(() => {
+    prefetchAllClinicsTimes().catch(()=>{});
+  }, 500);
+}
 
  
 
@@ -292,7 +348,11 @@ async function prefetchAllClinicsTimes() {
   console.log('[PREFETCH] start fetching all clinics');
 
   try {
-    for (const clinic of CLINICS_LIST) {
+    const clinics = await getClinicsFromRedis();
+
+for (const c of clinics) {
+  const clinic = c.value;
+
       try {
         console.log('[PREFETCH] clinic:', clinic);
 
@@ -375,22 +435,11 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false },
   
 ];
-const CLINICS_LIST = [
-  "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
-  "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
-  "عيادة الاسنان 1 (NO.100)**الفترة الثانية",
-  "عيادة الاسنان 2 (NO.101)**الفترة الاولى",
-  "عيادة الاسنان 2 (NO.101)**الفترة الثانية",
-  "عيادة الجلدية والتجميل (NO.200)**الفترة الثانية",
-  "تشقير وتنظيف البشرة**الفترة الثانية",
-  "النساء و الولادة (NO.400)**الفترة الاولى",
-  "النساء و الولادة (NO.400)**الفترة الثانية",
-  "عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية",
-  "النساء و الولادة 2**الفترة الاولى",
-  "النساء و الولادة 2**الفترة الثانية",
-  "عيادة الاسنان 4 (NO.102)**الفترة الثانية",
+function getDynamicClinicsList() {
+  const clinics = readClinics();
+  return clinics.map(c => c.value);
+}
 
-];
 // ================= CLINICS CONFIG =================
 const CLINIC_RULES = {
   dental_1: {
@@ -1449,8 +1498,18 @@ function parseValueToDateTime(valueOrObj) {
   const [date, time24] = String(v).split('*');
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
+function getClinicTimeRange(clinicStr, clinics) {
+  const c = clinics.find(x => x.value === clinicStr);
+  if (!c) return null;
 
-function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
+  return {
+    from: toMinutes(c.from),
+    to: toMinutes(c.to)
+  };
+}
+
+function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics) {
+
   if (!rules) return times || [];
 
   let out = Array.isArray(times) ? [...times] : [];
@@ -1465,20 +1524,20 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
     return true;
   });
 
-  // 2) فلترة الفترة (صباح/مساء) حسب حدود من-إلى
-  if (effectivePeriod === 'morning' && rules.morning) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.morning.from, rules.morning.to);
-    });
-  }
+  // ⏰ فلترة حسب وقت العيادة من لوحة التحكم
+const range = getClinicTimeRange(clinicStr, clinics);
 
-  if (effectivePeriod === 'evening' && rules.evening) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.evening.from, rules.evening.to);
-    });
-  }
+// ⛔ لا تلمس الأوقات إذا ما لقينا العيادة في لوحة التحكم
+if (range && Number.isFinite(range.from) && Number.isFinite(range.to)) {
+  out = out.filter(t => {
+    const { time24 } = parseValueToDateTime(t);
+    return time24 && inRange(time24, range.from, range.to);
+  });
+} else {
+  console.warn('[CLINIC TIME RANGE SKIPPED]', clinicStr);
+}
+
+
 
   // 3) تشقير/تنظيف البشرة: عرض بالساعة فقط + منع 45/90
   if (rules.hourlyOnly) {
@@ -1551,10 +1610,13 @@ app.post('/api/times', async (req, res) => {
 const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
-  const rules = findClinicRules(clinicStr);
-  let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
-  return res.json({ times, cached: true, source: 'prefetch' });
+  return res.json({
+    times: cachedPrefetch.times,
+    cached: true,
+    source: 'prefetch'
+  });
 }
+
 
 
 
@@ -1676,15 +1738,25 @@ const clinicValue = await page.evaluate((name) => {
 
 // طبق القواعد على raw أولاً
 const rules = findClinicRules(clinicStr);
+const clinics = await getClinicsFromRedis();
 
 // حوّل raw إلى times
 let times = filtered.map(x => ({
   value: x.value,
   label: `${x.date} - ${to12h(x.time24)}`
 }));
+// ✅ طبق تحديد الوقت من لوحة التحكم (هنا المكان الصح)
+times = applyClinicRulesToTimes(
+  times,
+  clinicStr,
+  effectivePeriod,
+  rules,
+  clinics
+);
 
 // طبّق القواعد (وقت/ايام/تشقير)
-times = applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules);
+
+
 
 // خزنه كـ Prefetch-style (اختياري)
 // await setClinicTimesToRedis(clinicStr, times);
@@ -2399,19 +2471,16 @@ incMetrics({ clinic: safeClinic });
  *                 Persistent Metrics (stats.json)
  * ========================================================= */
 const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
-const STAFF_KEY = process.env.STAFF_KEY || '';
-// ================= ADMIN AUTH =================
-function requireStaff(req, res, next) {
-  const key =
-    req.headers['x-staff-key'] ||
-    req.query.key ||
-    req.body?.key;
+const STAFF_KEY = process.env.STAFF_KEY || 'AQZa123@';
 
-  if (!STAFF_KEY || key !== STAFF_KEY) {
+function requireStaff(req, res, next) {
+  const key = req.headers['x-staff-key'];
+  if (!key || key !== STAFF_KEY) {
     return res.status(403).json({ ok:false, error:'Forbidden' });
   }
   next();
 }
+
 
 function ensureDir(p) {
   try {
@@ -2548,6 +2617,108 @@ app.post('/api/stats/booking-success', async (req, res) => {
     res.json({ ok: true });
   }
 });
+// ================= CLINICS (PUBLIC) =================
+app.get('/api/clinics', (req, res) => {
+  const clinics = readClinics();
+  res.json({ success: true, clinics });
+});
+// ================= CLINICS (ADMIN) =================
+app.get('/api/admin/clinics', requireStaff, (req, res) => {
+  res.json({
+    success: true,
+    clinics: readClinics()
+  });
+});
+app.post('/api/admin/clinics', requireStaff, async (req, res) => {
+  const { label, value, from, to } = req.body || {};
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({
+      success: false,
+      message: 'بيانات ناقصة'
+    });
+  }
+
+  const clinics = readClinics();
+
+  if (clinics.some(c => c.value === value)) {
+    return res.status(409).json({
+      success: false,
+      message: 'العيادة موجودة مسبقًا'
+    });
+  }
+
+  const item = {
+    id: genClinicId(),
+    label: String(label).trim(),
+    value: String(value).trim(),
+    from: String(from).trim(), // HH:MM
+    to: String(to).trim()      // HH:MM
+  };
+
+  clinics.push(item);
+  writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+
+// 🔥 شغّل prefetch مباشرة
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+
+  res.json({
+    success: true,
+    clinic: item
+  });
+});
+app.delete('/api/admin/clinics/:id', requireStaff, async (req, res) => {
+  const clinics = readClinics();
+  const next = clinics.filter(c => c.id !== req.params.id);
+  writeClinics(next);
+  saveClinicsToRedis(next).then(syncClinicsToRuntime);
+
+  await saveClinicsToRedis(next);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+  res.json({ success: true });
+});
+// ================= UPDATE CLINIC =================
+app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
+  const { id } = req.params;
+  const { label, value, from, to } = req.body;
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({ ok:false, error:'Missing fields' });
+  }
+
+  const clinics = readClinics();
+  const idx = clinics.findIndex(c => c.id === id);
+
+  if (idx === -1) {
+    return res.status(404).json({ ok:false, error:'Clinic not found' });
+  }
+
+  clinics[idx] = {
+    ...clinics[idx],
+    label,
+    value,
+    from,
+    to
+  };
+
+  writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+  res.json({ success:true, clinic: clinics[idx] });
+});
+
+
 // ================= CMS: BANNERS =================
 app.get('/api/banners', async (req, res) => {
   const banners = await readRedisArray(REDIS_BANNERS_KEY);
@@ -2638,6 +2809,36 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
 
   res.json({ ok:true });
 });
+// ================= CLINICS SEED (RUN ONCE) =================
+function seedClinicsOnce() {
+  if (fs.existsSync(CLINICS_FILE)) {
+    console.log('[CLINICS] clinics.json already exists — skip seed');
+    return;
+  }
+saveClinicsToRedis(readClinics()).then(syncClinicsToRuntime);
+
+  console.log('[CLINICS] seeding clinics from defaults…');
+
+  const seed = CLINICS_LIST.map(name => {
+    const isEvening = name.includes('الفترة الثانية');
+    return {
+      id: 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+      label: name.split('**')[0],
+      value: name,
+      from: isEvening ? '16:00' : '09:00',
+      to:   isEvening ? '22:00' : '11:30'
+    };
+  });
+
+  fs.writeFileSync(
+    CLINICS_FILE,
+    JSON.stringify(seed, null, 2),
+    'utf8'
+  );
+
+  console.log('[CLINICS] seed completed:', seed.length, 'clinics');
+}
+
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
@@ -2660,3 +2861,1119 @@ async function prefetchLoop() {
 // ⏳ أول تشغيل بعد الإقلاع
 setTimeout(prefetchLoop, 5000);
 
+
+
+-----------------------------------------
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>حجز موعد | مجمع فينكس الطبي</title>
+  <meta name="description" content="سجّل دخولك برقم الهوية/الإقامة والجوال مع تحقق واتساب، ثم احجز موعدك.">
+
+  <!-- ملفك الأساسي (يبقى) -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- أيقونات -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- خط -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg-0:#0b0f14;
+      --bg-1:#0f172a;
+      --card: rgba(255,255,255,.86);
+      --card2: rgba(255,255,255,.72);
+      --stroke: rgba(226,190,109,.28);
+
+      --gold:#e2be6d;
+      --gold2:#f2d792;
+      --gold3:#fff6df;
+
+      --green:#2e7d32;
+      --green2:#1b5e20;
+
+      --text:#0f172a;
+      --muted:#6b7280;
+
+      --shadow: 0 18px 60px rgba(15,23,42,.14);
+      --shadow2: 0 10px 30px rgba(15,23,42,.10);
+      --r-xl: 26px;
+      --r-lg: 18px;
+      --r-md: 14px;
+      --r-pill: 999px;
+
+      --ring: 0 0 0 4px rgba(226,190,109,.25);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family:'Cairo', system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 15% 0%, rgba(226,190,109,.22), transparent 60%),
+                  radial-gradient(900px 500px at 90% 10%, rgba(46,125,50,.16), transparent 60%),
+                  radial-gradient(900px 500px at 55% 100%, rgba(99,102,241,.10), transparent 60%),
+                  #f4f5f7;
+      overflow-x:hidden;
+    }
+
+    /* خلفية بلور فخمة */
+    .lux-bg{
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.90)),
+        url('images/حجز الموعد.png') center/cover no-repeat;
+      filter: blur(18px) saturate(1.05);
+      opacity: .95;
+      z-index: 0;
+      pointer-events:none;
+      transform: scale(1.05);
+    }
+    body > *:not(.lux-bg){ position:relative; z-index:1; }
+
+    /* هيدر زجاجي */
+    header{
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(226,190,109,.25);
+      box-shadow: 0 10px 30px rgba(15,23,42,.06);
+    }
+    .header-inner{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 160px;
+    }
+    .brand img{
+      height:44px;
+      width:auto;
+      object-fit:contain;
+      filter: drop-shadow(0 10px 20px rgba(226,190,109,.25));
+    }
+
+    nav ul{
+      list-style:none;
+      display:flex;
+      gap:10px;
+      margin:0;
+      padding:0;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+    nav ul li a{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+      color:#111827;
+      font-weight:800;
+      padding: 8px 14px;
+      border-radius: var(--r-pill);
+      border: 1px solid transparent;
+      background: transparent;
+      transition: .18s ease;
+      white-space:nowrap;
+    }
+    nav ul li a:hover{
+      background: rgba(226,190,109,.16);
+      border-color: rgba(226,190,109,.26);
+      transform: translateY(-1px);
+    }
+    nav ul li a.active{
+      background: linear-gradient(135deg, rgba(226,190,109,.26), rgba(255,246,223,.75));
+      border-color: rgba(226,190,109,.35);
+      box-shadow: 0 12px 24px rgba(226,190,109,.18);
+      color:#7a5708;
+    }
+
+    .social-icons{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-inline-start: 8px;
+    }
+    .social-icon{
+      width:34px; height:34px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:50%;
+      background: rgba(255,246,223,.9);
+      border: 1px solid rgba(226,190,109,.35);
+      color:#7a5708;
+      box-shadow: 0 10px 20px rgba(226,190,109,.12);
+      transition:.18s ease;
+      text-decoration:none;
+    }
+    .social-icon:hover{
+      transform: translateY(-1px);
+      background: rgba(226,190,109,.18);
+    }
+
+    /* لودر */
+    .screen-loader{
+      position: fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(255,255,255,.55);
+      backdrop-filter: blur(6px);
+      z-index: 9999;
+    }
+    .screen-loader.show{ display:flex; }
+    .spinner{
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 4px solid rgba(226,190,109,.35);
+      border-top-color: var(--gold);
+      animation: spin .85s linear infinite;
+      box-shadow: 0 18px 50px rgba(226,190,109,.28);
+      background: rgba(255,255,255,.55);
+    }
+    @keyframes spin{ to{ transform: rotate(360deg); } }
+
+    /* الصفحة */
+    .page{
+      max-width: 980px;
+      margin: 18px auto 28px;
+      padding: 0 14px;
+    }
+
+    .hero-strip{
+      margin-top: 14px;
+      border-radius: var(--r-xl);
+      padding: 16px 16px 14px;
+      background: linear-gradient(135deg, rgba(255,255,255,.80), rgba(255,246,223,.70));
+      border: 1px solid rgba(226,190,109,.30);
+      box-shadow: var(--shadow2);
+      overflow:hidden;
+      position:relative;
+    }
+    .hero-strip:before{
+      content:"";
+      position:absolute;
+      inset:-1px;
+      background: radial-gradient(700px 200px at 20% 20%, rgba(226,190,109,.25), transparent 55%),
+                  radial-gradient(600px 200px at 85% 80%, rgba(46,125,50,.18), transparent 55%);
+      pointer-events:none;
+      opacity:.9;
+    }
+    .hero-strip > *{ position:relative; z-index:1; }
+
+    .hero-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+    .hero-title h1{
+      margin:0;
+      font-size: 1.1rem;
+      font-weight: 900;
+      color:#6b4b00;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .hero-title h1 i{
+      width:38px;height:38px;
+      border-radius: 14px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(226,190,109,.18);
+      border: 1px solid rgba(226,190,109,.26);
+      box-shadow: 0 10px 20px rgba(226,190,109,.15);
+    }
+    .hero-sub{
+      margin: 6px 0 0;
+      color:#6b7280;
+      font-weight:700;
+      font-size:.92rem;
+    }
+
+    /* كروت */
+    .card{
+      margin-top: 14px;
+      border-radius: var(--r-xl);
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid rgba(226,190,109,.26);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .card-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom: 10px;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 8px 12px;
+      border-radius: var(--r-pill);
+      background: rgba(255,246,223,.80);
+      border: 1px solid rgba(226,190,109,.26);
+      font-weight:900;
+      color:#6b4b00;
+      font-size: .88rem;
+      box-shadow: 0 10px 18px rgba(226,190,109,.10);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (min-width: 920px){
+      .grid.two{ grid-template-columns: 1fr 1fr; }
+    }
+
+    label{
+      display:block;
+      margin: 0 0 6px;
+      font-weight: 900;
+      color:#6b4b00;
+      font-size: .92rem;
+    }
+
+    .field{
+      position:relative;
+    }
+    .field i.prefix{
+      position:absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(107,75,0,.65);
+      font-size: 1rem;
+      pointer-events:none;
+    }
+
+    input, select, textarea{
+      width:100%;
+      border-radius: 16px;
+      border: 1.6px solid rgba(226,190,109,.40);
+      background: rgba(255,255,255,.75);
+      padding: 12px 12px;
+      font-size: 1rem;
+      outline:none;
+      transition: .16s ease;
+      color:#111827;
+    }
+    .field.has-icon input,
+    .field.has-icon select{
+      padding-right: 42px;
+    }
+    textarea{
+      min-height: 96px;
+      resize: vertical;
+      padding: 12px 12px;
+    }
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(226,190,109,.75);
+      box-shadow: var(--ring);
+      background: rgba(255,255,255,.92);
+      transform: translateY(-.5px);
+    }
+
+    .muted{
+      color: var(--muted);
+      font-weight:700;
+      font-size:.92rem;
+      text-align:center;
+      min-height: 22px;
+      margin-top: 8px;
+    }
+
+    .note{
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: rgba(46,125,50,.08);
+      border: 1px dashed rgba(46,125,50,.28);
+      color: #124b18;
+      font-weight:900;
+      text-align:center;
+      line-height:1.5;
+    }
+
+    /* أزرار */
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .row > *{ flex:1; }
+
+    .btn{
+      width:100%;
+      border:none;
+      border-radius: 18px;
+      padding: 12px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      transition: .16s ease;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      user-select:none;
+    }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+
+    .btn-gold{
+      color:#5b3e00;
+      background: linear-gradient(135deg, rgba(226,190,109,.95), rgba(255,246,223,.92));
+      border: 1px solid rgba(226,190,109,.55);
+      box-shadow: 0 16px 40px rgba(226,190,109,.22);
+    }
+    .btn-gold:hover{ transform: translateY(-1px); box-shadow: 0 18px 48px rgba(226,190,109,.30); }
+
+    .btn-green{
+      color:#f0fff4;
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      border: 1px solid rgba(27,94,32,.45);
+      box-shadow: 0 16px 40px rgba(46,125,50,.28);
+    }
+    .btn-green:hover{ transform: translateY(-1px); box-shadow: 0 18px 52px rgba(46,125,50,.36); }
+
+    .btn-ghost{
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(226,190,109,.35);
+      color:#6b4b00;
+      box-shadow: 0 12px 30px rgba(15,23,42,.08);
+    }
+    .btn-ghost:hover{ transform: translateY(-1px); background: rgba(255,246,223,.75); }
+
+    /* زر ساعات العمل */
+    .btn-hours{
+      width:auto;
+      padding: 10px 14px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      border:none;
+      font-weight:900;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      box-shadow: 0 14px 30px rgba(46,125,50,.28);
+      transition: .16s ease;
+    }
+    .btn-hours:hover{ transform: translateY(-1px); box-shadow: 0 16px 40px rgba(46,125,50,.35); }
+
+    /* ساعات العمل */
+    .hours-table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 18px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(226,190,109,.25);
+      box-shadow: var(--shadow2);
+    }
+    .hours-table th, .hours-table td{
+      border: 1px solid rgba(226,190,109,.20);
+      padding: 10px;
+      text-align:center;
+      font-weight:800;
+    }
+    .hours-table th{
+      background: linear-gradient(135deg, var(--green), var(--green2));
+      color:#fff;
+      font-weight:900;
+    }
+
+    /* فوتر */
+    footer{
+      margin-top: 18px;
+      text-align:center;
+      padding: 12px 10px;
+      color:#6b4b00;
+      font-weight:900;
+      background: rgba(255,255,255,.55);
+      border-top: 1px solid rgba(226,190,109,.25);
+      box-shadow: 0 -10px 30px rgba(15,23,42,.06);
+    }
+
+    /* تحسينات للجوال */
+    @media (max-width: 780px){
+      .header-inner{ gap:10px; }
+      nav ul{ gap:6px; }
+      nav ul li a{ padding: 7px 10px; font-size:.98rem; }
+      .brand{ min-width: unset; }
+      .brand img{ height:40px; }
+      .hero-title h1{ font-size: 1.02rem; }
+      .card{ padding: 14px; }
+      input, select, textarea{ border-radius: 16px; }
+    }
+
+    /* تقليل البلور على الجوال لو ثقيل */
+    @media (max-width: 600px){
+      .lux-bg{ filter: blur(14px) saturate(1.05); opacity:.90; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="lux-bg" aria-hidden="true"></div>
+
+  <!-- شاشة التحميل -->
+  <div id="screenLoader" class="screen-loader" aria-live="polite" aria-busy="true">
+    <div class="spinner" role="status" aria-label="جاري التحميل"></div>
+  </div>
+
+  <!-- الهيدر -->
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="images/logo phoenix-Photoroom.png" alt="شعار مجمع فينكس الطبي" loading="eager" decoding="async">
+      </div>
+
+      <nav aria-label="التنقل الرئيسي">
+        <ul>
+          <li><a href="index.html">الرئيسية</a></li>
+          <li><a href="about.html">من نحن</a></li>
+          <li><a href="services.html">الخدمات</a></li>
+          <li><a href="appointment.html" class="active" aria-current="page">احجز موعد</a></li>
+          <li><a href="contact.html">اتصل بنا</a></li>
+          <li>
+            <div class="social-icons">
+              <a href="https://wa.me/966531422555" target="_blank" rel="noopener" title="واتساب" class="social-icon" aria-label="واتساب"><i class="fab fa-whatsapp"></i></a>
+              <a href="https://www.instagram.com/phoenix.shq/" target="_blank" rel="noopener" title="إنستقرام" class="social-icon" aria-label="إنستقرام"><i class="fab fa-instagram"></i></a>
+              <a href="https://www.snapchat.com/add/phoenix.shq?share_id=VOXDQhmXrWw&locale=ar-AE" target="_blank" rel="noopener" title="سناب شات" class="social-icon" aria-label="سناب شات"><i class="fab fa-snapchat-ghost"></i></a>
+            </div>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- شريط علوي داخل الصفحة -->
+    <section class="hero-strip" aria-label="مقدمة">
+      <div class="hero-title">
+        <div>
+          <h1><i class="fa-solid fa-sparkles"></i> حجز موعد — مجمع فينكس الطبي</h1>
+          <p class="hero-sub">تسجيل دخول عبر واتساب ثم اختيار العيادة والوقت بكل سهولة.</p>
+        </div>
+        <span class="chip"><i class="fa-solid fa-shield-heart"></i> </span>
+      </div>
+    </section>
+
+    <!-- تسجيل الدخول -->
+    <section id="loginSection" class="card" aria-label="تسجيل الدخول">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-user-check"></i> تسجيل الدخول</span>
+        
+        </span>
+      </div>
+
+      <div class="grid two">
+        <div>
+          <label for="identity">رقم الهوية / الإقامة</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-id-card"></i>
+            <input id="identity" type="text" placeholder="مثال: 1234567890" inputmode="numeric" maxlength="10" autocomplete="off">
+          </div>
+        </div>
+
+        <div>
+          <label for="mobile">رقم الجوال</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-phone"></i>
+            <input id="mobile" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel">
+          </div>
+        </div>
+      </div>
+
+      <div class="note" style="margin-top:12px;">
+        🔔 تنبيه: خدمات الليزر متاحة للحجز داخل المجمع فقط. <br>
+        للتواصل اضغط أيقونة الواتساب أعلى الصفحة.
+      </div>
+
+     
+        <button id="loginBtn" class="btn btn-gold" type="button" disabled>
+          <i class="fa-solid fa-arrow-right-to-bracket"></i> تسجيل الدخول
+        </button>
+      </div>
+
+      <div id="loginMsg" class="muted"></div>
+
+      <div class="row" style="margin-top:10px;">
+        <button class="btn btn-ghost" id="openNewFileBtn" type="button" style="flex:1;">
+          <i class="fa-solid fa-folder-plus"></i> لا تملك ملفًا؟ افتح ملف جديد
+        </button>
+      </div>
+    </section>
+
+    <!-- الحجز -->
+    <section id="bookingSection" class="card" style="display:none;" aria-label="الحجز">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-calendar-check"></i> الحجز</span>
+        
+
+        <button id="toggleHours" type="button" class="btn-hours">
+          <i class="fa-solid fa-clock"></i> ساعات العمل
+        </button>
+      </div>
+
+      <div class="grid two">
+        <div>
+          <label for="clinic">اختر العيادة</label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-hospital"></i>
+            <select id="clinic">
+  <option value="">اختر العيادة</option>
+</select>
+
+          </div>
+
+          <!-- ملاحظة خاصة لعيادة تنظيف البشرة فقط -->
+          <div id="dermNote" class="note" style="display:none; margin-top:10px;"></div>
+        </div>
+
+        <div>
+          <label for="month"> </label>
+          <div class="field has-icon">
+            <i class="prefix fa-solid fa-calendar-days"></i>
+            <select id="month">
+              <option value="">اختر الشهر</option>
+              <option value="1">يناير</option>
+<option value="2">فبراير</option>
+<option value="3">مارس</option>
+<option value="4">أبريل</option>
+<option value="5">مايو</option>
+<option value="6">يونيو</option>
+<option value="7">يوليو</option>
+<option value="8">أغسطس</option>
+<option value="9">سبتمبر</option>
+<option value="10">أكتوبر</option>
+<option value="11">نوفمبر</option>
+<option value="12">ديسمبر</option>
+            </select>
+          </div>
+
+          <button id="fetchBtn" class="btn btn-green" style="margin-top:10px;">
+            <i class="fa-solid fa-magnifying-glass"></i> عرض المواعيد
+          </button>
+        </div>
+      </div>
+
+      <!-- نوع الخدمة / ملاحظة -->
+      <div id="noteWrap" style="display:none; margin-top:12px;">
+        <label for="note">نوع الخدمة / ملاحظة</label>
+        <div class="field">
+          <textarea id="note" placeholder="اكتب نوع الخدمة أو أي ملاحظة للموظف…"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="time">اختر الوقت</label>
+        <div class="field has-icon">
+          <i class="prefix fa-solid fa-clock"></i>
+          <select id="time" disabled>
+            <option value="">يرجى البحث أولاً</option>
+          </select>
+        </div>
+
+        <button id="bookNowBtn" class="btn btn-gold" style="margin-top:12px;" disabled>
+          <i class="fa-solid fa-circle-check"></i> تأكيد الحجز
+        </button>
+
+        <div id="bkMsg" class="muted"></div>
+      </div>
+      <div style="margin-top:20px;">
+  <button id="logoutBtn" class="btn btn-danger">
+    <i class="fa-solid fa-right-from-bracket"></i> تسجيل خروج
+  </button>
+</div>
+
+    </section>
+
+    <!-- ساعات العمل -->
+    <section id="hoursSection" class="card" style="display:none;" aria-label="ساعات العمل">
+      <div class="card-head">
+        <span class="chip"><i class="fa-solid fa-clock"></i> ساعات العمل</span>
+        <button id="toggleBooking" type="button" class="btn-hours">
+          <i class="fa-solid fa-calendar-check"></i> الرجوع للحجز
+        </button>
+      </div>
+
+      <div style="overflow:auto;">
+        <table class="hours-table">
+          <thead>
+            <tr>
+              <th>القسم / الطبيب</th>
+              <th>الأيام</th>
+              <th>الفترة الصباحية</th>
+              <th>الفترة المسائية</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>عيادة الأسنان 1 (د. عبير)</td>
+              <td>السبت - الخميس</td>
+              <td>9:00 ص – 12:00 م</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+  <td>عيادة الدكتورة هاجر</td>
+  <td>السبت - الخميس</td>
+  <td>
+    الفترة الصباحية: 9:00 ص – 11:00 ص<br>
+    الفترة المسائية: 3:00 م – 9:00 م
+  </td>
+  <td></td>
+</tr>
+
+<tr>
+  <td>عيادة الدكتور مآب</td>
+  <td>الخميس فقط</td>
+  <td>
+    الفترة المسائية: 2:00 م – 10:00 م
+  </td>
+  <td></td>
+</tr>
+
+            <tr>
+              <td>عيادة الأسنان 2 (د. ريان)</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 ص</td>
+              <td>4:00 م – 9:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 3 (د. معاذ)</td>
+              <td>السبت - الخميس</td>
+              <td>12:00 م – 8:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الأسنان 4 (د. رونالدو)</td>
+              <td>السبت - الخميس</td>
+              <td>2:00 م – 10:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الجلدية والتجميل (د. ولاء)</td>
+              <td>الأحد - الخميس</td>
+              <td>-</td>
+              <td>3:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>التشقير وتنظيف البشرة (أخصائية هدى)</td>
+              <td>السبت - الخميس</td>
+              <td>-</td>
+              <td>2:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الطب العام والطوارئ (د. هنادي)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة النساء والولادة (د. حسناء)</td>
+              <td>السبت - الخميس</td>
+              <td>10:00 ص – 12:00 م</td>
+              <td>4:00 م – 10:00 م</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (نساء) 1</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (نساء) 2</td>
+              <td>السبت - الخميس</td>
+              <td>8:00 ص – 11:00 م</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>عيادة الليزر (رجال)</td>
+              <td>السبت - الخميس</td>
+              <td>9:00 ص – 2:00 م</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td colspan="4" style="background:rgba(255,246,223,.9);font-weight:900;color:#6b4b00;">
+                يوم الجمعة: طبيب أسنان مناوب (غالبًا د. معاذ)، عيادات الليزر مفتوحة، التشقير وتنظيف البشرة (حسب التوفر) الدوام 2:00 م – 10:00 م حسب العيادة.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>جميع الحقوق محفوظة © مجمع فينكس الطبي 2025</footer>
+
+<script>
+  // ===== Helpers =====
+  const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
+  // تفعيل زر تسجيل الدخول (يدعم أرقام عربية وإنجليزية)
+function updateLoginBtn(){
+  const phoneOK = isSaudi05(mobile.value);
+
+  // تحويل الأرقام العربية إلى إنجليزية
+  const toEn = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+  const idRaw = toEn(identity.value || '');
+  const idDigits = idRaw.replace(/\D/g,'');
+  const okId = idDigits.length >= 9;
+
+  loginBtn.disabled = !(okId && phoneOK);
+}
+
+// ===== عناصر أساسية =====
+const screenLoader = document.getElementById('screenLoader');
+
+const identity  = document.getElementById('identity');
+const mobile    = document.getElementById('mobile');
+const loginBtn  = document.getElementById('loginBtn');
+const loginMsg  = document.getElementById('loginMsg');
+['input','change','keyup'].forEach(ev=>{
+  identity.addEventListener(ev, updateLoginBtn);
+  mobile.addEventListener(ev, updateLoginBtn);
+});
+
+ 
+
+  // شاشة الانتظار
+  const showLoader = (on)=> {
+    if(on){ screenLoader.classList.add('show'); document.body.style.pointerEvents='none'; }
+    else { screenLoader.classList.remove('show'); document.body.style.pointerEvents='auto'; }
+  };
+
+ 
+
+  // فتح ملف جديد
+  document.getElementById('openNewFileBtn').addEventListener('click', ()=>{
+    if ((identity.value||'').trim()) localStorage.setItem('auth_identity', (identity.value||'').trim());
+    if (isSaudi05(mobile.value))     localStorage.setItem('auth_phone', mobile.value.trim());
+    window.location.href = 'new-file.html';
+  });
+
+  // تسجيل الدخول
+  loginBtn.addEventListener('click', async ()=>{
+    loginBtn.disabled = true;
+
+    loginMsg.textContent = 'جارِ التحقق...';
+    const payload = {
+      identity: (identity.value||'').trim(),
+      phone: (mobile.value||'').trim(),
+    };
+    showLoader(true);
+    try{
+      const r = await fetch('/api/login', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await r.json();
+
+      if(!data.success){
+        loginMsg.textContent = data.message || 'لا تملك ملفًا لدينا. انقر (افتح ملف جديد).';
+        loginBtn.disabled = false;
+
+        return;
+      }
+
+      // يوجد ملف
+    
+
+      if (data.hasIdentity === false) {
+        loginMsg.textContent = 'نحتاج استكمال الهوية قبل الحجز...';
+        setTimeout(()=>{ window.location.href = 'identity.html'; }, 500);
+        return;
+      }
+
+      // لديه هوية — أظهر الحجز
+      loginMsg.textContent = '';
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('bookingSection').style.display = '';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }catch(e){
+      loginMsg.textContent = 'تعذّر التحقق حاليًا. حاول لاحقًا.';
+      loginBtn.disabled = false;
+
+    }finally{
+      showLoader(false);
+    }
+  });
+
+  // ===== عناصر الحجز =====
+  let isLoadingTimes = false;
+  const fetchBtn = document.getElementById('fetchBtn');
+  const timeSel  = document.getElementById('time');
+  const bookNowBtn = document.getElementById('bookNowBtn');
+  const bkMsg = document.getElementById('bkMsg');
+  const clinicSel = document.getElementById('clinic');
+  // ================= LOAD CLINICS FROM SERVER =================
+async function loadClinics() {
+  try {
+    const res = await fetch('/api/clinics');
+    const data = await res.json();
+
+    if (!data.success) return;
+
+    // تفريغ القائمة
+    clinicSel.innerHTML = '<option value="">اختر العيادة</option>';
+
+    data.clinics.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.value; // نفس القيمة المستخدمة في الحجز
+      opt.textContent = `${c.label} (${c.from} – ${c.to})`;
+      clinicSel.appendChild(opt);
+    });
+
+  } catch (e) {
+    console.error('Failed to load clinics', e);
+  }
+}
+
+  const monthSel  = document.getElementById('month');
+  
+  
+  // إخفاء الشهر وزر عرض المواعيد (لم يعدا مستخدمين)
+monthSel.closest('.field').style.display = 'none';
+fetchBtn.style.display = 'none';
+
+// قيمة شكلية فقط للتوافق
+monthSel.value = 'auto';
+
+  document.getElementById('month').closest('.field').style.display = 'none';
+  const dermNote  = document.getElementById('dermNote');
+  const noteWrap  = document.getElementById('noteWrap');
+  const noteInput = document.getElementById('note');
+
+  // >>> دالة صغيرة لتخزين لقطة بيانات الحجز لصفحة success.html
+  function snapshotPendingForSuccess(){
+    localStorage.setItem('pending_identity', localStorage.getItem('auth_identity') || '');
+    localStorage.setItem('pending_phone',    localStorage.getItem('auth_phone')    || '');
+    localStorage.setItem('pending_clinic', clinicSel.value);
+    localStorage.setItem('pending_clinic_label', clinicSel.selectedOptions[0]?.text || clinicSel.value || '');
+    localStorage.setItem('pending_month', monthSel.value);
+    localStorage.setItem('pending_time', timeSel.value);
+    localStorage.setItem('pending_note', (noteInput.value || '').trim());
+  }
+
+  // دالة لتفريغ النتائج وإجبار إعادة العرض
+  function resetTimes(trigger=''){
+   timeSel.innerHTML = `<option value="">اختر عيادة لعرض الأوقات</option>`;
+timeSel.disabled = false;   // 🔥 لا تعطلها
+bookNowBtn.disabled = true;
+
+    bkMsg.textContent = trigger === 'clinic'
+      ? 'تم تغيير العيادة — اعرض المواعيد من جديد.'
+      : (trigger === 'month' ? 'تم تغيير الشهر — اعرض المواعيد من جديد.' : '');
+  }
+
+  // إظهار الملاحظة الخاصة لعيادة تنظيف البشرة فقط + إظهار خانة "نوع الخدمة/ملاحظة" عند اختيار أي عيادة
+clinicSel.addEventListener('change', ()=>{
+  const v = clinicSel.value || '';
+  const isCleaning = v.startsWith('عيادة تنظيف البشرة');
+  dermNote.style.display = isCleaning ? 'block' : 'none';
+  noteWrap.style.display = v ? 'block' : 'none';
+
+  if (!v) {
+    resetTimes('clinic');
+    return;
+  }
+
+  // جلب المواعيد مباشرة
+  fetchBtn.click();
+});
+
+
+
+  // 🔥 اجلب المواعيد تلقائيًا
+loadClinics();
+
+
+
+  // تفريغ الأوقات عند تغيير الشهر
+  monthSel.addEventListener('change', ()=> resetTimes('month'));
+
+  fetchBtn.addEventListener('click', async () => {
+    const clinic = clinicSel.value;
+    const month  = monthSel.value;
+
+    bkMsg.textContent = '';
+    timeSel.disabled = false;
+
+    bookNowBtn.disabled = true;
+    timeSel.innerHTML = `<option>...جاري جلب الأوقات...</option>`;
+
+    if (!clinic) {
+  timeSel.innerHTML = `<option value="">يرجى اختيار العيادة</option>`;
+  return;
+}
+
+    if (isLoadingTimes) return;
+    isLoadingTimes = true;
+
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    showLoader(true);
+
+    try {
+      const r = await fetch('/api/times', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ clinic, month })
+      });
+      const data = await r.json();
+      if (data.times && data.times.length) {
+        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+        timeSel.disabled = false;
+        bookNowBtn.disabled = false;
+      } else {
+        timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
+        bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
+      }
+    } catch {
+      timeSel.innerHTML = `<option value="">تعذر جلب الأوقات</option>`;
+      bkMsg.textContent = 'تعذر جلب الأوقات. حاول لاحقاً.';
+    } finally {
+      isLoadingTimes = false;
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      showLoader(false);
+    }
+  });
+
+  // الحجز المباشر الآن
+  bookNowBtn.addEventListener('click', async () => {
+    const clinic = clinicSel.value;
+    const month  = monthSel.value;
+    const time   = timeSel.value;
+   const identityVal = identity.value.trim();
+const phone       = mobile.value.trim();
+
+    const note   = (noteInput.value || '').trim();
+
+   if (!clinic || !time || !identityVal || !phone) {
+  bkMsg.textContent = 'الرجاء اختيار العيادة والوقت وتسجيل الدخول.';
+  return;
+}
+
+
+    snapshotPendingForSuccess();
+
+    bookNowBtn.disabled = true;
+    fetchBtn.disabled = true;
+    clinicSel.disabled = true;
+    monthSel.disabled = true;
+    timeSel.disabled = false;
+
+    showLoader(true);
+    bkMsg.textContent = 'جاري تأكيد الحجز...';
+
+    try {
+      const payload = { identity: identityVal, phone, clinic, month, time, note, key: Date.now().toString() };
+      const res = await fetch('/api/book', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const msg  = (data && data.msg) ? String(data.msg) : '';
+
+      localStorage.setItem('booking_result_msg', msg);
+      window.location.href = 'success.html';
+    } catch (e) {
+      bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
+      bookNowBtn.disabled = false;
+      fetchBtn.disabled = false;
+      clinicSel.disabled = false;
+      monthSel.disabled = false;
+      timeSel.disabled = false;
+    } finally {
+      showLoader(false);
+    }
+  });
+
+  // ===== تبديل العرض بين الحجز وساعات العمل =====
+  const bookingSection = document.getElementById('bookingSection');
+  const hoursSection = document.getElementById('hoursSection');
+  const toggleHoursBtn = document.getElementById('toggleHours');
+  const toggleBookingBtn = document.getElementById('toggleBooking');
+
+  function showHours(){
+    bookingSection.style.display = 'none';
+    hoursSection.style.display = '';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  function showBooking(){
+    hoursSection.style.display = 'none';
+    bookingSection.style.display = '';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  toggleHoursBtn.addEventListener('click', showHours);
+  toggleBookingBtn.addEventListener('click', showBooking);
+
+// ===============================
+// LOGOUT HANDLER
+// ===============================
+document.getElementById('logoutBtn')?.addEventListener('click', () => {
+
+  // 1️⃣ مسح جلسة الواجهة فقط
+  localStorage.removeItem('auth_identity');
+  localStorage.removeItem('auth_phone');
+  localStorage.removeItem('auth_fileId');
+
+  // 2️⃣ إعادة الواجهة لتسجيل الدخول
+  document.getElementById('bookingSection').style.display = 'none';
+  document.getElementById('loginSection').style.display = '';
+
+  // 3️⃣ تنظيف الحقول
+  document.getElementById('identity').value = '';
+  document.getElementById('mobile').value   = '';
+  
+
+  // 4️⃣ سكرول للأعلى
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+
+</script>
+
+</body>
+</html>
