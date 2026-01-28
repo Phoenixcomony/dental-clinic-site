@@ -505,8 +505,23 @@ const input = document.getElementById('key');
 const app   = document.getElementById('adminApp');
 
 input.addEventListener('input', () => {
-  app.style.display = input.value === REAL_KEY ? 'block' : 'none';
+  const ok = input.value === REAL_KEY;
+  app.style.display = ok ? 'block' : 'none';
+
+  if (ok) {
+    loadAll();
+
+    // 🔥 افتح تبويب العيادات تلقائيًا
+    tabC.classList.add('active');
+    tabB.classList.remove('active');
+    tabP.classList.remove('active');
+
+    panelC.classList.add('active');
+    panelB.classList.remove('active');
+    panelP.classList.remove('active');
+  }
 });
+
 </script>
 
 </body>
