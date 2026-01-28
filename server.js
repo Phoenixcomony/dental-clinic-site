@@ -1527,12 +1527,16 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clini
   // ⏰ فلترة حسب وقت العيادة من لوحة التحكم
 const range = getClinicTimeRange(clinicStr, clinics);
 
-if (range) {
+// ⛔ لا تلمس الأوقات إذا ما لقينا العيادة في لوحة التحكم
+if (range && Number.isFinite(range.from) && Number.isFinite(range.to)) {
   out = out.filter(t => {
     const { time24 } = parseValueToDateTime(t);
     return time24 && inRange(time24, range.from, range.to);
   });
+} else {
+  console.warn('[CLINIC TIME RANGE SKIPPED]', clinicStr);
 }
+
 
 
   // 3) تشقير/تنظيف البشرة: عرض بالساعة فقط + منع 45/90
@@ -1734,6 +1738,7 @@ const clinicValue = await page.evaluate((name) => {
 
 // طبق القواعد على raw أولاً
 const rules = findClinicRules(clinicStr);
+const clinics = await getClinicsFromRedis();
 
 // حوّل raw إلى times
 let times = filtered.map(x => ({
