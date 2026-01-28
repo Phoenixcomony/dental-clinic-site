@@ -442,6 +442,7 @@ async function delPackage(id){
   loadAll();
 }
 // ================= CLINICS ADMIN =================
+let editingClinicId = null;
 
 async function loadClinicsAdmin(){
   const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
@@ -455,38 +456,79 @@ function renderClinics(list){
   list.forEach(c=>{
     const card = document.createElement('div');
     card.className = 'card';
-    card.innerHTML = `
-      <div class="title">${c.label}</div>
-      <div class="sub">${c.from} – ${c.to}</div>
-      <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
-    `;
+   card.innerHTML = `
+  <div class="title">${c.label}</div>
+  <div class="sub">${c.from} – ${c.to}</div>
+
+  <button class="btn" onclick="editClinic('${c.id}')">تعديل</button>
+  <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
+`;
+
     el.appendChild(card);
   });
+}
+function editClinic(id){
+  fetch('/api/admin/clinics', { headers: staffHeaders() })
+    .then(r => r.json())
+    .then(data => {
+      const c = (data.clinics || []).find(x => x.id === id);
+      if (!c) return alert('لم يتم العثور على العيادة');
+
+      // تعبئة الحقول
+      document.getElementById('cLabel').value = c.label;
+      document.getElementById('cValue').value = c.value;
+      document.getElementById('cFrom').value  = c.from;
+      document.getElementById('cTo').value    = c.to;
+
+      // تفعيل وضع التعديل
+      editingClinicId = c.id;
+
+      // تغيير نص الزر
+      document.querySelector('[onclick="addClinic()"]').textContent = 'تحديث العيادة';
+    });
 }
 
 async function addClinic(){
   const payload = {
     label: cLabel.value,
     value: cValue.value,
-    from: cFrom.value,
-    to: cTo.value
+    from:  cFrom.value,
+    to:    cTo.value
   };
 
-  const r = await fetch('/api/admin/clinics',{
-    method:'POST',
-    headers:{ ...staffHeaders(), 'Content-Type':'application/json' },
+  // 🟡 تحديد الوضع: إضافة أو تعديل
+  const isEdit = !!editingClinicId;
+
+  const url = isEdit
+    ? `/api/admin/clinics/${editingClinicId}`
+    : `/api/admin/clinics`;
+
+  const method = isEdit ? 'PUT' : 'POST';
+
+  const r = await fetch(url, {
+    method,
+    headers: { ...staffHeaders(), 'Content-Type':'application/json' },
     body: JSON.stringify(payload)
   });
 
-  if(!r.ok) return alert('فشل الإضافة');
+  if(!r.ok){
+    const t = await r.text();
+    return alert('فشل العملية: ' + t);
+  }
 
+  // 🧹 تنظيف النموذج
   cLabel.value = '';
   cValue.value = '';
   cFrom.value  = '';
   cTo.value    = '';
 
+  // 🔄 إعادة الحالة للوضع الافتراضي
+  editingClinicId = null;
+  document.querySelector('[onclick="addClinic()"]').textContent = 'حفظ العيادة';
+
   loadClinicsAdmin();
 }
+
 
 async function delClinic(id){
   if(!confirm('تأكيد الحذف؟')) return;
