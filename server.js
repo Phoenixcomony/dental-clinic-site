@@ -66,6 +66,35 @@ const redis = new Redis(process.env.REDIS_URL, {
     return Math.min(times * 100, 2000);
   }
 });
+// ===============================
+// CLINICS SOURCE (REDIS ONLY)
+// ===============================
+const CLINICS_KEY = 'clinics:list';
+
+async function getClinicsFromRedis() {
+  const raw = await redis.get(CLINICS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function saveClinicsToRedis(list) {
+  await redis.set(CLINICS_KEY, JSON.stringify(list));
+}
+async function syncClinicsToRuntime() {
+  const clinics = await getClinicsFromRedis();
+
+  // تحديث قائمة البوت
+  global.CLINICS_LIST = clinics.map(c => c.value);
+
+  // تنظيف كاش prefetch
+  for (const c of global.CLINICS_LIST) {
+    await redis.del(`prefetch_times_v1:${c}`);
+  }
+
+  // إعادة تشغيل prefetch
+  setTimeout(() => {
+    prefetchAllClinicsTimes().catch(()=>{});
+  }, 500);
+}
 
  
 
@@ -319,7 +348,11 @@ async function prefetchAllClinicsTimes() {
   console.log('[PREFETCH] start fetching all clinics');
 
   try {
-    for (const clinic of CLINICS_LIST) {
+    const clinics = await getClinicsFromRedis();
+
+for (const c of clinics) {
+  const clinic = c.value;
+
       try {
         console.log('[PREFETCH] clinic:', clinic);
 
@@ -402,22 +435,11 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false },
   
 ];
-const CLINICS_LIST = [
-  "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
-  "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
-  "عيادة الاسنان 1 (NO.100)**الفترة الثانية",
-  "عيادة الاسنان 2 (NO.101)**الفترة الاولى",
-  "عيادة الاسنان 2 (NO.101)**الفترة الثانية",
-  "عيادة الجلدية والتجميل (NO.200)**الفترة الثانية",
-  "تشقير وتنظيف البشرة**الفترة الثانية",
-  "النساء و الولادة (NO.400)**الفترة الاولى",
-  "النساء و الولادة (NO.400)**الفترة الثانية",
-  "عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية",
-  "النساء و الولادة 2**الفترة الاولى",
-  "النساء و الولادة 2**الفترة الثانية",
-  "عيادة الاسنان 4 (NO.102)**الفترة الثانية",
+function getDynamicClinicsList() {
+  const clinics = readClinics();
+  return clinics.map(c => c.value);
+}
 
-];
 // ================= CLINICS CONFIG =================
 const CLINIC_RULES = {
   dental_1: {
@@ -1476,8 +1498,18 @@ function parseValueToDateTime(valueOrObj) {
   const [date, time24] = String(v).split('*');
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
+function getClinicTimeRange(clinicStr, clinics) {
+  const c = clinics.find(x => x.value === clinicStr);
+  if (!c) return null;
 
-function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
+  return {
+    from: toMinutes(c.from),
+    to: toMinutes(c.to)
+  };
+}
+
+function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics) {
+
   if (!rules) return times || [];
 
   let out = Array.isArray(times) ? [...times] : [];
@@ -1492,20 +1524,16 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
     return true;
   });
 
-  // 2) فلترة الفترة (صباح/مساء) حسب حدود من-إلى
-  if (effectivePeriod === 'morning' && rules.morning) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.morning.from, rules.morning.to);
-    });
-  }
+  // ⏰ فلترة حسب وقت العيادة من لوحة التحكم
+const range = getClinicTimeRange(clinicStr, clinics);
 
-  if (effectivePeriod === 'evening' && rules.evening) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.evening.from, rules.evening.to);
-    });
-  }
+if (range) {
+  out = out.filter(t => {
+    const { time24 } = parseValueToDateTime(t);
+    return time24 && inRange(time24, range.from, range.to);
+  });
+}
+
 
   // 3) تشقير/تنظيف البشرة: عرض بالساعة فقط + منع 45/90
   if (rules.hourlyOnly) {
@@ -1578,6 +1606,8 @@ app.post('/api/times', async (req, res) => {
 const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
+  const clinics = await getClinicsFromRedis();
+
   const rules = findClinicRules(clinicStr);
   let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
   return res.json({ times, cached: true, source: 'prefetch' });
@@ -1711,7 +1741,8 @@ let times = filtered.map(x => ({
 }));
 
 // طبّق القواعد (وقت/ايام/تشقير)
-times = applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules);
+times = applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics);
+
 
 // خزنه كـ Prefetch-style (اختياري)
 // await setClinicTimesToRedis(clinicStr, times);
@@ -2584,7 +2615,7 @@ app.get('/api/admin/clinics', requireStaff, (req, res) => {
     clinics: readClinics()
   });
 });
-app.post('/api/admin/clinics', requireStaff, (req, res) => {
+app.post('/api/admin/clinics', requireStaff, async (req, res) => {
   const { label, value, from, to } = req.body || {};
 
   if (!label || !value || !from || !to) {
@@ -2613,20 +2644,34 @@ app.post('/api/admin/clinics', requireStaff, (req, res) => {
 
   clinics.push(item);
   writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+
+// 🔥 شغّل prefetch مباشرة
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
 
   res.json({
     success: true,
     clinic: item
   });
 });
-app.delete('/api/admin/clinics/:id', requireStaff, (req, res) => {
+app.delete('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   const clinics = readClinics();
   const next = clinics.filter(c => c.id !== req.params.id);
   writeClinics(next);
+  saveClinicsToRedis(next).then(syncClinicsToRuntime);
+
+  await saveClinicsToRedis(next);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
   res.json({ success: true });
 });
 // ================= UPDATE CLINIC =================
-app.put('/api/admin/clinics/:id', requireStaff, (req, res) => {
+app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   const { id } = req.params;
   const { label, value, from, to } = req.body;
 
@@ -2650,6 +2695,11 @@ app.put('/api/admin/clinics/:id', requireStaff, (req, res) => {
   };
 
   writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
 
   res.json({ success:true, clinic: clinics[idx] });
 });
@@ -2751,6 +2801,7 @@ function seedClinicsOnce() {
     console.log('[CLINICS] clinics.json already exists — skip seed');
     return;
   }
+saveClinicsToRedis(readClinics()).then(syncClinicsToRuntime);
 
   console.log('[CLINICS] seeding clinics from defaults…');
 
@@ -2773,7 +2824,7 @@ function seedClinicsOnce() {
 
   console.log('[CLINICS] seed completed:', seed.length, 'clinics');
 }
-seedClinicsOnce();
+
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
