@@ -1608,8 +1608,14 @@ const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
   const clinics = await getClinicsFromRedis();
 
-  const rules = findClinicRules(clinicStr);
-  let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
+let times = applyClinicRulesToTimes(
+  cachedPrefetch.times,
+  clinicStr,
+  effectivePeriod,
+  rules,
+  clinics   // ← هذا هو المهم
+);
+
   return res.json({ times, cached: true, source: 'prefetch' });
 }
 
