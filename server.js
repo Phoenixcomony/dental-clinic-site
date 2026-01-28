@@ -14,6 +14,33 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+// ================= CLINICS STORAGE =================
+const CLINICS_FILE = path.join(process.env.PERSIST_ROOT || '/data', 'clinics.json');
+
+
+function readClinics() {
+  try {
+    if (!fs.existsSync(CLINICS_FILE)) return [];
+    const raw = fs.readFileSync(CLINICS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('[CLINICS] read error', e.message);
+    return [];
+  }
+}
+
+function writeClinics(list) {
+  try {
+    fs.writeFileSync(CLINICS_FILE, JSON.stringify(list, null, 2));
+  } catch (e) {
+    console.error('[CLINICS] write error', e.message);
+  }
+}
+
+function genClinicId() {
+  return 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+}
+
 // ===== Booking Bot Account (Dedicated) =====
 const BOOKING_ACCOUNT = {
   user: process.env.BOOKING_USER,
@@ -2399,19 +2426,16 @@ incMetrics({ clinic: safeClinic });
  *                 Persistent Metrics (stats.json)
  * ========================================================= */
 const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
-const STAFF_KEY = process.env.STAFF_KEY || '';
-// ================= ADMIN AUTH =================
-function requireStaff(req, res, next) {
-  const key =
-    req.headers['x-staff-key'] ||
-    req.query.key ||
-    req.body?.key;
+const STAFF_KEY = process.env.STAFF_KEY || 'AQZa123@';
 
-  if (!STAFF_KEY || key !== STAFF_KEY) {
+function requireStaff(req, res, next) {
+  const key = req.headers['x-staff-key'];
+  if (!key || key !== STAFF_KEY) {
     return res.status(403).json({ ok:false, error:'Forbidden' });
   }
   next();
 }
+
 
 function ensureDir(p) {
   try {
@@ -2548,6 +2572,61 @@ app.post('/api/stats/booking-success', async (req, res) => {
     res.json({ ok: true });
   }
 });
+// ================= CLINICS (PUBLIC) =================
+app.get('/api/clinics', (req, res) => {
+  const clinics = readClinics();
+  res.json({ success: true, clinics });
+});
+// ================= CLINICS (ADMIN) =================
+app.get('/api/admin/clinics', requireStaff, (req, res) => {
+  res.json({
+    success: true,
+    clinics: readClinics()
+  });
+});
+app.post('/api/admin/clinics', requireStaff, (req, res) => {
+  const { label, value, from, to } = req.body || {};
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({
+      success: false,
+      message: 'بيانات ناقصة'
+    });
+  }
+
+  const clinics = readClinics();
+
+  if (clinics.some(c => c.value === value)) {
+    return res.status(409).json({
+      success: false,
+      message: 'العيادة موجودة مسبقًا'
+    });
+  }
+
+  const item = {
+    id: genClinicId(),
+    label: String(label).trim(),
+    value: String(value).trim(),
+    from: String(from).trim(), // HH:MM
+    to: String(to).trim()      // HH:MM
+  };
+
+  clinics.push(item);
+  writeClinics(clinics);
+
+  res.json({
+    success: true,
+    clinic: item
+  });
+});
+app.delete('/api/admin/clinics/:id', requireStaff, (req, res) => {
+  const clinics = readClinics();
+  const next = clinics.filter(c => c.id !== req.params.id);
+  writeClinics(next);
+  res.json({ success: true });
+});
+
+
 // ================= CMS: BANNERS =================
 app.get('/api/banners', async (req, res) => {
   const banners = await readRedisArray(REDIS_BANNERS_KEY);
@@ -2638,6 +2717,35 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
 
   res.json({ ok:true });
 });
+// ================= CLINICS SEED (RUN ONCE) =================
+function seedClinicsOnce() {
+  if (fs.existsSync(CLINICS_FILE)) {
+    console.log('[CLINICS] clinics.json already exists — skip seed');
+    return;
+  }
+
+  console.log('[CLINICS] seeding clinics from defaults…');
+
+  const seed = CLINICS_LIST.map(name => {
+    const isEvening = name.includes('الفترة الثانية');
+    return {
+      id: 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+      label: name.split('**')[0],
+      value: name,
+      from: isEvening ? '16:00' : '09:00',
+      to:   isEvening ? '22:00' : '11:30'
+    };
+  });
+
+  fs.writeFileSync(
+    CLINICS_FILE,
+    JSON.stringify(seed, null, 2),
+    'utf8'
+  );
+
+  console.log('[CLINICS] seed completed:', seed.length, 'clinics');
+}
+seedClinicsOnce();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
