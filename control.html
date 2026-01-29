@@ -466,13 +466,26 @@ function renderClinics(list){
   list.forEach(c=>{
     const card = document.createElement('div');
     card.className = 'card';
-   card.innerHTML = `
+  card.innerHTML = `
   <div class="title">${c.label}</div>
   <div class="sub">${c.from} – ${c.to}</div>
+
+  <div class="sub" style="margin-top:6px">
+    الجمعة:
+    <strong style="color:${c.allowFriday ? '✔️' : '❌'}">
+      ${c.allowFriday ? 'مسموح' : 'غير مسموح'}
+    </strong>
+    <br>
+    السبت:
+    <strong style="color:${c.allowSaturday ? '✔️' : '❌'}">
+      ${c.allowSaturday ? 'مسموح' : 'غير مسموح'}
+    </strong>
+  </div>
 
   <button class="btn" onclick="editClinic('${c.id}')">تعديل</button>
   <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
 `;
+
 
     el.appendChild(card);
   });
