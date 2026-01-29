@@ -2206,8 +2206,10 @@ if (!cfg) {
   });
 }
 
-const [H, M='0'] = time24.split(':');
+if (!time24) return false;
+const [H, M = '0'] = String(time24).split(':');
 const minutes = (+H * 60) + (+M);
+
 
 
 const fromMin = toMinutes(cfg.from);
