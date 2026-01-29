@@ -2668,7 +2668,8 @@ app.get('/api/admin/clinics', requireStaff, (req, res) => {
   });
 });
 app.post('/api/admin/clinics', requireStaff, async (req, res) => {
-  const { label, value, from, to } = req.body || {};
+  const { label, value, from, to, allowFriday, allowSaturday } = req.body || {};
+
 
   if (!label || !value || !from || !to) {
     return res.status(400).json({
@@ -2687,12 +2688,15 @@ app.post('/api/admin/clinics', requireStaff, async (req, res) => {
   }
 
   const item = {
-    id: genClinicId(),
-    label: String(label).trim(),
-    value: String(value).trim(),
-    from: String(from).trim(), // HH:MM
-    to: String(to).trim()      // HH:MM
-  };
+  id: genClinicId(),
+  label: String(label).trim(),
+  value: String(value).trim(),
+  from: String(from).trim(),
+  to: String(to).trim(),
+  allowFriday: !!allowFriday,
+  allowSaturday: !!allowSaturday
+};
+
 
   clinics.push(item);
   writeClinics(clinics);
@@ -2736,7 +2740,8 @@ setTimeout(prefetchAllClinicsTimes, 500);
 // ================= UPDATE CLINIC =================
 app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   const { id } = req.params;
-  const { label, value, from, to } = req.body;
+  const { label, value, from, to, allowFriday, allowSaturday } = req.body;
+
 
   if (!label || !value || !from || !to) {
     return res.status(400).json({ ok:false, error:'Missing fields' });
@@ -2750,12 +2755,15 @@ app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   }
 
   clinics[idx] = {
-    ...clinics[idx],
-    label,
-    value,
-    from,
-    to
-  };
+  ...clinics[idx],
+  label,
+  value,
+  from,
+  to,
+  allowFriday: !!allowFriday,
+  allowSaturday: !!allowSaturday
+};
+
 
   writeClinics(clinics);
   saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
@@ -2868,16 +2876,21 @@ saveClinicsToRedis(readClinics()).then(syncClinicsToRuntime);
 
   console.log('[CLINICS] seeding clinics from defaults…');
 
-  const seed = CLINICS_LIST.map(name => {
-    const isEvening = name.includes('الفترة الثانية');
-    return {
-      id: 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2),
-      label: name.split('**')[0],
-      value: name,
-      from: isEvening ? '16:00' : '09:00',
-      to:   isEvening ? '22:00' : '11:30'
-    };
-  });
+const seed = CLINICS_LIST.map(name => {
+  const isEvening = name.includes('الفترة الثانية');
+  return {
+    id: 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+    label: name.split('**')[0],
+    value: name,
+    from: isEvening ? '16:00' : '09:00',
+    to:   isEvening ? '22:00' : '11:30', // ✅ الفاصلة هنا
+
+    // ⬇️ خيارات الأيام
+    allowFriday: false,
+    allowSaturday: false
+  };
+});
+
 
   fs.writeFileSync(
     CLINICS_FILE,
@@ -2909,4 +2922,3 @@ async function prefetchLoop() {
 
 // ⏳ أول تشغيل بعد الإقلاع
 setTimeout(prefetchLoop, 5000);
-

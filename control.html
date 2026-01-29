@@ -322,6 +322,16 @@
     <input id="cFrom" type="time">
     <input id="cTo" type="time">
     <button class="btn primary" onclick="addClinic()">حفظ العيادة</button>
+    <label style="display:flex;align-items:center;gap:6px;font-size:14px">
+  <input type="checkbox" id="cAllowFriday">
+  السماح بيوم الجمعة
+</label>
+
+<label style="display:flex;align-items:center;gap:6px;font-size:14px">
+  <input type="checkbox" id="cAllowSaturday">
+  السماح بيوم السبت
+</label>
+
   </div>
 
   <div id="clinics" class="row"></div>
@@ -479,6 +489,9 @@ function editClinic(id){
       document.getElementById('cValue').value = c.value;
       document.getElementById('cFrom').value  = c.from;
       document.getElementById('cTo').value    = c.to;
+      document.getElementById('cAllowFriday').checked = !!c.allowFriday;
+      document.getElementById('cAllowSaturday').checked = !!c.allowSaturday;
+
 
       // تفعيل وضع التعديل
       editingClinicId = c.id;
@@ -490,11 +503,14 @@ function editClinic(id){
 
 async function addClinic(){
   const payload = {
-    label: cLabel.value,
-    value: cValue.value,
-    from:  cFrom.value,
-    to:    cTo.value
-  };
+  label: cLabel.value,
+  value: cValue.value,
+  from:  cFrom.value,
+  to:    cTo.value,
+  allowFriday: document.getElementById('cAllowFriday').checked,
+  allowSaturday: document.getElementById('cAllowSaturday').checked
+};
+
 
   // 🟡 تحديد الوضع: إضافة أو تعديل
   const isEdit = !!editingClinicId;
