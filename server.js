@@ -1499,18 +1499,15 @@ function parseValueToDateTime(valueOrObj) {
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
 function getClinicTimeRange(clinicStr, clinics) {
-  const baseName = String(clinicStr).split('**')[0].trim();
-const c = clinics.find(x => x.value === baseName);
-
+  const key = String(clinicStr || '').trim(); // الاسم كامل مع **الفترة
+  const c = clinics.find(x => String(x.value || '').trim() === key);
   if (!c) return null;
-
-  return {
-    from: toMinutes(c.from),
-    to: toMinutes(c.to)
-  };
+  return { from: toMinutes(c.from), to: toMinutes(c.to) };
 }
 
+
 function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics) {
+rules = rules || {};
 
   
 
@@ -1521,8 +1518,9 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clini
     const { date } = parseValueToDateTime(t);
     if (!date) return false;
     const { isFri, isSat } = isFriOrSat(date);
-    if (isFri && rules.allowFriday === false) return false;
-    if (isSat && rules.allowSaturday === false) return false;
+    if (isFri && rules?.allowFriday === false) return false;
+if (isSat && rules?.allowSaturday === false) return false;
+
     return true;
   });
 
@@ -1542,7 +1540,8 @@ if (range && Number.isFinite(range.from) && Number.isFinite(range.to)) {
 
 
   // 3) تشقير/تنظيف البشرة: عرض بالساعة فقط + منع 45/90
-  if (rules.hourlyOnly) {
+ if (rules?.hourlyOnly) {
+
     const buckets = new Map();
 
     for (const t of out) {
