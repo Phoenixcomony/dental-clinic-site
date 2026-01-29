@@ -2206,11 +2206,18 @@ if (!cfg) {
   });
 }
 
-if (!time24) return false;
-const [H, M = '0'] = String(time24).split(':');
+// time = "DD-MM-YYYY*HH:MM"
+const [date, time24] = String(time || '').split('*');
+
+if (!time24) {
+  return res.json({
+    success: false,
+    message: 'وقت الموعد غير صحيح'
+  });
+}
+
+const [H, M = '0'] = time24.split(':');
 const minutes = (+H * 60) + (+M);
-
-
 
 const fromMin = toMinutes(cfg.from);
 const toMin   = toMinutes(cfg.to);
@@ -2222,8 +2229,7 @@ if (minutes < fromMin || minutes > toMin) {
   });
 }
 
-  // time = "DD-MM-YYYY*HH:MM"
-  const [date, time24] = String(time).split('*');
+
 
   // 🔒 قفل فوري
   const locked = await lockSlot(
