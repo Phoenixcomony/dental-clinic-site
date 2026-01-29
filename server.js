@@ -1531,7 +1531,11 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clini
   });
 
   // ⏰ فلترة حسب وقت العيادة من لوحة التحكم
-const range = getClinicTimeRange(clinicStr, clinics);
+const range = getClinicTimeRange(
+  clinicStr.split('**')[0].trim(),
+  clinics
+);
+
 
 // ⛔ لا تلمس الأوقات إذا ما لقينا العيادة في لوحة التحكم
 if (range && Number.isFinite(range.from) && Number.isFinite(range.to)) {
