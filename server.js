@@ -1518,8 +1518,16 @@ rules = rules || {};
     const { date } = parseValueToDateTime(t);
     if (!date) return false;
     const { isFri, isSat } = isFriOrSat(date);
-    if (isFri && rules?.allowFriday === false) return false;
-if (isSat && rules?.allowSaturday === false) return false;
+   // 👇 جلب إعدادات العيادة من لوحة التحكم
+const cfg = clinics.find(c =>
+  String(c.value || '').trim() === String(clinicStr || '').trim()
+);
+
+if (cfg) {
+  if (isFri && cfg.allowFriday === false) return false;
+  if (isSat && cfg.allowSaturday === false) return false;
+}
+
 
     return true;
   });
