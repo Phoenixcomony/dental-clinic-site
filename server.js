@@ -1612,12 +1612,23 @@ app.post('/api/times', async (req, res) => {
 const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
+  const clinics = await getClinicsFromRedis();
+
+  const filtered = applyClinicRulesToTimes(
+    cachedPrefetch.times,
+    clinicStr,
+    effectivePeriod,
+    null,        // ⛔ لا قواعد ثابتة
+    clinics      // ✅ from / to من لوحة الموظف
+  );
+
   return res.json({
-    times: cachedPrefetch.times,
+    times: filtered,
     cached: true,
-    source: 'prefetch'
+    source: 'prefetch+filtered'
   });
 }
+
 
 
 
