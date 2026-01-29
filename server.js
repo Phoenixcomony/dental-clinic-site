@@ -674,11 +674,13 @@ function launchOpts() {
   }
 
   return {
-    headless: "new", // 👈 ضروري جدًا لتعمل fillSearch120 بشكل طبيعي
-    executablePath: exe,
-    args: baseArgs,
-    defaultViewport: { width: 1280, height: 900 },
-  };
+  headless: "new",
+  executablePath: exe,
+  args: baseArgs,
+  defaultViewport: { width: 1280, height: 900 },
+  protocolTimeout: 180000 // ⬅️ أضف هذا السطر
+};
+
 }
 
 
@@ -1753,6 +1755,12 @@ const clinicValue = await page.evaluate((name) => {
             };
           });
         });
+console.log(
+  '[TIMES][RAW]',
+  clinicStr,
+  'count=',
+  raw.length
+);
 
   
 
@@ -1775,6 +1783,16 @@ times = applyClinicRulesToTimes(
   effectivePeriod,
   rules,
   clinics
+);
+console.log(
+  '[TIMES][AFTER RULES]',
+  clinicStr,
+  'count=',
+  times.length,
+  'allowFri=',
+  rules?.allowFriday,
+  'allowSat=',
+  rules?.allowSaturday
 );
 
 // طبّق القواعد (وقت/ايام/تشقير)
