@@ -1737,6 +1737,29 @@ const clinicValue = await page.evaluate((name) => {
         });
 
    let filtered = raw;
+   // ===== تطبيق وقت العيادة من لوحة الموظف =====
+const clinicCfg = clinics.find(c => c.value === clinic);
+
+if (!clinicCfg) {
+  filtered = [];
+} else {
+  // from / to من لوحة الموظف (HH:MM)
+  const [fh, fm] = clinicCfg.from.split(':').map(Number);
+  const [th, tm] = clinicCfg.to.split(':').map(Number);
+
+  const fromMin = fh * 60 + fm;
+  const toMin   = th * 60 + tm;
+
+  filtered = filtered.filter(t => {
+    if (!t.time24) return false;
+
+    const [H, M='0'] = t.time24.split(':').map(Number);
+    const minutes = H * 60 + M;
+
+    return minutes >= fromMin && minutes <= toMin;
+  });
+}
+
 
 // طبق القواعد على raw أولاً
 const rules = null; // ⛔ لا نستخدم قواعد ثابتة
