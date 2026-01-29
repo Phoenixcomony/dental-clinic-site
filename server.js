@@ -351,7 +351,8 @@ async function prefetchAllClinicsTimes() {
     const clinics = await getClinicsFromRedis();
 
 for (const c of clinics) {
-  const clinic = c.value;
+  const clinic = String(c.value).split('**')[0].trim();
+
 
       try {
         console.log('[PREFETCH] clinic:', clinic);
@@ -1499,11 +1500,10 @@ function parseValueToDateTime(valueOrObj) {
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
 function getClinicTimeRange(clinicStr, clinics) {
-  const base = String(clinicStr).split('**')[0].trim();
-
   const c = clinics.find(x =>
-    String(x.value).trim() === base
-  );
+  String(x.value).trim() === String(clinicStr).trim()
+);
+
 
   if (!c) return null;
 
