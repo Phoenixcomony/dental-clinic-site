@@ -1499,7 +1499,9 @@ function parseValueToDateTime(valueOrObj) {
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
 function getClinicTimeRange(clinicStr, clinics) {
-  const c = clinics.find(x => x.value === clinicStr);
+  const baseName = String(clinicStr).split('**')[0].trim();
+const c = clinics.find(x => x.value === baseName);
+
   if (!c) return null;
 
   return {
