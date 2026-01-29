@@ -14,6 +14,33 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+// ================= CLINICS STORAGE =================
+const CLINICS_FILE = path.join(process.env.PERSIST_ROOT || '/data', 'clinics.json');
+
+
+function readClinics() {
+  try {
+    if (!fs.existsSync(CLINICS_FILE)) return [];
+    const raw = fs.readFileSync(CLINICS_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('[CLINICS] read error', e.message);
+    return [];
+  }
+}
+
+function writeClinics(list) {
+  try {
+    fs.writeFileSync(CLINICS_FILE, JSON.stringify(list, null, 2));
+  } catch (e) {
+    console.error('[CLINICS] write error', e.message);
+  }
+}
+
+function genClinicId() {
+  return 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+}
+
 // ===== Booking Bot Account (Dedicated) =====
 const BOOKING_ACCOUNT = {
   user: process.env.BOOKING_USER,
@@ -39,6 +66,35 @@ const redis = new Redis(process.env.REDIS_URL, {
     return Math.min(times * 100, 2000);
   }
 });
+// ===============================
+// CLINICS SOURCE (REDIS ONLY)
+// ===============================
+const CLINICS_KEY = 'clinics:list';
+
+async function getClinicsFromRedis() {
+  const raw = await redis.get(CLINICS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function saveClinicsToRedis(list) {
+  await redis.set(CLINICS_KEY, JSON.stringify(list));
+}
+async function syncClinicsToRuntime() {
+  const clinics = await getClinicsFromRedis();
+
+  // تحديث قائمة البوت
+  global.CLINICS_LIST = clinics.map(c => c.value);
+
+  // تنظيف كاش prefetch
+  for (const c of global.CLINICS_LIST) {
+    await redis.del(`prefetch_times_v1:${c}`);
+  }
+
+  // إعادة تشغيل prefetch
+  setTimeout(() => {
+    prefetchAllClinicsTimes().catch(()=>{});
+  }, 500);
+}
 
  
 
@@ -292,7 +348,11 @@ async function prefetchAllClinicsTimes() {
   console.log('[PREFETCH] start fetching all clinics');
 
   try {
-    for (const clinic of CLINICS_LIST) {
+    const clinics = await getClinicsFromRedis();
+
+for (const c of clinics) {
+  const clinic = c.value;
+
       try {
         console.log('[PREFETCH] clinic:', clinic);
 
@@ -375,22 +435,11 @@ const ACCOUNTS = [
   { user: "5555555555", pass: "5555555555", busy: false },
   
 ];
-const CLINICS_LIST = [
-  "عيادة الاسنان 5 (NO.103)**الفترة الثانية",
-  "عيادة الاسنان 1 (NO.100)**الفترة الاولى",
-  "عيادة الاسنان 1 (NO.100)**الفترة الثانية",
-  "عيادة الاسنان 2 (NO.101)**الفترة الاولى",
-  "عيادة الاسنان 2 (NO.101)**الفترة الثانية",
-  "عيادة الجلدية والتجميل (NO.200)**الفترة الثانية",
-  "تشقير وتنظيف البشرة**الفترة الثانية",
-  "النساء و الولادة (NO.400)**الفترة الاولى",
-  "النساء و الولادة (NO.400)**الفترة الثانية",
-  "عيادة الاسنان 6 (زراعه اسنان)**الفترة الثانية",
-  "النساء و الولادة 2**الفترة الاولى",
-  "النساء و الولادة 2**الفترة الثانية",
-  "عيادة الاسنان 4 (NO.102)**الفترة الثانية",
+function getDynamicClinicsList() {
+  const clinics = readClinics();
+  return clinics.map(c => c.value);
+}
 
-];
 // ================= CLINICS CONFIG =================
 const CLINIC_RULES = {
   dental_1: {
@@ -1449,8 +1498,24 @@ function parseValueToDateTime(valueOrObj) {
   const [date, time24] = String(v).split('*');
   return { date: (date || '').trim(), time24: (time24 || '').trim() };
 }
+function getClinicTimeRange(clinicStr, clinics) {
+  const base = String(clinicStr).split('**')[0].trim();
 
-function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
+  const c = clinics.find(x =>
+    String(x.value).trim() === base
+  );
+
+  if (!c) return null;
+
+  return {
+    from: toMinutes(c.from),
+    to: toMinutes(c.to)
+  };
+}
+
+
+function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules, clinics) {
+
   if (!rules) return times || [];
 
   let out = Array.isArray(times) ? [...times] : [];
@@ -1465,20 +1530,20 @@ function applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules) {
     return true;
   });
 
-  // 2) فلترة الفترة (صباح/مساء) حسب حدود من-إلى
-  if (effectivePeriod === 'morning' && rules.morning) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.morning.from, rules.morning.to);
-    });
-  }
+  // ⏰ فلترة حسب وقت العيادة من لوحة التحكم
+const range = getClinicTimeRange(clinicStr, clinics);
 
-  if (effectivePeriod === 'evening' && rules.evening) {
-    out = out.filter(t => {
-      const { time24 } = parseValueToDateTime(t);
-      return time24 && inRange(time24, rules.evening.from, rules.evening.to);
-    });
-  }
+// ⛔ لا تلمس الأوقات إذا ما لقينا العيادة في لوحة التحكم
+if (range && Number.isFinite(range.from) && Number.isFinite(range.to)) {
+  out = out.filter(t => {
+    const { time24 } = parseValueToDateTime(t);
+    return time24 && inRange(time24, range.from, range.to);
+  });
+} else {
+  console.warn('[CLINIC TIME RANGE SKIPPED]', clinicStr);
+}
+
+
 
   // 3) تشقير/تنظيف البشرة: عرض بالساعة فقط + منع 45/90
   if (rules.hourlyOnly) {
@@ -1551,10 +1616,13 @@ app.post('/api/times', async (req, res) => {
 const cachedPrefetch = await getClinicTimesFromRedis(clinic);
 
 if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
-  const rules = findClinicRules(clinicStr);
-  let times = applyClinicRulesToTimes(cachedPrefetch.times, clinicStr, effectivePeriod, rules);
-  return res.json({ times, cached: true, source: 'prefetch' });
+  return res.json({
+    times: cachedPrefetch.times,
+    cached: true,
+    source: 'prefetch'
+  });
 }
+
 
 
 
@@ -1676,15 +1744,25 @@ const clinicValue = await page.evaluate((name) => {
 
 // طبق القواعد على raw أولاً
 const rules = findClinicRules(clinicStr);
+const clinics = await getClinicsFromRedis();
 
 // حوّل raw إلى times
 let times = filtered.map(x => ({
   value: x.value,
   label: `${x.date} - ${to12h(x.time24)}`
 }));
+// ✅ طبق تحديد الوقت من لوحة التحكم (هنا المكان الصح)
+times = applyClinicRulesToTimes(
+  times,
+  clinicStr,
+  effectivePeriod,
+  rules,
+  clinics
+);
 
 // طبّق القواعد (وقت/ايام/تشقير)
-times = applyClinicRulesToTimes(times, clinicStr, effectivePeriod, rules);
+
+
 
 // خزنه كـ Prefetch-style (اختياري)
 // await setClinicTimesToRedis(clinicStr, times);
@@ -2399,19 +2477,16 @@ incMetrics({ clinic: safeClinic });
  *                 Persistent Metrics (stats.json)
  * ========================================================= */
 const METRICS_PATH = process.env.METRICS_PATH || path.join(__dirname, 'stats.json');
-const STAFF_KEY = process.env.STAFF_KEY || '';
-// ================= ADMIN AUTH =================
-function requireStaff(req, res, next) {
-  const key =
-    req.headers['x-staff-key'] ||
-    req.query.key ||
-    req.body?.key;
+const STAFF_KEY = process.env.STAFF_KEY || 'AQZa123@';
 
-  if (!STAFF_KEY || key !== STAFF_KEY) {
+function requireStaff(req, res, next) {
+  const key = req.headers['x-staff-key'];
+  if (!key || key !== STAFF_KEY) {
     return res.status(403).json({ ok:false, error:'Forbidden' });
   }
   next();
 }
+
 
 function ensureDir(p) {
   try {
@@ -2548,6 +2623,108 @@ app.post('/api/stats/booking-success', async (req, res) => {
     res.json({ ok: true });
   }
 });
+// ================= CLINICS (PUBLIC) =================
+app.get('/api/clinics', (req, res) => {
+  const clinics = readClinics();
+  res.json({ success: true, clinics });
+});
+// ================= CLINICS (ADMIN) =================
+app.get('/api/admin/clinics', requireStaff, (req, res) => {
+  res.json({
+    success: true,
+    clinics: readClinics()
+  });
+});
+app.post('/api/admin/clinics', requireStaff, async (req, res) => {
+  const { label, value, from, to } = req.body || {};
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({
+      success: false,
+      message: 'بيانات ناقصة'
+    });
+  }
+
+  const clinics = readClinics();
+
+  if (clinics.some(c => c.value === value)) {
+    return res.status(409).json({
+      success: false,
+      message: 'العيادة موجودة مسبقًا'
+    });
+  }
+
+  const item = {
+    id: genClinicId(),
+    label: String(label).trim(),
+    value: String(value).trim(),
+    from: String(from).trim(), // HH:MM
+    to: String(to).trim()      // HH:MM
+  };
+
+  clinics.push(item);
+  writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+
+// 🔥 شغّل prefetch مباشرة
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+
+  res.json({
+    success: true,
+    clinic: item
+  });
+});
+app.delete('/api/admin/clinics/:id', requireStaff, async (req, res) => {
+  const clinics = readClinics();
+  const next = clinics.filter(c => c.id !== req.params.id);
+  writeClinics(next);
+  saveClinicsToRedis(next).then(syncClinicsToRuntime);
+
+  await saveClinicsToRedis(next);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+  res.json({ success: true });
+});
+// ================= UPDATE CLINIC =================
+app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
+  const { id } = req.params;
+  const { label, value, from, to } = req.body;
+
+  if (!label || !value || !from || !to) {
+    return res.status(400).json({ ok:false, error:'Missing fields' });
+  }
+
+  const clinics = readClinics();
+  const idx = clinics.findIndex(c => c.id === id);
+
+  if (idx === -1) {
+    return res.status(404).json({ ok:false, error:'Clinic not found' });
+  }
+
+  clinics[idx] = {
+    ...clinics[idx],
+    label,
+    value,
+    from,
+    to
+  };
+
+  writeClinics(clinics);
+  saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+
+await saveClinicsToRedis(clinics);
+await redis.del(PREFETCH_LOCK_KEY);
+setTimeout(prefetchAllClinicsTimes, 500);
+
+  res.json({ success:true, clinic: clinics[idx] });
+});
+
+
 // ================= CMS: BANNERS =================
 app.get('/api/banners', async (req, res) => {
   const banners = await readRedisArray(REDIS_BANNERS_KEY);
@@ -2638,6 +2815,36 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
 
   res.json({ ok:true });
 });
+// ================= CLINICS SEED (RUN ONCE) =================
+function seedClinicsOnce() {
+  if (fs.existsSync(CLINICS_FILE)) {
+    console.log('[CLINICS] clinics.json already exists — skip seed');
+    return;
+  }
+saveClinicsToRedis(readClinics()).then(syncClinicsToRuntime);
+
+  console.log('[CLINICS] seeding clinics from defaults…');
+
+  const seed = CLINICS_LIST.map(name => {
+    const isEvening = name.includes('الفترة الثانية');
+    return {
+      id: 'clinic_' + Date.now() + '_' + Math.random().toString(16).slice(2),
+      label: name.split('**')[0],
+      value: name,
+      from: isEvening ? '16:00' : '09:00',
+      to:   isEvening ? '22:00' : '11:30'
+    };
+  });
+
+  fs.writeFileSync(
+    CLINICS_FILE,
+    JSON.stringify(seed, null, 2),
+    'utf8'
+  );
+
+  console.log('[CLINICS] seed completed:', seed.length, 'clinics');
+}
+
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT} (watch=${WATCH})`);
