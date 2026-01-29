@@ -1737,6 +1737,13 @@ const clinicValue = await page.evaluate((name) => {
         });
 
    let filtered = raw;
+   console.log(
+  '[TIME RANGE]',
+  clinicCfg?.value,
+  'from:', clinicCfg?.from,
+  'to:', clinicCfg?.to
+);
+
    // ===== تطبيق وقت العيادة من لوحة الموظف =====
 const clinicCfg = clinics.find(c => c.value === clinic);
 
@@ -1758,6 +1765,15 @@ if (!clinicCfg) {
 
     return minutes >= fromMin && minutes <= toMin;
   });
+ raw.forEach(t => {
+  const [H, M='0'] = t.time24.split(':').map(Number);
+  const minutes = H * 60 + M;
+  if (minutes < fromMin || minutes > toMin) {
+    console.log('[REJECT]', t.time24, minutes);
+  }
+});
+
+
 }
 
 
