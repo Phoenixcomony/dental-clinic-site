@@ -2724,6 +2724,17 @@ app.post('/api/admin/clinics', requireStaff, async (req, res) => {
   clinics.push(item);
   writeClinics(clinics);
   saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
+// 🧹 مسح كاش العيادة بعد التعديل
+const clinicValue = req.body.value;
+
+await redis.del(`prefetch_times_v1:${clinicValue}`);
+
+const keys = await redis.keys(`times:${clinicValue}*`);
+if (keys.length) {
+  await redis.del(keys);
+}
+
+console.log('[CACHE CLEARED]', clinicValue);
 
 await saveClinicsToRedis(clinics);
 
