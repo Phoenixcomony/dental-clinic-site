@@ -353,16 +353,24 @@ const panelC = document.getElementById('panelC');
 tabB.onclick=()=>{
   tabB.classList.add('active');
   tabP.classList.remove('active');
+  tabC.classList.remove('active');
+
   panelB.classList.add('active');
-  panelP.classList.remove('active')
+  panelP.classList.remove('active');
+  panelC.classList.remove('active');
 }
+
 
 tabP.onclick=()=>{
   tabP.classList.add('active');
   tabB.classList.remove('active');
+  tabC.classList.remove('active');
+
   panelP.classList.add('active');
-  panelB.classList.remove('active')
+  panelB.classList.remove('active');
+  panelC.classList.remove('active');
 }
+
 tabC.onclick=()=>{
   tabC.classList.add('active');
   tabB.classList.remove('active');
