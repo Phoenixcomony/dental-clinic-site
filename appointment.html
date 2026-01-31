@@ -890,7 +890,8 @@ async function loadClinics() {
     data.clinics.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.value; // نفس القيمة المستخدمة في الحجز
-      opt.textContent = `${c.label} (${c.from} – ${c.to})`;
+      opt.textContent = c.label;
+
       clinicSel.appendChild(opt);
     });
 
