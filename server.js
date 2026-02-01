@@ -1327,7 +1327,7 @@ app.post('/api/create-patient', async (req, res) => {
       if(!nationalId)             return res.json({ success:false, message:'رقم الهوية مطلوب' });
       if(!gender)                 gender='1';
       if(!day || !month || !year) return res.json({ success:false, message:'تاريخ الميلاد (يوم/شهر/سنة) مطلوب' });
-      if(!verifyOtpInline(phone, otp)) return res.json({ success:false, message:'OTP غير صحيح', reason:'otp' });
+      
 console.log('[NEW-FILE] validation passed');
 
       const phone05 = toLocal05(phone);
