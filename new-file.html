@@ -1,327 +1,339 @@
-<!-- new-file.html (نسخة مضغّطة أكثر) -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>فتح ملف جديد – مجمع فينكس الطبي</title>
+  <title>فتح ملف جديد | مجمع فينكس الطبي</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fonts & Icons -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
   <style>
     :root{
-      --gold:#e2be6d; --ink:#6b4b00; --muted:#7a6d4e;
-      --bg:#fdfbf6; --white:#fff;
-      --shadow:0 6px 16px #e2be6d22, 0 1px 6px #e2be6d18;
-      --ring:#e2be6d7a;
-      --grad:linear-gradient(90deg,#e8ca7c 10%, #fff8e6 100%);
+      --gold:#e2be6d;
+      --gold-soft:#fff3d1;
+      --ink:#5a4200;
+      --bg:#f6f7f9;
+      --card:#ffffffee;
+      --border:#e2be6d55;
+      --shadow:0 25px 60px rgba(15,23,42,.12);
+      --radius:22px;
     }
+
     *{ box-sizing:border-box; }
-    html,body{ height:100%; }
     body{
-      margin:0; font-family:"Cairo", Tahoma, Arial, sans-serif; background:var(--bg); color:#222;
-      display:flex; align-items:center; justify-content:center; padding:10px 8px;
-      background-image:
-        radial-gradient(28rem 28rem at 120% -10%, #fff3d94d, transparent 60%),
-        radial-gradient(22rem 22rem at -10% 120%, #ffe9b84d, transparent 60%);
+      margin:0;
+      font-family:'Cairo',system-ui;
+      background:
+        radial-gradient(900px 400px at 90% -10%, #fff3d1, transparent 60%),
+        radial-gradient(700px 500px at -10% 110%, #e2be6d33, transparent 60%),
+        var(--bg);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      color:#111;
     }
 
-    /* بطاقة أصغر */
-    .wrap{
-      width:100%; max-width:540px; background:var(--white);
-      border:1px solid #e8ca7c80; border-radius:12px; box-shadow:var(--shadow);
-      padding:10px 10px 8px; position:relative; overflow:hidden;
+    /* Loader */
+    .screen-loader{
+      position:fixed;
+      inset:0;
+      background:rgba(255,255,255,.55);
+      backdrop-filter:blur(6px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:9999;
     }
-
-    /* رأس صغير جدًا */
-    .head{ display:flex; align-items:center; gap:6px; justify-content:center; padding:0 4px 4px; }
-    .logo{ width:26px; height:26px; border-radius:8px; background:#fff8e6; display:grid; place-items:center;
-           box-shadow:inset 0 0 0 1px #f4e2b9; color:#b3881e; font-size:.8rem; }
-    h1{ margin:0; font-size:.95rem; color:#a67c0e; font-weight:800; letter-spacing:.1px; }
-    p.sub{ margin:2px 0 8px; text-align:center; color:var(--muted); font-size:.84rem; }
-
-    /* خطوات مصغّرة جدًا */
-    .steps{ display:flex; align-items:center; justify-content:center; gap:5px; margin:0 0 6px; }
-    .step{
-      display:flex; align-items:center; gap:5px; padding:4px 6px; border-radius:8px;
-      background:#fffdfa; border:1px solid #f3e3b9; color:#7c5a10; font-weight:700; font-size:.74rem;
-      box-shadow: inset 0 1px 4px #e2be6d14;
+    .screen-loader.show{display:flex;}
+    .spinner{
+      width:64px;height:64px;border-radius:50%;
+      border:4px solid #eadcb1;
+      border-top-color:var(--gold);
+      animation:spin .9s linear infinite;
+      box-shadow:0 12px 30px #e2be6d55;
     }
-    .step i{ color:var(--gold); font-size:.9em; }
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    label{ display:block; margin:.35rem 0 .2rem; font-weight:700; color:#b18836; font-size:.88rem; }
-
-    /* حقول وأيقونات مدمجة */
-    .field{ position:relative; }
-    .field i{
-      position:absolute; left:8px; top:50%; transform:translateY(-50%);
-      color:#b89023; opacity:.9; pointer-events:none; font-size:.9em;
-    }
-    input, select{
+    /* Card */
+    .card{
       width:100%;
-      padding:7px 28px 7px 26px;
-      border-radius:10px;
-      border:1.2px solid #e2be6d99;
-      background:#fffdfa; font-size:.9rem; outline:none;
-      transition:border .12s, box-shadow .12s, background .12s;
-      color:#3d311a;
+      max-width:620px;
+      background:var(--card);
+      border-radius:var(--radius);
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      padding:22px 22px 20px;
     }
-    input:focus, select:focus{ border-color:var(--gold); background:#fff9e0; box-shadow:0 0 0 2px var(--ring); }
 
-    .row{ display:flex; gap:6px; }
-    .row>*{ flex:1; }
+    .header{
+      text-align:center;
+      margin-bottom:14px;
+    }
+    .logo{
+      width:54px;height:54px;
+      margin:0 auto 8px;
+      border-radius:18px;
+      background:linear-gradient(135deg,#e2be6d,#fff4d4);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#7a5708;
+      box-shadow:0 12px 30px rgba(226,190,109,.35);
+      font-size:1.4rem;
+    }
+    .header h1{
+      margin:0;
+      font-size:1.2rem;
+      font-weight:900;
+      color:#6b4b00;
+    }
+    .header p{
+      margin:6px 0 0;
+      color:#7a6d4e;
+      font-weight:700;
+      font-size:.9rem;
+    }
 
-    .inline{ display:flex; align-items:stretch; gap:6px; }
-    .hint{ font-size:.8rem; color:#946f20; }
-    .muted{ color:var(--muted); text-align:center; min-height:18px; margin-top:6px; font-size:.86rem; }
+    /* Steps */
+    .steps{
+      display:flex;
+      gap:8px;
+      justify-content:center;
+      margin:14px 0 18px;
+      flex-wrap:wrap;
+    }
+    .step{
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:800;
+      font-size:.78rem;
+      background:#fff8e6;
+      border:1px solid var(--border);
+      color:#7a5708;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+
+    label{
+      display:block;
+      margin:10px 0 6px;
+      font-weight:900;
+      color:#6b4b00;
+      font-size:.92rem;
+    }
+
+    .field{position:relative;}
+    .field i{
+      position:absolute;
+      right:14px;
+      top:50%;
+      transform:translateY(-50%);
+      color:#b89023;
+      pointer-events:none;
+    }
+
+    input,select{
+      width:100%;
+      padding:12px 40px 12px 12px;
+      border-radius:16px;
+      border:1.6px solid var(--border);
+      background:#fffdfa;
+      font-size:.95rem;
+      font-family:inherit;
+      transition:.15s ease;
+    }
+    input:focus,select:focus{
+      outline:none;
+      border-color:var(--gold);
+      box-shadow:0 0 0 4px rgba(226,190,109,.25);
+      background:#fff;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .row>*{flex:1;}
 
     .btn{
-      width:100%; padding:8px 0;
-      border:none; border-radius:10px;
-      font-weight:800; font-size:.94rem;
-      background:var(--grad); color:var(--ink);
-      cursor:pointer; margin-top:8px; box-shadow:0 5px 12px #e2be6d2a; letter-spacing:.15px;
-      transition:transform .1s ease, box-shadow .14s ease, filter .14s ease;
+      margin-top:14px;
+      width:100%;
+      padding:13px;
+      border:none;
+      border-radius:18px;
+      font-weight:900;
+      font-size:1rem;
+      cursor:pointer;
+      background:linear-gradient(135deg,#e2be6d,#fff4d4);
+      color:#5b3e00;
+      box-shadow:0 16px 40px rgba(226,190,109,.3);
+      transition:.15s ease;
     }
-    .btn:hover{ transform:translateY(-1px); box-shadow:0 7px 14px #e2be6d33; }
-    .btn:active{ transform:scale(.985); }
-    .btn:disabled{ opacity:.6; cursor:not-allowed; filter:saturate(.85); }
+    .btn:hover{transform:translateY(-1px);}
+    .btn:disabled{opacity:.6;cursor:not-allowed;}
 
-    .danger{ color:#b00020; font-weight:800; }
-    .success{ color:#1c8c36; font-weight:800; }
-
-    /* خانة الجوال */
-    #phone{ direction:ltr; caret-color:#000; background:#fffdfa; position:relative; z-index:2; }
-
-    /* شاشة انتظار */
-    .screen-loader{
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
-      background:rgba(255,255,255,.48); backdrop-filter:blur(2px); z-index:9999;
+    .hint{
+      text-align:center;
+      margin-top:6px;
+      font-size:.82rem;
+      color:#7a6d4e;
+      font-weight:700;
     }
-    .screen-loader.show{ display:flex; }
-    .spinner{
-      width:52px; height:52px; border-radius:50%;
-      border:4px solid #eadcb1; border-top-color:var(--gold); animation:spin .9s linear infinite;
-      box-shadow:0 6px 18px #e2be6d55;
-    }
-    @keyframes spin{ to{ transform:rotate(360deg);} }
 
-    @media (max-width:360px){
-      .wrap{ padding:8px; border-radius:10px; }
-      input, select{ padding:6px 26px 6px 24px; font-size:.88rem; }
-      .btn{ padding:7px 0; font-size:.9rem; }
-      label{ font-size:.86rem; }
-      .logo{ width:24px; height:24px; }
-      h1{ font-size:.9rem; }
-      .step{ font-size:.7rem; padding:3px 5px; }
+    .msg{
+      text-align:center;
+      margin-top:10px;
+      font-weight:800;
+      min-height:22px;
+    }
+    .success{color:#1c8c36;}
+    .error{color:#b00020;}
+
+    @media(max-width:480px){
+      .card{padding:18px;}
+      .logo{width:48px;height:48px;}
     }
   </style>
 </head>
 <body>
 
-  <!-- شاشة الانتظار -->
-  <div id="screenLoader" class="screen-loader" aria-live="polite" aria-busy="true">
-    <div class="spinner" role="status" aria-label="جارٍ المعالجة"></div>
+<!-- Loader -->
+<div id="screenLoader" class="screen-loader">
+  <div class="spinner"></div>
+</div>
+
+<div class="card">
+  <div class="header">
+    <div class="logo"><i class="fa-solid fa-id-card-clip"></i></div>
+    <h1>فتح ملف جديد</h1>
+    <p>إنشاء ملف طبي في مجمع فينكس الطبي</p>
   </div>
 
-  <section class="wrap" aria-labelledby="title">
-    <div class="head">
-      <div class="logo"><i class="fa-solid fa-id-card-clip"></i></div>
-      <h1 id="title">فتح ملف جديد</h1>
-    </div>
-    <p class="sub"> إنشاء حساب جديد </p>
+  <div class="steps">
+    <div class="step"><i class="fa-solid fa-user"></i> البيانات</div>
+    <div class="step"><i class="fa-brands fa-whatsapp"></i> التحقق</div>
+    <div class="step"><i class="fa-solid fa-floppy-disk"></i> الحفظ</div>
+  </div>
 
-    <div class="steps" aria-hidden="true">
-      <div class="step"><i class="fa-solid fa-user"></i> بيانات شخصية</div>
-      <div class="step"><i class="fa-brands fa-whatsapp"></i> تحقق واتساب</div>
-      <div class="step"><i class="fa-solid fa-floppy-disk"></i> حفظ</div>
-    </div>
+  <label>الاسم الثلاثي</label>
+  <div class="field">
+    <input id="fullName" placeholder="محمد أحمد مصطفى">
+    <i class="fa-solid fa-user"></i>
+  </div>
 
-    <label for="fullName">الاسم الثلاثي</label>
-    <div class="field">
-      <input id="fullName" type="text" placeholder="مثال: محمد أحمد مصطفى" autocomplete="name">
-      <i class="fa-solid fa-user"></i>
-    </div>
+  <label>رقم الهوية</label>
+  <div class="field">
+    <input id="idNumber" maxlength="10" placeholder="10 أرقام">
+    <i class="fa-solid fa-id-card"></i>
+  </div>
 
-    <label for="idNumber">رقم الهوية</label>
-    <div class="field">
-      <input id="idNumber" type="text" placeholder="10 أرقام" inputmode="numeric" maxlength="10" autocomplete="off">
-      <i class="fa-solid fa-id-card"></i>
-    </div>
+  <label>تاريخ الميلاد</label>
+  <div class="row">
+    <div class="field"><select id="day"></select><i class="fa-regular fa-calendar"></i></div>
+    <div class="field"><select id="month"></select><i class="fa-regular fa-calendar-days"></i></div>
+    <div class="field"><select id="year"></select><i class="fa-regular fa-calendar-check"></i></div>
+  </div>
 
-    <label>تاريخ الميلاد</label>
-    <div class="row">
+  <div class="row">
+    <div>
+      <label>الجنس</label>
       <div class="field">
-        <select id="day"></select>
-        <i class="fa-regular fa-calendar"></i>
+        <select id="gender">
+          <option value="">اختر</option>
+          <option value="1">ذكر</option>
+          <option value="2">أنثى</option>
+        </select>
+        <i class="fa-solid fa-venus-mars"></i>
       </div>
+    </div>
+    <div>
+      <label>الجنسية</label>
       <div class="field">
-        <select id="month"></select>
-        <i class="fa-regular fa-calendar-days"></i>
-      </div>
-      <div class="field">
-        <select id="year"></select>
-        <i class="fa-regular fa-calendar-check"></i>
-      </div>
-    </div>
-
-    <div class="row">
-      <div>
-        <label for="gender">الجنس</label>
-        <div class="field">
-          <select id="gender">
-            <option value="">اختر</option>
-            <option value="1">ذكر</option>
-            <option value="2">أنثى</option>
-          </select>
-          <i class="fa-solid fa-venus-mars"></i>
-        </div>
-      </div>
-      <div>
-        <label for="n">الجنسية</label>
-        <div class="field">
-          <select name="nationality" id="n" disabled title="يتم تحديد الجنسية تلقائيًا من أول رقم في الهوية">
-            <option value=""></option>
-            <option value="27">Other</option>
-            <option value="1" selected="selected">Saudi</option>
-            <!-- ... باقي الخيارات ... -->
-          </select>
-          <i class="fa-solid fa-earth-asia"></i>
-        </div>
+        <select id="n" disabled>
+          <option value="1" selected>Saudi</option>
+          <option value="27">Other</option>
+        </select>
+        <i class="fa-solid fa-earth-asia"></i>
       </div>
     </div>
+  </div>
 
-    <label for="phone">رقم الجوال</label>
-    <div class="field">
-      <input id="phone" type="text" placeholder="05xxxxxxxx" inputmode="numeric" maxlength="10" autocomplete="tel" aria-label="رقم الجوال">
-      <i class="fa-solid fa-phone"></i>
-    </div>
-    <button id="sendOtpBtn" type="button" class="btn">إرسال رمز التحقق</button>
-    <div class="hint">سيصلك الرمز عبر واتساب. إعادة الإرسال بعد 60 ثانية.</div>
+  <label>رقم الجوال</label>
+  <div class="field">
+    <input id="phone" placeholder="05xxxxxxxx">
+    <i class="fa-solid fa-phone"></i>
+  </div>
 
-    <label for="otp">رمز التحقق (6 أرقام)</label>
-    <div class="inline">
-      <div class="field" style="flex:1;">
-        <input id="otp" type="text" placeholder="******" inputmode="numeric" maxlength="6">
-        <i class="fa-solid fa-shield-check"></i>
-      </div>
-      <span id="otpHint" class="hint" style="flex:0 0 auto;"></span>
-    </div>
+  <button id="sendOtpBtn" class="btn">إرسال رمز التحقق</button>
+  <div class="hint">سيصلك الرمز عبر واتساب</div>
 
-    <button id="saveBtn" class="btn">حفظ البيانات</button>
-    <div id="msg" class="muted"></div>
-  </section>
+  <label>رمز التحقق</label>
+  <div class="field">
+    <input id="otp" maxlength="6" placeholder="******">
+    <i class="fa-solid fa-shield-check"></i>
+  </div>
 
-  <script>
-    const $ = (id)=>document.getElementById(id);
-    const isTriple = (v)=> (v||'').trim().split(/\s+/).filter(Boolean).length===3;
-    const isSaudi05 = (v)=> /^05\d{8}$/.test((v||'').replace(/\D/g,''));
+  <button id="saveBtn" class="btn">حفظ البيانات</button>
+  <div id="msg" class="msg"></div>
+</div>
 
-    // تعبئة مسبقة للاسم والجوال
-    (function prefill(){
-      const n = localStorage.getItem('auth_name') || '';
-      const p = localStorage.getItem('auth_phone') || '';
-      if(n) $('fullName').value = n;
-      if(p) $('phone').value = p;
-    })();
+<script>
+  const $=id=>document.getElementById(id);
+  const loader=$('screenLoader');
+  const showLoader=b=>loader.classList.toggle('show',b);
 
-    // تعبئة اليوم/الشهر/السنة
-    (function fillDob(){
-      const d=$('day'), m=$('month'), y=$('year');
-      d.innerHTML='<option value="">اليوم</option>'; for(let i=1;i<=31;i++){ d.innerHTML+=`<option value="${i}">${i}</option>`; }
-      m.innerHTML='<option value="">الشهر</option>'; for(let i=1;i<=12;i++){ m.innerHTML+=`<option value="${i}">${i}</option>`; }
-      y.innerHTML='<option value="">السنة</option>'; for(let i=new Date().getFullYear();i>=1900;i--){ y.innerHTML+=`<option value="${i}">${i}</option>`; }
-    })();
+  // DOB
+  for(let i=1;i<=31;i++) day.innerHTML+=`<option>${i}</option>`;
+  for(let i=1;i<=12;i++) month.innerHTML+=`<option>${i}</option>`;
+  for(let i=new Date().getFullYear();i>=1900;i--) year.innerHTML+=`<option>${i}</option>`;
 
-    // شاشة الانتظار
-    const screenLoader = $('screenLoader');
-    const showLoader = (on)=>{ on ? screenLoader.classList.add('show') : screenLoader.classList.remove('show'); };
+  // Nationality auto
+  idNumber.addEventListener('input',()=>{
+    n.value = idNumber.value.startsWith('1')?'1':'27';
+  });
 
-    // تايمر OTP
-    let otpCooldown=0, otpTimer=null;
-    function startOtpTimer(){
-      otpCooldown=60; $('sendOtpBtn').disabled=true;
-      const tick=()=>{
-        if(otpCooldown<=0){
-          $('sendOtpBtn').disabled=false; $('sendOtpBtn').textContent='إرسال رمز التحقق';
-          $('otpHint').textContent=''; clearInterval(otpTimer); otpTimer=null; return;
-        }
-        $('sendOtpBtn').textContent=`إعادة خلال ${otpCooldown--}ث`; $('otpHint').textContent='تحقق من الواتساب وأدخل الرمز';
-      };
-      tick(); otpTimer=setInterval(tick,1000);
-    }
+  // OTP
+  sendOtpBtn.onclick=async()=>{
+    if(!/^05\d{8}$/.test(phone.value)) return msg.textContent='رقم الجوال غير صحيح';
+    showLoader(true);
+    try{
+      const r=await fetch('/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:phone.value})});
+      const d=await r.json();
+      msg.textContent=d.success?'تم إرسال الرمز':'فشل الإرسال';
+    }catch{msg.textContent='خطأ اتصال';}
+    showLoader(false);
+  };
 
-    // إرسال OTP
-    $('sendOtpBtn').addEventListener('click', async ()=>{
-      const phone=$('phone').value.trim(); const msg=$('msg');
-      if(!isSaudi05(phone)){ msg.textContent='الرقم بصيغة 05xxxxxxxx'; return; }
-      if(otpCooldown>0) return;
-      msg.textContent='جارٍ إرسال الرمز...'; showLoader(true);
-      try{
-        const r=await fetch('/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
-        const data=await r.json();
-        if(data.success){ msg.textContent='تم إرسال الرمز عبر واتساب'; startOtpTimer(); }
-        else{ msg.textContent=data.message||'تعذّر إرسال الرمز'; }
-      }catch{ msg.textContent='تعذّر الاتصال بالخادم'; }
-      finally{ showLoader(false); }
-    });
+  // Save
+  saveBtn.onclick=async()=>{
+    showLoader(true);
+    msg.textContent='جاري الحفظ...';
+    try{
+      const r=await fetch('/api/create-patient',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          fullName:fullName.value,
+          nationalId:idNumber.value,
+          day:day.value,month:month.value,year:year.value,
+          gender:gender.value,nationalityValue:n.value,
+          phone:phone.value,otp:otp.value
+        })
+      });
+      const d=await r.json();
+      if(d.success){
+        msg.innerHTML='<span class="success">تم إنشاء الملف بنجاح</span>';
+        setTimeout(()=>location.href='appointment.html',1200);
+      }else msg.textContent=d.message||'فشل العملية';
+    }catch{msg.textContent='خطأ اتصال';}
+    showLoader(false);
+  };
+</script>
 
-    // تغيير الجنسية تلقائيًا حسب أول رقم من الهوية (1 = Saudi، غير ذلك = Other)
-    $('idNumber').addEventListener('input', function(){
-      const firstDigit = this.value.trim().charAt(0);
-      if(firstDigit === '1'){
-        $('n').value = '1'; // Saudi
-      } else if(firstDigit && firstDigit !== '1'){
-        $('n').value = '27'; // Other
-      }
-    });
-
-    // حفظ البيانات
-    $('saveBtn').addEventListener('click', async ()=>{
-      const fullName=$('fullName').value.trim();
-      const idNumber=$('idNumber').value.trim();
-      const day=$('day').value, month=$('month').value, year=$('year').value;
-      const gender=$('gender').value;
-      const nationalityValue=$('n').value;
-      const phone=$('phone').value.trim();
-      const otp=$('otp').value.trim();
-      const msg=$('msg');
-
-      if(!isTriple(fullName))        { msg.textContent='الاسم الثلاثي مطلوب'; return; }
-      if(!/^\d{10}$/.test(idNumber)) { msg.textContent='رقم الهوية 10 أرقام'; return; }
-      if(!day||!month||!year)        { msg.textContent='تاريخ الميلاد كامل مطلوب'; return; }
-      if(!gender)                    { msg.textContent='اختر الجنس'; return; }
-      if(!isSaudi05(phone))          { msg.textContent='رقم الجوال 05xxxxxxxx'; return; }
-      if(!/^\d{6}$/.test(otp))       { msg.textContent='رمز التحقق 6 أرقام مطلوب'; return; }
-
-      $('saveBtn').disabled=true; msg.textContent='جارٍ إنشاء الملف...'; showLoader(true);
-      try{
-        const r=await fetch('/api/create-patient',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ fullName, phone, nationalId:idNumber, gender, nationalityValue, day, month, year, otp })
-        });
-        const data=await r.json();
-        if(data.success){
-          msg.innerHTML='<span class="success">تم فتح ملف باسمك بنجاح</span>';
-          setTimeout(()=>location.href='appointment.html',5000);
-        }else if(data.reason==='phone_exists'){
-          msg.textContent='لديك ملف مسجل لدينا، الرجاء تسجيل الدخول.';
-          $('saveBtn').disabled=false;
-        }else{
-          msg.textContent=data.message||'تعذّر إنشاء الملف';
-          $('saveBtn').disabled=false;
-        }
-      }catch{
-        msg.textContent='تعذّر الاتصال بالخادم';
-        $('saveBtn').disabled=false;
-      }finally{
-        showLoader(false);
-      }
-    });
-  </script>
 </body>
 </html>
