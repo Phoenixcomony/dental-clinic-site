@@ -212,27 +212,7 @@ async function isSlotLocked(clinic, date, time) {
   const key = slotLockKey(clinic, date, time);
   return !!(await redis.get(key));
 }
-// ✅ فحص فوري لحالة الموعد (قبل الحجز)
-app.post('/api/check-slot', async (req, res) => {
-  const { clinic, time } = req.body || {};
 
-  if (!clinic || !time) {
-    return res.json({ locked: false });
-  }
-
-  const [date, time24] = String(time).split('*');
-  if (!date || !time24) {
-    return res.json({ locked: false });
-  }
-
-  const locked = await isSlotLocked(
-    String(clinic).trim(),
-    date.trim(),
-    time24.trim()
-  );
-
-  return res.json({ locked });
-});
 
 
 async function setTimesCache(key, data) {
@@ -404,6 +384,27 @@ for (const c of clinics) {
 /* ================= Express ================= */
 const app = express();
 app.use('/uploads', express.static(UPLOADS_DIR));
+// ✅ فحص فوري لحالة الموعد (قبل الحجز)
+app.post('/api/check-slot', async (req, res) => {
+  const { clinic, time } = req.body || {};
+
+  if (!clinic || !time) {
+    return res.json({ locked: false });
+  }
+
+  const [date, time24] = String(time).split('*');
+  if (!date || !time24) {
+    return res.json({ locked: false });
+  }
+
+  const locked = await isSlotLocked(
+    String(clinic).trim(),
+    date.trim(),
+    time24.trim()
+  );
+
+  return res.json({ locked });
+});
 
 /* 🔁 تحويل الدومين بدون www إلى www (أول شيء) */
 app.use((req, res, next) => {
