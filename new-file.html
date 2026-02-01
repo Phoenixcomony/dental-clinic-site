@@ -215,11 +215,7 @@
     <p>إنشاء ملف طبي في مجمع فينكس الطبي</p>
   </div>
 
-  <div class="steps">
-    <div class="step"><i class="fa-solid fa-user"></i> البيانات</div>
-    <div class="step"><i class="fa-brands fa-whatsapp"></i> التحقق</div>
-    <div class="step"><i class="fa-solid fa-floppy-disk"></i> الحفظ</div>
-  </div>
+  
 
   <label>الاسم الثلاثي</label>
   <div class="field">
@@ -270,14 +266,7 @@
     <i class="fa-solid fa-phone"></i>
   </div>
 
-  <button id="sendOtpBtn" class="btn">إرسال رمز التحقق</button>
-  <div class="hint">سيصلك الرمز عبر واتساب</div>
-
-  <label>رمز التحقق</label>
-  <div class="field">
-    <input id="otp" maxlength="6" placeholder="******">
-    <i class="fa-solid fa-shield-check"></i>
-  </div>
+ 
 
   <button id="saveBtn" class="btn">حفظ البيانات</button>
   <div id="msg" class="msg"></div>
@@ -298,17 +287,7 @@
     n.value = idNumber.value.startsWith('1')?'1':'27';
   });
 
-  // OTP
-  sendOtpBtn.onclick=async()=>{
-    if(!/^05\d{8}$/.test(phone.value)) return msg.textContent='رقم الجوال غير صحيح';
-    showLoader(true);
-    try{
-      const r=await fetch('/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone:phone.value})});
-      const d=await r.json();
-      msg.textContent=d.success?'تم إرسال الرمز':'فشل الإرسال';
-    }catch{msg.textContent='خطأ اتصال';}
-    showLoader(false);
-  };
+
 
   // Save
   saveBtn.onclick=async()=>{
@@ -317,13 +296,17 @@
     try{
       const r=await fetch('/api/create-patient',{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          fullName:fullName.value,
-          nationalId:idNumber.value,
-          day:day.value,month:month.value,year:year.value,
-          gender:gender.value,nationalityValue:n.value,
-          phone:phone.value,otp:otp.value
-        })
+        body: JSON.stringify({
+  fullName: fullName.value,
+  nationalId: idNumber.value,
+  day: day.value,
+  month: month.value,
+  year: year.value,
+  gender: gender.value,
+  nationalityValue: n.value,
+  phone: phone.value
+})
+
       });
       const d=await r.json();
       if(d.success){
