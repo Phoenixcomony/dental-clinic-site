@@ -431,8 +431,8 @@ app.get('/', (req, res) => {
 
 /* ================= Imdad Accounts Pool ================= */
 const ACCOUNTS = [
-  { user: "3333333333", pass: "3333333333", busy: false },
-  { user: "5555555555", pass: "5555555555", busy: false },
+  { user: "3333333333", pass: "zaqwedcxs", busy: false },
+  { user: "5555555555", pass: "zaqwedcxs", busy: false },
   
 ];
 function getDynamicClinicsList() {
@@ -675,6 +675,8 @@ function launchOpts() {
 
   return {
   headless: "new",
+
+
   executablePath: exe,
   args: baseArgs,
   defaultViewport: { width: 1280, height: 900 },
