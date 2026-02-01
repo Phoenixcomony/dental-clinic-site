@@ -1302,6 +1302,7 @@ app.post('/api/update-identity', async (req, res) => {
 
 /** ===== /api/create-patient ===== */
 app.post('/api/create-patient', async (req, res) => {
+  console.log('[NEW-FILE] request received');   // ✅ (1) أول سطر
   const MASTER_TIMEOUT_MS = 90000;
   const masterTimeout = new Promise((_, rej)=> setTimeout(()=>rej(new Error('timeout_master')), MASTER_TIMEOUT_MS));
 
@@ -1319,17 +1320,24 @@ app.post('/api/create-patient', async (req, res) => {
       if(!gender)                 gender='1';
       if(!day || !month || !year) return res.json({ success:false, message:'تاريخ الميلاد (يوم/شهر/سنة) مطلوب' });
       if(!verifyOtpInline(phone, otp)) return res.json({ success:false, message:'OTP غير صحيح', reason:'otp' });
+console.log('[NEW-FILE] validation passed');
 
       const phone05 = toLocal05(phone);
+      console.log('[NEW-FILE] get shared browser');
+
       const browser = await getSharedBrowser();
 
       const page = await browser.newPage(); await prepPage(page);
+      console.log('[NEW-FILE] new page ready');
+
       page.on('dialog', async d => { try { await d.accept(); } catch(_) {} });
 
       let account=null;
       try{
         account = await acquireAccountWithTimeout(20000);
         await loginToImdad(page, account);
+        console.log('[NEW-FILE] imdad login success');
+
 
         if (await existsPatientByPhone(page, phone05)) {
           try { if (!WATCH) await page.close(); } catch(_){}
@@ -1401,6 +1409,8 @@ app.post('/api/create-patient', async (req, res) => {
         }
 
         await page.waitForSelector('#submit', { timeout: 20000 });
+        console.log('[NEW-FILE] submitting form');
+
         await page.evaluate(() => {
           const btn = document.querySelector('#submit');
           if (btn) { btn.disabled=false; btn.removeAttribute('disabled'); btn.click(); }
@@ -1421,10 +1431,13 @@ app.post('/api/create-patient', async (req, res) => {
 
         try { if (!WATCH) await page.close(); } catch(_){}
         if(account) releaseAccount(account);
+         console.log('[NEW-FILE][SUCCESS] patient created');
         return res.json({ success:true, message:'تم إنشاء الملف بنجاح' });
+        
 
       }catch(e){
-        console.error('/api/create-patient error', e?.message||e);
+        console.error('[NEW-FILE][ERROR]', e?.message || e);
+
         try{ if (!WATCH) await page.close(); }catch(_){}
         if(account) releaseAccount(account);
         if(String(e?.message||e)==='imdad_busy'){
