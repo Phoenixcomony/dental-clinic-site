@@ -46,6 +46,12 @@ const BOOKING_ACCOUNT = {
   user: process.env.BOOKING_USER,
   pass: process.env.BOOKING_PASS
 };
+// ===== Prefetch / Times Account (READ-ONLY) =====
+const PREFETCH_ACCOUNT = {
+  user: process.env.PREFETCH_USER,
+  pass: process.env.PREFETCH_PASS
+};
+
 
 const INSTANCE_ID  = process.env.INSTANCE_ID;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
@@ -431,7 +437,7 @@ app.get('/', (req, res) => {
 
 /* ================= Imdad Accounts Pool ================= */
 const ACCOUNTS = [
-  { user: "3333333333", pass: "zaqwedcxs", busy: false },
+  
   { user: "5555555555", pass: "zaqwedcxs", busy: false },
   
 ];
@@ -1688,7 +1694,8 @@ if (cachedPrefetch && Array.isArray(cachedPrefetch.times)) {
       await prepPage(page);
 
       try {
-        await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
+        await loginToImdad(page, PREFETCH_ACCOUNT);
+
         await gotoAppointments(page);
 
        // اختيار العيادة
@@ -1866,7 +1873,8 @@ async function fetchTimesForClinic30Days(clinic) {
 
   try {
     // تسجيل دخول
-    await loginToImdad(page, { user: '3333333333', pass: '3333333333' });
+    await loginToImdad(page, PREFETCH_ACCOUNT);
+
     await gotoAppointments(page);
 
     // اختيار العيادة
