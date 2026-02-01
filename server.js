@@ -213,8 +213,6 @@ async function isSlotLocked(clinic, date, time) {
   return !!(await redis.get(key));
 }
 
-
-
 async function setTimesCache(key, data) {
   await redis.set(
     `times:${key}`,
@@ -384,27 +382,6 @@ for (const c of clinics) {
 /* ================= Express ================= */
 const app = express();
 app.use('/uploads', express.static(UPLOADS_DIR));
-// ✅ فحص فوري لحالة الموعد (قبل الحجز)
-app.post('/api/check-slot', async (req, res) => {
-  const { clinic, time } = req.body || {};
-
-  if (!clinic || !time) {
-    return res.json({ locked: false });
-  }
-
-  const [date, time24] = String(time).split('*');
-  if (!date || !time24) {
-    return res.json({ locked: false });
-  }
-
-  const locked = await isSlotLocked(
-    String(clinic).trim(),
-    date.trim(),
-    time24.trim()
-  );
-
-  return res.json({ locked });
-});
 
 /* 🔁 تحويل الدومين بدون www إلى www (أول شيء) */
 app.use((req, res, next) => {
@@ -2238,7 +2215,6 @@ async function selectPatientOnAppointments(page, identity) {
 /** ===== Booking queue (single) ===== */
 app.post('/api/book', async (req, res) => {
   const { identity, clinic, time } = req.body || {};
-
 
   if (!clinic || !time) {
     return res.status(400).json({ success:false, message:'بيانات الحجز ناقصة' });

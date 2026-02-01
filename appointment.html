@@ -478,12 +478,6 @@
     @media (max-width: 600px){
       .lux-bg{ filter: blur(14px) saturate(1.05); opacity:.90; }
     }
-    /* وقت محجوز */
-option.locked {
-  color: #c62828;
-  font-weight: 900;
-}
-
   </style>
 </head>
 
@@ -1000,38 +994,7 @@ loadClinics();
       });
       const data = await r.json();
       if (data.times && data.times.length) {
-        timeSel.innerHTML = '';
-
-for (const t of data.times) {
-  const opt = document.createElement('option');
-  opt.value = t.value;
-  opt.textContent = t.label;
-
-  // 🔴 فحص هل الوقت مقفول
-  try {
-    const r = await fetch('/api/check-slot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clinic: clinicSel.value,
-        time: t.value
-      })
-    });
-    const chk = await r.json();
-
-    if (chk.locked) {
-      opt.disabled = true;
-      opt.classList.add('locked');
-      opt.textContent += ' — محجوز';
-    }
-  } catch {}
-
-  timeSel.appendChild(opt);
-}
-
-timeSel.disabled = false;
-bookNowBtn.disabled = false;
-
+        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
         timeSel.disabled = false;
         bookNowBtn.disabled = false;
       } else {
@@ -1052,22 +1015,6 @@ bookNowBtn.disabled = false;
 
   // الحجز المباشر الآن
   bookNowBtn.addEventListener('click', async () => {
-    // 🔴 فحص فوري قبل الحجز
-const check = await fetch('/api/check-slot', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    clinic: clinicSel.value,
-    time: timeSel.value
-  })
-});
-const chk = await check.json();
-
-if (chk.locked) {
-  bkMsg.textContent = '⛔ هذا الموعد محجوز، الرجاء اختيار وقت آخر';
-  return;
-}
-
     const clinic = clinicSel.value;
     const month  = monthSel.value;
     const time   = timeSel.value;
