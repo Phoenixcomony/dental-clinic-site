@@ -2467,71 +2467,11 @@ await removeBookedSlotFromCaches({
   time24
 });
 
-    // ================== REDIS CLEAN (AFTER BOOKING) ==================
-try {
-  const clinicName = String(clinic || '').trim();
 
-  // 1️⃣ حذف Prefetch cache
-  await redis.del(`prefetch_times_v1:${clinicName}`);
 
-  // 2️⃣ حذف كل times cache الخاصة بالعيادة (SCAN آمن)
-  let cursor = '0';
-  do {
-    const res = await redis.scan(
-      cursor,
-      'MATCH',
-      `times:${clinicName}*`,
-      'COUNT',
-      100
-    );
-    cursor = res[0];
-    if (res[1].length) {
-      await redis.del(res[1]);
-    }
-  } while (cursor !== '0');
 
-  console.log('[REDIS] booking cache cleared for:', clinicName);
-} catch (e) {
-  console.warn('[REDIS CLEAN FAILED]', e?.message || e);
-}
 
-    // 🧹 تنظيف كاش المواعيد للعيادة بعد حجز ناجح
-try {
-  // 1) حذف كاش الجلب المسبق (Prefetch)
-  const clinicKey = clinicCacheKey(clinic);
-  await redis.del(clinicKey);
 
-  // 2) حذف أي كاش مواعيد تفصيلي
-  const scan = async (cursor = '0') => {
-    const [next, keys] = await redis.scan(
-      cursor,
-      'MATCH',
-      `times:${clinic}*`,
-      'COUNT',
-      100
-    );
-    if (keys.length) await redis.del(keys);
-    if (next !== '0') await scan(next);
-  };
-  await scan();
-
-  console.log('[REDIS] cache cleared for clinic:', clinic);
-} catch (e) {
-  console.warn('[REDIS CLEANUP FAILED]', e?.message || e);
-}
-
-    // 🧹 حذف كاش المواعيد للعيادة بعد حجز ناجح
-try {
-  const clinicKey = clinicCacheKey(clinic);
-  await redis.del(clinicKey);
-
-  // حذف أي كاش جزئي مرتبط
-  const pattern = `times:${clinic}*`;
-  const keys = await redis.keys(pattern);
-  if (keys.length) await redis.del(keys);
-} catch (e) {
-  console.warn('[REDIS CLEANUP FAILED]', e?.message || e);
-}
 
     
     // ✅ تسجيل حجز فعلي ناجح
