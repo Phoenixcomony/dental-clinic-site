@@ -674,8 +674,7 @@ function launchOpts() {
   }
 
   return {
-  headless: "new",
-
+  headless: false,
 
   executablePath: exe,
   args: baseArgs,
