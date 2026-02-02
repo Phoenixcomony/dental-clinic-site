@@ -313,6 +313,24 @@
   </section>
   <!-- العيادات -->
 <section id="panelC" class="panel">
+  <section id="panelEditClinic" class="panel">
+  <h3>تعديل العيادة</h3>
+
+  <div class="form-row">
+    <input id="eLabel" type="text" placeholder="اسم العيادة">
+    <input id="eValue" type="text" placeholder="قيمة الحجز">
+    <input id="eFrom" type="time">
+    <input id="eTo" type="time">
+  </div>
+
+  <label><input type="checkbox" id="eFriday"> الجمعة</label>
+  <label><input type="checkbox" id="eSaturday"> السبت</label>
+
+  <br><br>
+  <button class="btn primary" onclick="saveClinicEdit()">حفظ</button>
+  <button class="btn" onclick="backToClinics()">رجوع</button>
+</section>
+
   <h3>إدارة العيادات</h3>
   <div class="desc">إضافة – تحديد وقت – حذف العيادات</div>
 
@@ -460,7 +478,26 @@ async function delPackage(id){
   loadAll();
 }
 // ================= CLINICS ADMIN =================
-let editingClinicId = null;
+let currentClinicId = null;
+
+async function openClinicEdit(id){
+  const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
+  const data = await r.json();
+  const c = data.clinics.find(x => x.id === id);
+
+  currentClinicId = id;
+
+  eLabel.value = c.label;
+  eValue.value = c.value;
+  eFrom.value  = c.from;
+  eTo.value    = c.to;
+  eFriday.checked = c.allowFriday;
+  eSaturday.checked = c.allowSaturday;
+
+  panelC.classList.remove('active');
+  panelEditClinic.classList.add('active');
+}
+
 
 async function loadClinicsAdmin(){
   const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
@@ -490,7 +527,7 @@ function renderClinics(list){
     </strong>
   </div>
 
-  <button class="btn" onclick="editClinic('${c.id}')">تعديل</button>
+  <button class="btn"onclick="openClinicEdit('${c.id}')">تعديل</button>
   <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
 `;
 
@@ -498,29 +535,7 @@ function renderClinics(list){
     el.appendChild(card);
   });
 }
-function editClinic(id){
-  fetch('/api/admin/clinics', { headers: staffHeaders() })
-    .then(r => r.json())
-    .then(data => {
-      const c = (data.clinics || []).find(x => x.id === id);
-      if (!c) return alert('لم يتم العثور على العيادة');
 
-      // تعبئة الحقول
-      document.getElementById('cLabel').value = c.label;
-      document.getElementById('cValue').value = c.value;
-      document.getElementById('cFrom').value  = c.from;
-      document.getElementById('cTo').value    = c.to;
-      document.getElementById('cAllowFriday').checked = !!c.allowFriday;
-      document.getElementById('cAllowSaturday').checked = !!c.allowSaturday;
-
-
-      // تفعيل وضع التعديل
-      editingClinicId = c.id;
-
-      // تغيير نص الزر
-      document.querySelector('[onclick="addClinic()"]').textContent = 'تحديث العيادة';
-    });
-}
 
 async function addClinic(){
   const payload = {
