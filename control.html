@@ -291,6 +291,25 @@
 
 
   </section>
+<!-- تعديل العيادة -->
+<section id="panelEditClinic" class="panel">
+  <h3>تعديل العيادة</h3>
+  <div class="desc">تعديل بيانات العيادة المختارة</div>
+
+  <div class="form-row">
+    <input id="eLabel" type="text" placeholder="اسم العيادة">
+    <input id="eValue" type="text" placeholder="قيمة الحجز">
+    <input id="eFrom" type="time">
+    <input id="eTo" type="time">
+  </div>
+
+  <label><input type="checkbox" id="eFriday"> السماح بالجمعة</label>
+  <label><input type="checkbox" id="eSaturday"> السماح بالسبت</label>
+
+  <br><br>
+  <button class="btn primary" onclick="saveClinicEdit()">حفظ التعديل</button>
+  <button class="btn" onclick="backToClinics()">رجوع</button>
+</section>
 
   <!-- الباقات -->
 
@@ -313,24 +332,6 @@
   </section>
   <!-- العيادات -->
 <section id="panelC" class="panel">
-  <section id="panelEditClinic" class="panel">
-  <h3>تعديل العيادة</h3>
-
-  <div class="form-row">
-    <input id="eLabel" type="text" placeholder="اسم العيادة">
-    <input id="eValue" type="text" placeholder="قيمة الحجز">
-    <input id="eFrom" type="time">
-    <input id="eTo" type="time">
-  </div>
-
-  <label><input type="checkbox" id="eFriday"> الجمعة</label>
-  <label><input type="checkbox" id="eSaturday"> السبت</label>
-
-  <br><br>
-  <button class="btn primary" onclick="saveClinicEdit()">حفظ</button>
-  <button class="btn" onclick="backToClinics()">رجوع</button>
-</section>
-
   <h3>إدارة العيادات</h3>
   <div class="desc">إضافة – تحديد وقت – حذف العيادات</div>
 
@@ -366,6 +367,7 @@ const panelB = document.getElementById('panelB');
 const panelP = document.getElementById('panelP');
 const tabC = document.getElementById('tabC');
 const panelC = document.getElementById('panelC');
+const panelEditClinic = document.getElementById('panelEditClinic');
 
 
 tabB.onclick=()=>{
@@ -483,7 +485,8 @@ let currentClinicId = null;
 async function openClinicEdit(id){
   const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
   const data = await r.json();
-  const c = data.clinics.find(x => x.id === id);
+  const c = (data.clinics || []).find(x => x.id === id);
+  if(!c) return alert('العيادة غير موجودة');
 
   currentClinicId = id;
 
@@ -491,12 +494,40 @@ async function openClinicEdit(id){
   eValue.value = c.value;
   eFrom.value  = c.from;
   eTo.value    = c.to;
-  eFriday.checked = c.allowFriday;
-  eSaturday.checked = c.allowSaturday;
+  eFriday.checked   = !!c.allowFriday;
+  eSaturday.checked = !!c.allowSaturday;
 
   panelC.classList.remove('active');
   panelEditClinic.classList.add('active');
 }
+async function saveClinicEdit(){
+  const payload = {
+    label: eLabel.value,
+    value: eValue.value,
+    from:  eFrom.value,
+    to:    eTo.value,
+    allowFriday: eFriday.checked,
+    allowSaturday: eSaturday.checked
+  };
+
+  const r = await fetch('/api/admin/clinics/' + currentClinicId, {
+    method:'PUT',
+    headers:{ ...staffHeaders(), 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if(!r.ok) return alert('فشل التحديث');
+
+  backToClinics();
+  loadClinicsAdmin();
+}
+
+function backToClinics(){
+  panelEditClinic.classList.remove('active');
+  panelC.classList.add('active');
+}
+
+
 
 
 async function loadClinicsAdmin(){
@@ -527,7 +558,8 @@ function renderClinics(list){
     </strong>
   </div>
 
-  <button class="btn"onclick="openClinicEdit('${c.id}')">تعديل</button>
+ <button class="btn" onclick="openClinicEdit('${c.id}')">تعديل</button>
+
   <button class="btn danger" onclick="delClinic('${c.id}')">حذف</button>
 `;
 
@@ -548,35 +580,6 @@ async function addClinic(){
 };
 
 
-  // 🟡 تحديد الوضع: إضافة أو تعديل
-  const isEdit = !!editingClinicId;
-
-  const url = isEdit
-    ? `/api/admin/clinics/${editingClinicId}`
-    : `/api/admin/clinics`;
-
-  const method = isEdit ? 'PUT' : 'POST';
-
-  const r = await fetch(url, {
-    method,
-    headers: { ...staffHeaders(), 'Content-Type':'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if(!r.ok){
-    const t = await r.text();
-    return alert('فشل العملية: ' + t);
-  }
-
-  // 🧹 تنظيف النموذج
-  cLabel.value = '';
-  cValue.value = '';
-  cFrom.value  = '';
-  cTo.value    = '';
-
-  // 🔄 إعادة الحالة للوضع الافتراضي
-  editingClinicId = null;
-  document.querySelector('[onclick="addClinic()"]').textContent = 'حفظ العيادة';
 
   loadClinicsAdmin();
 }
