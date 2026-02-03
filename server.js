@@ -1238,36 +1238,40 @@ await loginToImdad(page, BOOKING_ACCOUNT);
 
 console.log('[BOOK][LOGIN OK]', 'booking bot logged in');
 
-      const result = await searchSuggestionsByPhoneOnNavbar(page, phone05);
+    const results = await searchSuggestionsByPhoneOnNavbar(page, phone05);
 
+// ✅ مستخدم جديد (ما له ملف)
+if (!Array.isArray(results) || results.length === 0) {
+  await page.close();
+  return res.json({
+    success: true,
+    exists: false,
+    go: 'new-file'
+  });
+}
 
-      if (!result.ok) {
-        await page.close();
-        releaseAccount(account);
-        return res.json({
-          success: true,
-          exists: false,
-          go: 'new-file'
-        });
-      }
+// ✅ مستخدم موجود
+const hit = results.find(r => r.parsed?.phone);
 
-      await page.close();
-      releaseAccount(account);
+const fileId = hit?.parsed?.fileId || '';
 
-      // 💾 حفظ دائم في Redis
-      await setLoginCache(idDigits, {
-        phone05,
-        fileId: result.fileId
-      });
+await page.close();
 
-      setBookingAuth(idDigits, result.fileId);
+// 💾 خزنه في Redis
+await setLoginCache(idDigits, {
+  phone05,
+  fileId
+});
 
-      return res.json({
-        success: true,
-        exists: true,
-        fileId: result.fileId,
-        go: 'appointments'
-      });
+setBookingAuth(idDigits, fileId);
+
+return res.json({
+  success: true,
+  exists: true,
+  fileId,
+  go: 'appointments'
+});
+
 
     } catch (e) {
       try { await page.close(); } catch {}
