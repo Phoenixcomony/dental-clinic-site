@@ -286,7 +286,12 @@
 
 
 
- /* ===== Doctors Grid (العرض الصحيح 4 بطاقات بالصف) ===== */
+#doctorsSection{
+  max-width:1200px;
+  margin:0 auto;
+  padding:40px 16px;
+}
+
 #doctorsGrid{
   display:grid;
   grid-template-columns: repeat(4, 1fr);
@@ -302,7 +307,7 @@
 
 #doctorsSection .doctor-card img{
   width:100%;
-  aspect-ratio: 3 / 4;
+  aspect-ratio:3/4;
   object-fit:cover;
   border-radius:18px;
   margin-bottom:12px;
@@ -324,6 +329,7 @@
 @media (max-width:500px){
   #doctorsGrid{ grid-template-columns: 1fr; }
 }
+
 
 </style>
 
@@ -408,7 +414,7 @@
   </section>
 
 <!-- الفريق الطبي (من لوحة التحكم) -->
-<section class="services-preview" id="doctorsSection" style="color:#fff">
+<section id="doctorsSection" style="color:#fff">
 
   <h3>الفريق الطبي لمجمع فينكس الطبي</h3>
 
