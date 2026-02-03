@@ -116,11 +116,16 @@ const multer = require('multer');
 const UPLOADS_DIR  = path.join(PERSIST_ROOT, 'uploads');
 const BANNERS_DIR  = path.join(UPLOADS_DIR, 'banners');
 const PACKAGES_DIR = path.join(UPLOADS_DIR, 'packages');
+const DOCTORS_DIR  = path.join(UPLOADS_DIR, 'doctors');
+ensureDirSafe(DOCTORS_DIR);
+
 
 
 function ensureDirSafe(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
+ensureDirSafe(DOCTORS_DIR);
+
 
 ensureDirSafe(UPLOADS_DIR);
 ensureDirSafe(BANNERS_DIR);
@@ -142,14 +147,24 @@ const storagePackage = multer.diskStorage({
   filename: (_req, file, cb) =>
     cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
+
 const uploadPackage = multer({ storage: storagePackage });
 
-// serve uploaded images
+// ===== MULTER (Doctors) =====
+const storageDoctor = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, DOCTORS_DIR),
+  filename: (_req, file, cb) =>
+    cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
+});
+const uploadDoctor = multer({ storage: storageDoctor });
+
 
 
 // Redis CMS keys
 const REDIS_BANNERS_KEY  = 'cms:banners';
 const REDIS_PACKAGES_KEY = 'cms:packages';
+const REDIS_DOCTORS_KEY = 'cms:doctors';
+
 
 async function readRedisArray(key) {
   const v = await redis.get(key);
@@ -2814,6 +2829,67 @@ app.get('/api/packages', async (req, res) => {
   const packages = await readRedisArray(REDIS_PACKAGES_KEY);
   res.json({ packages });
 });
+// ================= CMS: DOCTORS (ADMIN) =================
+
+// ✅ GET للأدمن (لوحة التحكم تحتاجه)
+app.get('/api/admin/doctors', requireStaff, async (req, res) => {
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  res.json({ doctors });
+});
+
+// ✅ إضافة طبيب
+app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async (req, res) => {
+  const { name, desc } = req.body;   // ✅ desc بدل bio
+
+  if (!req.file || !name) {
+    return res.status(400).json({ ok:false, message:'name + image required' });
+  }
+
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+
+  const item = {
+    id: genId('doc'),
+    img: `/uploads/doctors/${req.file.filename}`,
+    name: String(name).trim(),
+    desc: String(desc || '').trim()  // ✅ desc
+  };
+
+  // ✅ خله يطلع أول واحد
+  await writeRedisArray(REDIS_DOCTORS_KEY, [item, ...doctors]);
+
+  res.json({ ok:true, doctor: item });
+});
+
+// ================= CMS: DOCTORS (PUBLIC) =================
+app.get('/api/doctors', async (req, res) => {
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  res.json({ doctors });
+});
+
+// ✅ حذف طبيب
+app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  const idx = doctors.findIndex(d => d.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok:false });
+
+  const [removed] = doctors.splice(idx, 1);
+  await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
+
+  try {
+    const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
+    if (fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true });
+});
+
+
+// ================= CMS: DOCTORS (PUBLIC) =================
+app.get('/api/doctors', async (req, res) => {
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  res.json({ doctors });
+});
+
 
 app.post(
   '/api/admin/packages',
@@ -2863,6 +2939,22 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
 
   res.json({ ok:true });
 });
+app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  const idx = doctors.findIndex(d => d.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ ok:false });
+
+  const [removed] = doctors.splice(idx, 1);
+  await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
+
+  try {
+    const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
+    if (fs.existsSync(local)) fs.unlinkSync(local);
+  } catch {}
+
+  res.json({ ok:true });
+});
+
 // ================= CLINICS SEED (RUN ONCE) =================
 function seedClinicsOnce() {
   if (fs.existsSync(CLINICS_FILE)) {

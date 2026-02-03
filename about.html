@@ -250,6 +250,31 @@
         object-fit: cover;
       }
     }
+    .doctors-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:18px;
+}
+.doctor-card{
+  border-radius:16px;
+  overflow:hidden;
+  padding:10px 10px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.doctor-card img{
+  width:100%;
+  border-radius:14px;
+  aspect-ratio:4/3;
+  object-fit:cover;
+}
+.doctor-card p{
+  text-align:center;
+  line-height:1.8;
+  font-size:.98rem;
+}
+
   </style>
  </head>
  <body>
@@ -330,50 +355,17 @@
     </div>
   </section>
 
-  <!-- الفريق الطبي -->
-  <section class="services-preview">
-    <h3>الفريق الطبي لمجمع فينكس الطبي</h3>
+<!-- الفريق الطبي (من لوحة التحكم) -->
+<section class="services-preview" id="doctorsSection">
+  <h3>الفريق الطبي لمجمع فينكس الطبي</h3>
 
-    <div class="service" data-aos="zoom-in">
-      <img src="images/ريان صديق خيرالله.jpg" alt="الدكتورة ريان صديق" />
-      <p><strong>د. ريان صديق</strong><br>   بكالوريوس طب وجراحة الأسنان من الجامعة الوطنية،  خبرة 10 سنوات مع دورات في التركيبات والتجميل </p>
-    </div>
+  <div id="doctorsGrid" class="doctors-grid"></div>
 
-    <div class="service" data-aos="zoom-in">
-      <img src="images/دكتورة ولاء.jpg" alt="الدكتورة ولاء " />
-      <p><strong>د. ولاء</strong><br>  , اخصائية جلدية وتجميل .. نائب جلدية و  خبرة 13 سنة </p>
-    </div>
+  <p id="doctorsEmpty" style="display:none;text-align:center;opacity:.85;">
+    لا توجد بيانات أطباء حاليًا
+  </p>
+</section>
 
-    <div class="service" data-aos="zoom-in">
-      <img src="images/RONALDO ALEGRE CRUZ.jpg" alt="د. رونالدو كروز" />
-      <p><strong>د. رونالدو كروز</strong><br>بكالوريوس طب وجراحة الأسنان، متخصص في علاج الجذور بخبرة تمتد لأكثر من 32 عامًا </p>
-    </div>
-
-    <div class="service" data-aos="zoom-in">
-      <img src="images/هنادي ادريس محمد علي.jpg" alt="د. هنادي إدريس" />
-      <p><strong>د. هنادي إدريس</strong><br>بكالوريوس طب وجراحة عامة، حاصلة على شهادة MRCP، أعمل في الطب العام منذ 15 عامًا</p>
-    </div>
-
-    <div class="service" data-aos="zoom-in">
-      <img src="images/حسناء محمد الموافي (1).jpg" alt="د. حسناء الموافي" />
-      <p><strong>د. حسناء الموافي</strong><br>أخصائية نساء وولادة، ماجستير في الجراحة العامة والتجميل،  خبرة تمتد إلى 26 عامًا </p>
-    </div>
-
-    <div class="service" data-aos="zoom-in">
-      <img src="images/دكتورة عبير.jpg" alt="د. عبير ابراهيم " />
-      <p><strong>د. عبير ابراهيم </strong><br>اخصائية اصلاح وتجميل الاسنان وعلاج الجذور ماجستير العلاج التحفظي والتجميلي وعلاج الجذور دبلوم التركيبات - جامعة المنصوره خبره 14 سنة </p>
-    </div>
-
-    <div class="service" data-aos="zoom-in">
-      <img src="images/معاذ علي ميرغني.jpg" alt="د. معاذ علي" />
-      <p><strong>د. معاذ علي</strong><br>بكالوريوس من جامعة الرازي، ودبلوم تجميل الأسنان من ليدز البريطانية، مع خبرة في التركيبات الثابتة لمدة 4 سنوات </p>
-    </div>
-
-     <div class="service" data-aos="zoom-in">
-      <img src="images/WhatsApp Image 2025-09-20 at 20.09.53_517a046d.jpg" alt="د.  احمد عبدالله خليل " />
-      <p><strong>د.  احمد عبدالله خليل</strong><br>استشاري و رئيس قسم زراعة الاسنان وجراحة اللثة ، محاضر معتمد من وزاره الصحة السعوديه ، حاصل على شهادة معتمده من جامعة كاليفورنيا في زراعة الاسنان ، عضو مؤسس للجمعية المصرية لزراعة الاسنان ، خبره ٢٠ سنه في مجال زراعة الاسنان</p>
-    </div>
-  </section>
 
   <!-- ما الجديد -->
   <section class="services-preview" data-aos="fade-up">
@@ -414,6 +406,39 @@
   <script>
     AOS.init({ duration: 1000 });
   </script>
+  <script>
+async function loadDoctors(){
+  const r = await fetch('/api/doctors');
+  const data = await r.json();
+  const list = data.doctors || [];
+
+  const grid = document.getElementById('doctorsGrid');
+  const empty = document.getElementById('doctorsEmpty');
+  grid.innerHTML = '';
+
+  if(!list.length){
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  list.forEach(d=>{
+    const div = document.createElement('div');
+    div.className = 'doctor-card';
+    div.setAttribute('data-aos','zoom-in');
+    div.innerHTML = `
+      <img src="${d.img}">
+      <p><strong>${d.name}</strong><br>${d.desc||''}</p>
+    `;
+    grid.appendChild(div);
+  });
+
+  if(window.AOS) AOS.refresh();
+}
+
+document.addEventListener('DOMContentLoaded', loadDoctors);
+</script>
+
 
 </body>
 </html>

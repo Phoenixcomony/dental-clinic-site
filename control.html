@@ -269,7 +269,9 @@
   <button id="tabB" class="active">البنرات</button>
   <button id="tabP">الباقات</button>
   <button id="tabC">العيادات</button>
+   <button id="tabD">الأطباء</button>
 </div>
+  
 
 
 
@@ -317,8 +319,6 @@
     <h3>إدارة الباقات</h3>
     <div class="desc">إضافة – تعديل – حذف الباقات التسويقية</div>
 
-
-
 <div class="form-row">
   <input id="pkgTitle" type="text" placeholder="عنوان الباقة">
   <input id="pkgDesc" type="text" placeholder="وصف مختصر">
@@ -327,6 +327,21 @@
 </div>
 
 <div id="packages" class="row"></div>
+</section> <!-- نهاية panelP -->
+
+<section id="panelD" class="panel">
+  <h3>إدارة الأطباء</h3>
+  <div class="desc">إضافة – تعديل – حذف الأطباء</div>
+
+  <div class="form-row">
+    <input id="docName" type="text" placeholder="اسم الطبيب">
+    <input id="docDesc" type="text" placeholder="نبذة مختصرة">
+    <input id="docFile" type="file" accept="image/*">
+    <button class="btn primary" onclick="addDoctor()">حفظ الطبيب</button>
+  </div>
+
+  <div id="doctors" class="row"></div>
+</section>
 
 
   </section>
@@ -366,6 +381,8 @@ const tabP = document.getElementById('tabP');
 const panelB = document.getElementById('panelB');
 const panelP = document.getElementById('panelP');
 const tabC = document.getElementById('tabC');
+const tabD = document.getElementById('tabD');
+const panelD = document.getElementById('panelD');
 const panelC = document.getElementById('panelC');
 const panelEditClinic = document.getElementById('panelEditClinic');
 
@@ -399,6 +416,16 @@ tabC.onclick=()=>{
   panelB.classList.remove('active');
   panelP.classList.remove('active');
 }
+tabD.onclick=()=>{
+  [tabB,tabP,tabC].forEach(t=>t.classList.remove('active'));
+  [panelB,panelP,panelC].forEach(p=>p.classList.remove('active'));
+
+  tabD.classList.add('active');
+  panelD.classList.add('active');
+
+  loadDoctors();
+};
+
 
 function staffHeaders(){
   return { 'x-staff-key': document.getElementById('key').value };
@@ -571,18 +598,23 @@ function renderClinics(list){
 
 async function addClinic(){
   const payload = {
-  label: cLabel.value,
-  value: cValue.value,
-  from:  cFrom.value,
-  to:    cTo.value,
-  allowFriday: document.getElementById('cAllowFriday').checked,
-  allowSaturday: document.getElementById('cAllowSaturday').checked
-};
+    label: cLabel.value,
+    value: cValue.value,
+    from:  cFrom.value,
+    to:    cTo.value,
+    allowFriday: document.getElementById('cAllowFriday').checked,
+    allowSaturday: document.getElementById('cAllowSaturday').checked
+  };
 
-
+  await fetch('/api/admin/clinics',{
+    method:'POST',
+    headers:{ ...staffHeaders(),'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  });
 
   loadClinicsAdmin();
 }
+
 
 
 async function delClinic(id){
@@ -596,6 +628,48 @@ async function delClinic(id){
 
 </script>
 <script>
+  async function loadDoctors(){
+  const r = await fetch('/api/admin/doctors',{headers:staffHeaders()});
+  const d = await r.json();
+  renderDoctors(d.doctors||[]);
+}
+
+function renderDoctors(list){
+  const el = document.getElementById('doctors');
+  el.innerHTML='';
+  list.forEach(x=>{
+    el.innerHTML+=`
+      <div class="card">
+        <img src="${x.img}">
+        <div class="title">${x.name}</div>
+        <div class="sub">${x.desc}</div>
+        <button class="btn danger" onclick="delDoctor('${x.id}')">حذف</button>
+      </div>`;
+  });
+}
+
+async function addDoctor(){
+  const fd = new FormData();
+  fd.append('file', docFile.files[0]);
+  fd.append('name', docName.value);
+  fd.append('desc', docDesc.value);
+
+  await fetch('/api/admin/doctors',{
+    method:'POST',
+    headers:staffHeaders(),
+    body:fd
+  });
+  loadDoctors();
+}
+
+async function delDoctor(id){
+  await fetch('/api/admin/doctors/'+id,{
+    method:'DELETE',
+    headers:staffHeaders()
+  });
+  loadDoctors();
+}
+
 const REAL_KEY = 'AQZa123@'; // غيره
 
 const input = document.getElementById('key');
