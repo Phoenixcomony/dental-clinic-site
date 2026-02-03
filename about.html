@@ -286,6 +286,8 @@
 
 
 
+/* ===== FIX FINAL – Doctors Horizontal Cards ===== */
+
 #doctorsSection{
   max-width:1200px;
   margin:0 auto;
@@ -294,41 +296,65 @@
 
 #doctorsGrid{
   display:grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns:repeat(4,1fr);
   gap:24px;
+  align-items:stretch;
 }
 
+/* الكرت */
 #doctorsSection .doctor-card{
-  background: rgba(255,255,255,0.08);
-  border-radius:20px;
+  background:rgba(255,255,255,0.08);
+  border-radius:22px;
   padding:16px;
   text-align:center;
+  display:flex;
+  flex-direction:column;
 }
 
+/* الصورة */
 #doctorsSection .doctor-card img{
   width:100%;
-  aspect-ratio:3/4;
-  object-fit:cover;
+  height:220px;
+  object-fit:contain;
+  background:#fff;
   border-radius:18px;
   margin-bottom:12px;
 }
 
-#doctorsSection .doctor-card p,
+/* الاسم */
 #doctorsSection .doctor-card strong{
+  display:block;
   color:#fff;
-  line-height:1.8;
+  font-size:17px;
+  margin-bottom:6px;
+}
+
+/* النبذة — هنا الحل */
+#doctorsSection .doctor-card p{
+  color:#fff;
+  font-size:14px;
+  line-height:1.6;
+
+  /* يمنع الطول */
+  max-height:90px;
+  overflow:hidden;
+
+  /* يمنع تكسير الكلمة */
+  word-break:normal;
+  white-space:normal;
 }
 
 /* Responsive */
 @media (max-width:1100px){
-  #doctorsGrid{ grid-template-columns: repeat(3,1fr); }
+  #doctorsGrid{ grid-template-columns:repeat(3,1fr); }
 }
 @media (max-width:800px){
-  #doctorsGrid{ grid-template-columns: repeat(2,1fr); }
+  #doctorsGrid{ grid-template-columns:repeat(2,1fr); }
 }
 @media (max-width:500px){
-  #doctorsGrid{ grid-template-columns: 1fr; }
+  #doctorsGrid{ grid-template-columns:1fr; }
 }
+
 
 
 </style>
