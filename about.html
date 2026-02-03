@@ -250,11 +250,7 @@
         object-fit: cover;
       }
     }
-    .doctors-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:18px;
-}
+
 .doctor-card{
   border-radius:16px;
   overflow:hidden;
@@ -290,45 +286,45 @@
 
 
 
-  /* كل الـ CSS اللي عندك فوق */
+ /* ===== Doctors Grid (العرض الصحيح 4 بطاقات بالصف) ===== */
+#doctorsGrid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:24px;
+}
 
-  /* 👇 الصق هذا هنا بالضبط */
-  #doctorsGrid{
-    display:grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap:20px;
-  }
+#doctorsSection .doctor-card{
+  background: rgba(255,255,255,0.08);
+  border-radius:20px;
+  padding:16px;
+  text-align:center;
+}
 
-  #doctorsSection .doctor-card{
-    background: rgba(255,255,255,0.05);
-    border-radius:18px;
-    padding:14px;
-    text-align:center;
-  }
+#doctorsSection .doctor-card img{
+  width:100%;
+  aspect-ratio: 3 / 4;
+  object-fit:cover;
+  border-radius:18px;
+  margin-bottom:12px;
+}
 
-  #doctorsSection .doctor-card img{
-    width:100%;
-    aspect-ratio: 3 / 4;
-    object-fit:cover;
-    border-radius:16px;
-    margin-bottom:10px;
-  }
+#doctorsSection .doctor-card p,
+#doctorsSection .doctor-card strong{
+  color:#fff;
+  line-height:1.8;
+}
 
-  #doctorsSection .doctor-card p,
-  #doctorsSection .doctor-card strong{
-    color:#fff;
-    line-height:1.8;
-  }
+/* Responsive */
+@media (max-width:1100px){
+  #doctorsGrid{ grid-template-columns: repeat(3,1fr); }
+}
+@media (max-width:800px){
+  #doctorsGrid{ grid-template-columns: repeat(2,1fr); }
+}
+@media (max-width:500px){
+  #doctorsGrid{ grid-template-columns: 1fr; }
+}
 
-  @media (max-width:1100px){
-    #doctorsGrid{ grid-template-columns: repeat(3,1fr); }
-  }
-  @media (max-width:800px){
-    #doctorsGrid{ grid-template-columns: repeat(2,1fr); }
-  }
-  @media (max-width:500px){
-    #doctorsGrid{ grid-template-columns: 1fr; }
-  }
 </style>
 
   </style>
