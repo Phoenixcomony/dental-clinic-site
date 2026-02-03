@@ -1238,7 +1238,7 @@ await loginToImdad(page, BOOKING_ACCOUNT);
 
 console.log('[BOOK][LOGIN OK]', 'booking bot logged in');
 
-    const results = await searchSuggestionsByPhoneOnNavbar(page, phone05);
+      const results = await searchSuggestionsByPhoneOnNavbar(page, phone05);
 
 // ✅ مستخدم جديد (ما له ملف)
 if (!Array.isArray(results) || results.length === 0) {
