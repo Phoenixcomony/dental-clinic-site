@@ -2408,7 +2408,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
       }
     }
 
-    await selectPatientOnAppointments(page, toLocal05(phone));
+    await selectPatientOnAppointments(page, identity);
+
 
     await delay();
 
