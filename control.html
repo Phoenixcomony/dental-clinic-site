@@ -451,15 +451,16 @@ tabC.onclick=()=>{
   panelB.classList.remove('active');
   panelP.classList.remove('active');
 }
-tabD.onclick=()=>{
-  [tabB,tabP,tabC].forEach(t=>t.classList.remove('active'));
-  [panelB,panelP,panelC].forEach(p=>p.classList.remove('active'));
+tabD.onclick = () => {
+  [tabB, tabP, tabC].forEach(t => t.classList.remove('active'));
+  [panelB, panelP, panelC, panelEditClinic].forEach(p => p.classList.remove('active'));
 
   tabD.classList.add('active');
   panelD.classList.add('active');
 
   loadDoctors();
 };
+
 
 
 function staffHeaders(){
@@ -687,13 +688,6 @@ function renderDoctors(list){
 }
 
 
-// عدّل loadDoctors نفسها
-async function loadDoctors(){
-  const r = await fetch('/api/admin/doctors',{headers:staffHeaders()});
-  const d = await r.json();
-  doctorsCache = d.doctors || [];
-  renderDoctors(doctorsCache);
-}
 
 function openEditDoctor(id){
   const doc = doctorsCache.find(x=>x.id===id);
