@@ -662,6 +662,30 @@ async function delClinic(id){
 }
 let currentDoctorId = null;
 let doctorsCache = [];
+async function loadDoctors(){
+  const r = await fetch('/api/admin/doctors',{headers:staffHeaders()});
+  const d = await r.json();
+  doctorsCache = d.doctors || [];
+  renderDoctors(doctorsCache);
+}
+
+function renderDoctors(list){
+  const el = document.getElementById('doctors');
+  el.innerHTML='';
+  list.forEach(x=>{
+    el.innerHTML += `
+      <div class="card">
+        <img src="${x.img}">
+        <div class="title">${x.name}</div>
+        <div class="sub">${x.desc||''}</div>
+
+        <button class="btn" onclick="openEditDoctor('${x.id}')">تعديل</button>
+        <button class="btn danger" onclick="delDoctor('${x.id}')">حذف</button>
+      </div>
+    `;
+  });
+}
+
 
 // عدّل loadDoctors نفسها
 async function loadDoctors(){
@@ -708,29 +732,7 @@ async function saveDoctorEdit(){
 
 </script>
 <script>
-  async function loadDoctors(){
-  const r = await fetch('/api/admin/doctors',{headers:staffHeaders()});
-  const d = await r.json();
-  renderDoctors(d.doctors||[]);
-}
 
-function renderDoctors(list){
-  const el = document.getElementById('doctors');
-  el.innerHTML='';
-  list.forEach(x=>{
-    el.innerHTML += `
-  <div class="card">
-    <img src="${x.img}">
-    <div class="title">${x.name}</div>
-    <div class="sub">${x.desc}</div>
-
-    <button class="btn" onclick="openEditDoctor('${x.id}')">تعديل</button>
-    <button class="btn danger" onclick="delDoctor('${x.id}')">حذف</button>
-  </div>
-`;
-
-  });
-}
 
 async function addDoctor(){
   const fd = new FormData();
