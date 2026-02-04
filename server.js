@@ -2863,6 +2863,28 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
 
   res.json({ ok:true, doctor: item });
 });
+// ✅ تعديل طبيب (اسم/نبذة/صورة)
+app.put('/api/admin/doctors/:id', requireStaff, uploadDoctor.single('file'), async (req, res) => {
+  const { id } = req.params;
+  const { name, desc } = req.body || {};
+
+  const doctors = await readRedisArray(REDIS_DOCTORS_KEY);
+  const idx = doctors.findIndex(d => d.id === id);
+  if (idx === -1) return res.status(404).json({ ok:false, message:'Doctor not found' });
+
+  // تحديث النصوص
+  if (typeof name === 'string') doctors[idx].name = name.trim();
+  if (typeof desc === 'string') doctors[idx].desc = desc.trim();
+
+  // تحديث الصورة إذا جاءت
+  if (req.file) {
+    doctors[idx].img = `/uploads/doctors/${req.file.filename}`;
+  }
+
+  await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
+  res.json({ ok:true, doctor: doctors[idx] });
+});
+
 
 // ================= CMS: DOCTORS (PUBLIC) =================
 app.get('/api/doctors', async (req, res) => {
@@ -2885,30 +2907,6 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
   } catch {}
 
   res.json({ ok:true });
-});
-app.put('/api/admin/doctors/:id', upload.single('file'), (req, res) => {
-  const { id } = req.params;
-  const { name, desc } = req.body;
-
-  const doctors = readDoctors(); // نفس الدالة اللي تستخدمها للقراءة
-  const doc = doctors.find(d => d.id === id);
-
-  if (!doc) {
-    return res.status(404).json({ error: 'Doctor not found' });
-  }
-
-  // تحديث النصوص
-  if (name) doc.name = name;
-  if (desc !== undefined) doc.desc = desc;
-
-  // تحديث الصورة إذا وُجدت
-  if (req.file) {
-    doc.img = `/uploads/doctors/${req.file.filename}`;
-  }
-
-  writeDoctors(doctors); // نفس دالة الحفظ
-
-  res.json({ success: true, doctor: doc });
 });
 
 
