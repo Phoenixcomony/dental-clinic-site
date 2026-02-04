@@ -1227,7 +1227,8 @@ app.post('/api/login', (req, res) => {
 
 
     // ===== Puppeteer =====
-    const browser = await getSharedBrowser();
+   const browser = await puppeteer.launch(launchOpts());
+
     const page = await browser.newPage();
     await prepPage(page);
 
@@ -2357,7 +2358,8 @@ async function bookNow({ identity, name, phone, clinic, month, time, note }) {
   'time=', time
 );
 
-  const browser = await getSharedBrowser();
+  const browser = await puppeteer.launch(launchOpts());
+
 
   const page = await browser.newPage();
   await prepPage(page);
@@ -2499,9 +2501,10 @@ incMetrics({ clinic: safeClinic });
 
 
 
-    try { if (!WATCH) await page.close(); } catch(_){}
-    
-    return '✅ تم الحجز بنجاح (Booking Bot)';
+   try { if (!WATCH) await page.close(); } catch(_){}
+try { await browser.close(); } catch(_){}
+return '✅ تم الحجز بنجاح (Booking Bot)';
+
 
 
   } catch (e) {
