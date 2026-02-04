@@ -2886,6 +2886,30 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
 
   res.json({ ok:true });
 });
+app.put('/api/admin/doctors/:id', upload.single('file'), (req, res) => {
+  const { id } = req.params;
+  const { name, desc } = req.body;
+
+  const doctors = readDoctors(); // نفس الدالة اللي تستخدمها للقراءة
+  const doc = doctors.find(d => d.id === id);
+
+  if (!doc) {
+    return res.status(404).json({ error: 'Doctor not found' });
+  }
+
+  // تحديث النصوص
+  if (name) doc.name = name;
+  if (desc !== undefined) doc.desc = desc;
+
+  // تحديث الصورة إذا وُجدت
+  if (req.file) {
+    doc.img = `/uploads/doctors/${req.file.filename}`;
+  }
+
+  writeDoctors(doctors); // نفس دالة الحفظ
+
+  res.json({ success: true, doctor: doc });
+});
 
 
 // ================= CMS: DOCTORS (PUBLIC) =================
