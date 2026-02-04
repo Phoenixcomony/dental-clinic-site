@@ -2516,7 +2516,7 @@ return '✅ تم الحجز بنجاح (Booking Bot)';
   } catch (_) {}
 
   try { if (!WATCH) await page.close(); } catch(_){}
-
+ try { await browser.close(); } catch(_){}   // 👈 هذا الناقص
   throw e; // ✅ مهم: لا ترجع نص فشل
 }
 
