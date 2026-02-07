@@ -478,6 +478,45 @@
     @media (max-width: 600px){
       .lux-bg{ filter: blur(14px) saturate(1.05); opacity:.90; }
     }
+    .services-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.service-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid rgba(226,190,109,.25);
+  background: rgba(255,255,255,.75);
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.service-card strong {
+  display: block;
+  font-size: 1rem;
+  color: #6b4b00;
+}
+
+.service-card span {
+  font-size: .85rem;
+  color: #6b7280;
+}
+
+.service-card input {
+  display: none;
+}
+
+.service-card:has(input:checked) {
+  border-color: #e2be6d;
+  background: linear-gradient(135deg, #fff6df, #fff);
+  box-shadow: 0 10px 24px rgba(226,190,109,.25);
+}
+
   </style>
 </head>
 
@@ -600,16 +639,44 @@
     <span class="chip" id="serviceSummary">—</span>
   </div>
 
-  <div class="grid">
-    <label>الخدمات المتاحة</label>
+  <div class="services-grid">
 
-    <label><input type="checkbox" class="svc" value="brows"> تشقير الحواجب (30 دقيقة)</label>
-    <label><input type="checkbox" class="svc" value="face"> تشقير الوجه (30 دقيقة)</label>
-    <label><input type="checkbox" class="svc" value="clean_nomask"> تنظيف بدون ماسك (60 دقيقة)</label>
-    <label><input type="checkbox" class="svc" value="clean_mask"> تنظيف مع ماسك (90 دقيقة)</label>
+  <label class="service-card">
+    <input type="checkbox" class="svc" value="brows">
+    <div>
+      <strong>تشقير الحواجب</strong>
+      <span>30 دقيقة</span>
+    </div>
+  </label>
 
-    <div id="svcMsg" class="muted"></div>
-  </div>
+  <label class="service-card">
+    <input type="checkbox" class="svc" value="face">
+    <div>
+      <strong>تشقير الوجه</strong>
+      <span>30 دقيقة</span>
+    </div>
+  </label>
+
+  <label class="service-card">
+    <input type="checkbox" class="svc" value="clean_nomask">
+    <div>
+      <strong>تنظيف بشرة أساسي</strong>
+      <span>بدون ماسك · 60 دقيقة</span>
+    </div>
+  </label>
+
+  <label class="service-card">
+    <input type="checkbox" class="svc" value="clean_mask">
+    <div>
+      <strong>تنظيف بشرة متكامل</strong>
+      <span>مع ماسك · 90 دقيقة</span>
+    </div>
+  </label>
+
+</div>
+
+<div id="svcMsg" class="muted"></div>
+
 </div>
 
 
@@ -923,7 +990,8 @@ const hasTashqeer =
 if (hasCleaning && hasTashqeer) {
   checks[checks.length - 1].checked = false;
   selectedServices.pop();
-  svcMsg.textContent = 'خدمات التنظيف لا يمكن دمجها مع التشقير';
+ svcMsg.textContent = ' يمكنك اختيار التشقير أو تنظيف البشرة في موعد واحد، وليس الاثنين معًا';
+
   return;
 }
 
@@ -933,11 +1001,12 @@ if (
 ) {
   checks[checks.length - 1].checked = false;
   selectedServices.pop();
-  svcMsg.textContent = 'اختر نوع تنظيف واحد فقط';
+  svcMsg.textContent = ' اختر نوع تنظيف واحد فقط (أساسي أو متكامل)';
+
   return;
 }
 
-svcMsg.textContent = '';
+svcMsg.textContent = ' الرجاء اختيار الخدمة المناسبة لك لعرض الأوقات';
 
 
   requiredMinutes = selectedServices.reduce((s, k) => s + SERVICE_MINUTES[k], 0);
@@ -1215,7 +1284,8 @@ let times = lastFetchedTimes;
 
   if (!times.length) {
     timeSel.innerHTML = `<option value="">لا توجد أوقات متسلسلة مناسبة</option>`;
-    bkMsg.textContent = 'لا توجد مواعيد مناسبة لمدة الخدمة المختارة.';
+  bkMsg.textContent = '😕 لا توجد أوقات متتالية مناسبة لمدة هذه الخدمة، جرّب وقتًا آخر';
+
     return;
   }
 
@@ -1295,7 +1365,7 @@ const phone       = mobile.value.trim();
       window.location.href = 'success.html';
     } catch (e) {
       bkMsg.textContent = 'تعذر الاتصال بالخادم. حاول لاحقاً.';
-      bookNowBtn.disabled = false;
+      
       fetchBtn.disabled = false;
       clinicSel.disabled = false;
       monthSel.disabled = false;
