@@ -949,6 +949,7 @@ svcMsg.textContent = '';
   }
 
   serviceSummary.textContent = `المدة ${requiredMinutes} دقيقة (${requiredSlots} حجوزات)`;
+    updateBookBtnState();
   // 🔁 تحديث الأوقات حسب مدة الخدمة
 if (lastFetchedTimes.length) {
   const isCleaningClinic =
@@ -1057,9 +1058,25 @@ function filterSequentialTimes(times, requiredSlots) {
   let isLoadingTimes = false;
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
+  timeSel.addEventListener('change', updateBookBtnState);
+
   const bookNowBtn = document.getElementById('bookNowBtn');
   const bkMsg = document.getElementById('bkMsg');
   const clinicSel = document.getElementById('clinic');
+  function updateBookBtnState() {
+  const isCleaningClinic =
+    clinicSel.value.includes('تشقير') ||
+    clinicSel.value.includes('تنظيف');
+
+  if (isCleaningClinic) {
+    // لازم خدمة + وقت
+    bookNowBtn.disabled = !(selectedServices.length && timeSel.value);
+  } else {
+    // باقي العيادات: وقت فقط
+    bookNowBtn.disabled = !timeSel.value;
+  }
+}
+
   // ================= LOAD CLINICS FROM SERVER =================
 async function loadClinics() {
   try {
@@ -1138,6 +1155,8 @@ cleaningServicesWrap.style.display = isCleaningClinic ? 'block' : 'none';
 
   // جلب المواعيد مباشرة
   fetchBtn.click();
+  updateBookBtnState();
+
 });
 
 
