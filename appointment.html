@@ -889,6 +889,8 @@ const loginMsg  = document.getElementById('loginMsg');
   });
 
   // ===== عناصر الحجز =====
+  let lastFetchedTimes = [];
+
   // ===== خدمات التشقير/تنظيف البشرة =====
 const cleaningServicesWrap = document.getElementById('cleaningServicesWrap');
 const serviceSummary = document.getElementById('serviceSummary');
@@ -947,6 +949,25 @@ svcMsg.textContent = '';
   }
 
   serviceSummary.textContent = `المدة ${requiredMinutes} دقيقة (${requiredSlots} حجوزات)`;
+  // 🔁 تحديث الأوقات حسب مدة الخدمة
+if (lastFetchedTimes.length) {
+  const isCleaningClinic =
+    clinicSel.value.includes('تشقير') ||
+    clinicSel.value.includes('تنظيف');
+
+  let times = lastFetchedTimes;
+
+  if (isCleaningClinic && requiredSlots > 1) {
+    times = filterSequentialTimes(times, requiredSlots);
+  }
+
+  timeSel.innerHTML = times.length
+    ? times.map(t => `<option value="${t.value}">${t.label}</option>`).join('')
+    : `<option value="">لا توجد أوقات متسلسلة مناسبة</option>`;
+
+  bookNowBtn.disabled = !times.length;
+}
+
   // 🔁 إعادة فلترة الأوقات عند تغيير الخدمة
 if (clinicSel.value && timeSel.options.length > 1) {
   const isCleaningClinic =
@@ -990,39 +1011,38 @@ function sortTimes(times) {
   });
 }
 
-// ===== فلترة ذكية للأوقات المتسلسلة =====
+// ===== فلترة ذكية للأوقات المتسلسلة (توحيد الوقت) =====
+function normalizeTime(t){
+  if(!t) return '';
+  const [h, m] = t.split(':');
+  return String(Number(h)).padStart(2,'0') + ':' + String(Number(m)).padStart(2,'0');
+}
+
 function filterSequentialTimes(times, requiredSlots) {
   if (!requiredSlots || requiredSlots <= 1) return times;
 
   const byDate = new Map();
 
   times.forEach(t => {
-    const [date, time] = t.value.split('*');
+    const [date, time] = String(t.value).split('*');
+    const nt = normalizeTime(time);
     if (!byDate.has(date)) byDate.set(date, new Set());
-    byDate.get(date).add(time);
+    byDate.get(date).add(nt);
   });
 
   const result = [];
 
   for (const t of times) {
-    const [date, time] = t.value.split('*');
-    const [h, m] = time.split(':').map(Number);
+    const [date, time] = String(t.value).split('*');
+    const [h, m] = normalizeTime(time).split(':').map(Number);
 
     let ok = true;
-
     for (let i = 1; i < requiredSlots; i++) {
-      const d = new Date();
-      d.setHours(h);
-      d.setMinutes(m + i * 30);
-
-      const next =
-        String(d.getHours()).padStart(2, '0') + ':' +
-        String(d.getMinutes()).padStart(2, '0');
-
-      if (!byDate.get(date)?.has(next)) {
-        ok = false;
-        break;
-      }
+      const total = h * 60 + m + i * 30;
+      const nh = Math.floor(total / 60);
+      const nm = total % 60;
+      const next = String(nh).padStart(2,'0') + ':' + String(nm).padStart(2,'0');
+      if (!byDate.get(date)?.has(next)) { ok = false; break; }
     }
 
     if (ok) result.push(t);
@@ -1162,7 +1182,8 @@ loadClinics();
       const data = await r.json();
      if (data.times && data.times.length) {
 
-  let times = sortTimes(data.times);
+  lastFetchedTimes = sortTimes(data.times);
+let times = lastFetchedTimes;
 
 
   const isCleaningClinic =
