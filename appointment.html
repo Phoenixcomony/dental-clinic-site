@@ -1063,19 +1063,19 @@ function filterSequentialTimes(times, requiredSlots) {
   const bookNowBtn = document.getElementById('bookNowBtn');
   const bkMsg = document.getElementById('bkMsg');
   const clinicSel = document.getElementById('clinic');
-  function updateBookBtnState() {
+ function updateBookBtnState() {
   const isCleaningClinic =
     clinicSel.value.includes('تشقير') ||
     clinicSel.value.includes('تنظيف');
 
   if (isCleaningClinic) {
-    // لازم خدمة + وقت
-    bookNowBtn.disabled = !(selectedServices.length && timeSel.value);
+    // لازم خدمة مختارة + وقت
+    bookNowBtn.disabled = !(selectedServices.length > 0 && timeSel.value);
   } else {
-    // باقي العيادات: وقت فقط
     bookNowBtn.disabled = !timeSel.value;
   }
 }
+
 
   // ================= LOAD CLINICS FROM SERVER =================
 async function loadClinics() {
@@ -1219,12 +1219,14 @@ let times = lastFetchedTimes;
     return;
   }
 
-  timeSel.innerHTML = times.map(t =>
-    `<option value="${t.value}">${t.label}</option>`
-  ).join('');
+ timeSel.innerHTML =
+  `<option value="">اختر الوقت</option>` +
+  times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+
 
   timeSel.disabled = false;
-  bookNowBtn.disabled = false;
+updateBookBtnState();
+
 }
  else {
         timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
