@@ -910,14 +910,33 @@ function calcServices() {
   selectedServices = checks.map(c => c.value);
 
   // منع اختيار تنظيفين مع بعض
-  if (selectedServices.includes('clean_nomask') && selectedServices.includes('clean_mask')) {
-    checks[checks.length - 1].checked = false;
-    selectedServices.pop();
-    svcMsg.textContent = 'اختر نوع تنظيف واحد فقط';
-    return;
-  } else {
-    svcMsg.textContent = '';
-  }
+ const hasCleaning =
+  selectedServices.includes('clean_nomask') ||
+  selectedServices.includes('clean_mask');
+
+const hasTashqeer =
+  selectedServices.includes('brows') ||
+  selectedServices.includes('face');
+
+if (hasCleaning && hasTashqeer) {
+  checks[checks.length - 1].checked = false;
+  selectedServices.pop();
+  svcMsg.textContent = 'خدمات التنظيف لا يمكن دمجها مع التشقير';
+  return;
+}
+
+if (
+  selectedServices.includes('clean_nomask') &&
+  selectedServices.includes('clean_mask')
+) {
+  checks[checks.length - 1].checked = false;
+  selectedServices.pop();
+  svcMsg.textContent = 'اختر نوع تنظيف واحد فقط';
+  return;
+}
+
+svcMsg.textContent = '';
+
 
   requiredMinutes = selectedServices.reduce((s, k) => s + SERVICE_MINUTES[k], 0);
   requiredSlots = Math.ceil(requiredMinutes / 30);
@@ -940,34 +959,44 @@ document.addEventListener('change', e => {
 function filterSequentialTimes(times, requiredSlots) {
   if (!requiredSlots || requiredSlots <= 1) return times;
 
+  // تجميع الأوقات حسب التاريخ
+  const byDate = new Map();
+
+  times.forEach(t => {
+    const [date, time] = t.value.split('*');
+    if (!byDate.has(date)) byDate.set(date, new Set());
+    byDate.get(date).add(time);
+  });
+
   const result = [];
 
-  for (let i = 0; i <= times.length - requiredSlots; i++) {
+  for (const t of times) {
+    const [date, time] = t.value.split('*');
+    const [h, m] = time.split(':').map(Number);
+
     let ok = true;
 
-    for (let j = 1; j < requiredSlots; j++) {
-      const prev = times[i + j - 1].value;
-      const curr = times[i + j].value;
+    for (let i = 1; i < requiredSlots; i++) {
+      const d = new Date();
+      d.setHours(h);
+      d.setMinutes(m + i * 30);
 
-      if (!isNextSlot(prev, curr)) {
+      const next =
+        String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+
+      if (!byDate.get(date)?.has(next)) {
         ok = false;
         break;
       }
     }
 
-    if (ok) result.push(times[i]);
+    if (ok) result.push(t);
   }
 
   return result;
 }
 
-function isNextSlot(t1, t2) {
-  const toMin = t => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  };
-  return toMin(t2) - toMin(t1) === 30;
-}
 
 
   let isLoadingTimes = false;
