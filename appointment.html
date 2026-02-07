@@ -977,6 +977,19 @@ document.addEventListener('change', e => {
     calcServices();
   }
 });
+// ===== ترتيب الأوقات حسب التاريخ + الوقت =====
+function sortTimes(times) {
+  return times.slice().sort((a, b) => {
+    const [da, ta] = a.value.split('*');
+    const [db, tb] = b.value.split('*');
+
+    const A = new Date(`${da}T${ta}`);
+    const B = new Date(`${db}T${tb}`);
+
+    return A - B;
+  });
+}
+
 // ===== فلترة ذكية للأوقات المتسلسلة =====
 function filterSequentialTimes(times, requiredSlots) {
   if (!requiredSlots || requiredSlots <= 1) return times;
