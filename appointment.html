@@ -593,6 +593,25 @@
             <select id="clinic">
   <option value="">اختر العيادة</option>
 </select>
+<!-- خيارات خدمات التشقير/تنظيف البشرة -->
+<div id="cleaningServicesWrap" class="card" style="display:none; margin-top:12px;">
+  <div class="card-head">
+    <span class="chip"><i class="fa-solid fa-list-check"></i> اختر الخدمة</span>
+    <span class="chip" id="serviceSummary">—</span>
+  </div>
+
+  <div class="grid">
+    <label>الخدمات المتاحة</label>
+
+    <label><input type="checkbox" class="svc" value="brows"> تشقير الحواجب (30 دقيقة)</label>
+    <label><input type="checkbox" class="svc" value="face"> تشقير الوجه (30 دقيقة)</label>
+    <label><input type="checkbox" class="svc" value="clean_nomask"> تنظيف بدون ماسك (60 دقيقة)</label>
+    <label><input type="checkbox" class="svc" value="clean_mask"> تنظيف مع ماسك (90 دقيقة)</label>
+
+    <div id="svcMsg" class="muted"></div>
+  </div>
+</div>
+
 
           </div>
 
@@ -870,6 +889,87 @@ const loginMsg  = document.getElementById('loginMsg');
   });
 
   // ===== عناصر الحجز =====
+  // ===== خدمات التشقير/تنظيف البشرة =====
+const cleaningServicesWrap = document.getElementById('cleaningServicesWrap');
+const serviceSummary = document.getElementById('serviceSummary');
+const svcMsg = document.getElementById('svcMsg');
+
+const SERVICE_MINUTES = {
+  brows: 30,
+  face: 30,
+  clean_nomask: 60,
+  clean_mask: 90
+};
+
+let selectedServices = [];
+let requiredMinutes = 0;
+let requiredSlots = 0;
+
+function calcServices() {
+  const checks = Array.from(document.querySelectorAll('.svc:checked'));
+  selectedServices = checks.map(c => c.value);
+
+  // منع اختيار تنظيفين مع بعض
+  if (selectedServices.includes('clean_nomask') && selectedServices.includes('clean_mask')) {
+    checks[checks.length - 1].checked = false;
+    selectedServices.pop();
+    svcMsg.textContent = 'اختر نوع تنظيف واحد فقط';
+    return;
+  } else {
+    svcMsg.textContent = '';
+  }
+
+  requiredMinutes = selectedServices.reduce((s, k) => s + SERVICE_MINUTES[k], 0);
+  requiredSlots = Math.ceil(requiredMinutes / 30);
+
+  if (!selectedServices.length) {
+    serviceSummary.textContent = '—';
+    return;
+  }
+
+  serviceSummary.textContent = `المدة ${requiredMinutes} دقيقة (${requiredSlots} حجوزات)`;
+}
+
+// مراقبة التغيير
+document.addEventListener('change', e => {
+  if (e.target.classList.contains('svc')) {
+    calcServices();
+  }
+});
+// ===== فلترة ذكية للأوقات المتسلسلة =====
+function filterSequentialTimes(times, requiredSlots) {
+  if (!requiredSlots || requiredSlots <= 1) return times;
+
+  const result = [];
+
+  for (let i = 0; i <= times.length - requiredSlots; i++) {
+    let ok = true;
+
+    for (let j = 1; j < requiredSlots; j++) {
+      const prev = times[i + j - 1].value;
+      const curr = times[i + j].value;
+
+      if (!isNextSlot(prev, curr)) {
+        ok = false;
+        break;
+      }
+    }
+
+    if (ok) result.push(times[i]);
+  }
+
+  return result;
+}
+
+function isNextSlot(t1, t2) {
+  const toMin = t => {
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  return toMin(t2) - toMin(t1) === 30;
+}
+
+
   let isLoadingTimes = false;
   const fetchBtn = document.getElementById('fetchBtn');
   const timeSel  = document.getElementById('time');
@@ -939,6 +1039,9 @@ bookNowBtn.disabled = true;
 
   // إظهار الملاحظة الخاصة لعيادة تنظيف البشرة فقط + إظهار خانة "نوع الخدمة/ملاحظة" عند اختيار أي عيادة
 clinicSel.addEventListener('change', ()=>{
+  const isCleaningClinic = clinicSel.value.includes('تشقير') || clinicSel.value.includes('تنظيف');
+cleaningServicesWrap.style.display = isCleaningClinic ? 'block' : 'none';
+
   const v = clinicSel.value || '';
   const isCleaning = v.startsWith('عيادة تنظيف البشرة');
   dermNote.style.display = isCleaning ? 'block' : 'none';
@@ -993,11 +1096,32 @@ loadClinics();
         body: JSON.stringify({ clinic, month })
       });
       const data = await r.json();
-      if (data.times && data.times.length) {
-        timeSel.innerHTML = data.times.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
-        timeSel.disabled = false;
-        bookNowBtn.disabled = false;
-      } else {
+     if (data.times && data.times.length) {
+
+  let times = data.times;
+
+  const isCleaningClinic =
+    clinicSel.value.includes('تشقير') ||
+    clinicSel.value.includes('تنظيف');
+
+  if (isCleaningClinic && requiredSlots > 0) {
+    times = filterSequentialTimes(times, requiredSlots);
+  }
+
+  if (!times.length) {
+    timeSel.innerHTML = `<option value="">لا توجد أوقات متسلسلة مناسبة</option>`;
+    bkMsg.textContent = 'لا توجد مواعيد مناسبة لمدة الخدمة المختارة.';
+    return;
+  }
+
+  timeSel.innerHTML = times.map(t =>
+    `<option value="${t.value}">${t.label}</option>`
+  ).join('');
+
+  timeSel.disabled = false;
+  bookNowBtn.disabled = false;
+}
+ else {
         timeSel.innerHTML = `<option value="">لا توجد أوقات متاحة</option>`;
         bkMsg.textContent = 'لا توجد أوقات متاحة حالياً.';
       }
@@ -1041,7 +1165,17 @@ const phone       = mobile.value.trim();
     bkMsg.textContent = 'جاري تأكيد الحجز...';
 
     try {
-      const payload = { identity: identityVal, phone, clinic, month, time, note, key: Date.now().toString() };
+      const payload = {
+  identity: identityVal,
+  phone,
+  clinic,
+  month,
+  time,
+  note,
+  slots: requiredSlots || 1,
+  key: Date.now().toString()
+};
+
       const res = await fetch('/api/book', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},

@@ -2234,7 +2234,9 @@ async function selectPatientOnAppointments(page, identity) {
 
 /** ===== Booking queue (single) ===== */
 app.post('/api/book', async (req, res) => {
-  const { identity, clinic, time } = req.body || {};
+  const { identity, clinic, time, slots } = req.body || {};
+const slotsNeeded = Number(slots || 1);
+
 
   if (!clinic || !time) {
     return res.status(400).json({ success:false, message:'بيانات الحجز ناقصة' });
@@ -2323,7 +2325,40 @@ async function processQueue() {
     'time=', job.data?.time
   );
 
-  await bookNow(job.data);
+  // 🔒 الحجز المتعدد فقط للتشقير/تنظيف البشرة
+const isCleaningClinic =
+  job.data?.clinic?.includes('تشقير') ||
+  job.data?.clinic?.includes('تنظيف');
+
+// عدد الحجوزات
+const slotsNeeded = isCleaningClinic
+  ? Number(job.data.slots || 1)
+  : 1;
+
+// دالة زيادة الوقت
+function addMinutes(t, mins) {
+  const [h, m] = t.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h);
+  d.setMinutes(m + mins);
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0');
+}
+
+// ⬇️ هنا حلقة الحجز المتسلسل
+for (let i = 0; i < slotsNeeded; i++) {
+  const [date, time24] = job.data.time.split('*');
+  const nextTime =
+    i === 0
+      ? time24
+      : addMinutes(time24, i * 30);
+
+  await bookNow({
+    ...job.data,
+    time: `${date}*${nextTime}`
+  });
+}
+
 
   console.log(
     '[QUEUE][DONE]',
