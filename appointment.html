@@ -947,6 +947,28 @@ svcMsg.textContent = '';
   }
 
   serviceSummary.textContent = `المدة ${requiredMinutes} دقيقة (${requiredSlots} حجوزات)`;
+  // 🔁 إعادة فلترة الأوقات عند تغيير الخدمة
+if (clinicSel.value && timeSel.options.length > 1) {
+  const isCleaningClinic =
+    clinicSel.value.includes('تشقير') ||
+    clinicSel.value.includes('تنظيف');
+
+  if (isCleaningClinic && requiredSlots > 1) {
+    const currentTimes = Array.from(timeSel.options)
+      .filter(o => o.value)
+      .map(o => ({ value: o.value, label: o.textContent }));
+
+    const filtered = filterSequentialTimes(
+      sortTimes(currentTimes),
+      requiredSlots
+    );
+
+    timeSel.innerHTML = filtered.length
+      ? filtered.map(t => `<option value="${t.value}">${t.label}</option>`).join('')
+      : `<option value="">لا توجد أوقات متسلسلة مناسبة</option>`;
+  }
+}
+
 }
 
 // مراقبة التغيير
@@ -959,7 +981,6 @@ document.addEventListener('change', e => {
 function filterSequentialTimes(times, requiredSlots) {
   if (!requiredSlots || requiredSlots <= 1) return times;
 
-  // تجميع الأوقات حسب التاريخ
   const byDate = new Map();
 
   times.forEach(t => {
@@ -996,6 +1017,7 @@ function filterSequentialTimes(times, requiredSlots) {
 
   return result;
 }
+
 
 
 
@@ -1127,7 +1149,8 @@ loadClinics();
       const data = await r.json();
      if (data.times && data.times.length) {
 
-  let times = data.times;
+  let times = sortTimes(data.times);
+
 
   const isCleaningClinic =
     clinicSel.value.includes('تشقير') ||
