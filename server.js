@@ -3254,14 +3254,13 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
 
   // ✅ خله يطلع أول واحد
   await writeRedisArray(REDIS_DOCTORS_KEY, [item, ...doctors]);
-  await auditLog({
-  by: req.session.user.username,
-  role: req.session.user.role,
-  action: 'ADD_DOCTOR',
-  section: 'doctors',
-  target: name,
-  ok: true
+await auditLog({
+  by: req.session.user.username,   // عبود
+  action: 'add',                   // مهم
+  target: 'doctor',                // مهم
+  targetName: name                 // اسم الطبيب
 });
+
 
 
   res.json({ ok:true, doctor: item });
@@ -3312,14 +3311,13 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
 
   const [removed] = doctors.splice(idx, 1);
   await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
-  await auditLog({
-  by: req.session.user.username,
-  role: req.session.user.role,
-  action: 'DELETE_DOCTOR',
-  section: 'doctors',
-  target: req.params.id,
-  ok: true
+ await auditLog({
+  by: req.session.user.username,   // عبود
+  action: 'delete',                // مهم جدا
+  target: 'doctor',                // مهم
+  targetName: removed.name         // اسم الطبيب
 });
+
 
 
   try {
