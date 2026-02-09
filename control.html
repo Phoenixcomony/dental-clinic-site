@@ -486,6 +486,11 @@ const tabD = document.getElementById('tabD');
 const panelD = document.getElementById('panelD');
 const panelC = document.getElementById('panelC');
 const panelEditClinic = document.getElementById('panelEditClinic');
+function staffHeaders(){
+  return {
+    'x-staff-key': 'AQZa123@'
+  };
+}
 
 
 tabB.onclick=()=>{
@@ -615,7 +620,10 @@ async function delPackage(id){
 let currentClinicId = null;
 
 async function openClinicEdit(id){
-  const r = await fetch('/api/admin/clinics')
+  const r = await fetch('/api/admin/clinics', {
+  headers: staffHeaders()
+});
+
 ;
   const data = await r.json();
   const c = (data.clinics || []).find(x => x.id === id);
@@ -664,11 +672,13 @@ function backToClinics(){
 
 
 async function loadClinicsAdmin(){
-  const r = await fetch('/api/admin/clinics')
-;
+  const r = await fetch('/api/admin/clinics', {
+    headers: staffHeaders()
+  });
   const data = await r.json();
   renderClinics(data.clinics || []);
 }
+
 
 function renderClinics(list){
   const el = document.getElementById('clinics');
@@ -726,10 +736,11 @@ async function addClinic(){
 
 async function delClinic(id){
   if(!confirm('تأكيد الحذف؟')) return;
-  await fetch('/api/admin/clinics/'+id,{
-    method:'DELETE',
-    
-  });
+ await fetch('/api/admin/clinics/'+id,{
+  method:'DELETE',
+  headers: staffHeaders()
+});
+
   loadClinicsAdmin();
 }
 let currentDoctorId = null;
@@ -785,10 +796,11 @@ async function saveDoctorEdit(){
   }
 
   await fetch('/api/admin/doctors/'+currentDoctorId,{
-    method:'PUT',
-    
-    body: fd
-  });
+  method:'PUT',
+  headers: staffHeaders(),
+  body: fd
+});
+
 
   closeEditDoctor();
   loadDoctors();
