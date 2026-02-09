@@ -715,22 +715,40 @@ function renderClinics(list){
 
 async function addClinic(){
   const payload = {
-    label: cLabel.value,
-    value: cValue.value,
+    label: cLabel.value.trim(),
+    value: cValue.value.trim(),
     from:  cFrom.value,
     to:    cTo.value,
     allowFriday: document.getElementById('cAllowFriday').checked,
     allowSaturday: document.getElementById('cAllowSaturday').checked
   };
 
-  await fetch('/api/admin/clinics',{
+  const r = await fetch('/api/admin/clinics',{
     method:'POST',
     headers:{ ...staffHeaders(),'Content-Type':'application/json' },
     body: JSON.stringify(payload)
   });
 
+  if(!r.ok){
+    alert('فشل إضافة العيادة');
+    return;
+  }
+
+  // ✅ رسالة نجاح
+  alert('تمت إضافة العيادة بنجاح');
+
+  // ✅ تصفير الحقول
+  cLabel.value = '';
+  cValue.value = '';
+  cFrom.value  = '';
+  cTo.value    = '';
+  document.getElementById('cAllowFriday').checked = false;
+  document.getElementById('cAllowSaturday').checked = false;
+
+  // ✅ إعادة تحميل القائمة
   loadClinicsAdmin();
 }
+
 
 
 
