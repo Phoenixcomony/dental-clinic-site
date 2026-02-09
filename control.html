@@ -274,19 +274,55 @@
   gap:10px;
   justify-content:flex-end;
 }
+.audit-item{
+  padding:10px 12px;
+  border-radius:10px;
+  background:#fafafa;
+  border:1px solid #eee;
+  margin-bottom:8px;
+  font-size:13px;
+}
+
+.audit-item.add{ border-right:4px solid #16a34a; }
+.audit-item.edit{ border-right:4px solid #2563eb; }
+.audit-item.delete{ border-right:4px solid #dc2626; }
+
+.audit-item .time{
+  color:#6b7280;
+  font-size:11px;
+}
 
 
   </style>
 
 </head>
 <body>
+  <!-- LOGIN SCREEN -->
+<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div style="background:#fff;padding:24px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:340px">
+    <h3 style="margin-top:0">تسجيل الدخول</h3>
+
+    <input id="loginUser" type="text" placeholder="اسم المستخدم" style="width:100%;margin-bottom:10px">
+    <input id="loginPass" type="password" placeholder="كلمة المرور" style="width:100%;margin-bottom:14px">
+
+    <button class="btn primary" style="width:100%" onclick="login()">دخول</button>
+  </div>
+</div>
+<!-- SET PASSWORD SCREEN -->
+<div id="setPasswordScreen" style="display:none;min-height:100vh;align-items:center;justify-content:center">
+  <div style="background:#fff;padding:24px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);width:340px">
+    <h3 style="margin-top:0">تعيين كلمة المرور</h3>
+
+    <input id="newPass" type="password" placeholder="كلمة المرور الجديدة" style="width:100%;margin-bottom:10px">
+    <input id="newPass2" type="password" placeholder="تأكيد كلمة المرور" style="width:100%;margin-bottom:14px">
+
+    <button class="btn primary" style="width:100%" onclick="setPassword()">حفظ</button>
+  </div>
+</div>
+
 
 <div class="wrap">
-  <!-- مفتاح الدخول (ظاهر دائمًا) -->
-<div class="auth-box">
-  <span></span>
-  <input id="key" type="password" placeholder="STAFF_KEY">
-</div>
+
 
 <!-- المحتوى المقفل -->
 <div id="adminApp" style="display:none">
@@ -297,6 +333,8 @@
   <div class="header">
     <div class="header-top">
       <div class="title">لوحة التحكم الإدارية – مجمع فينكس الطبي</div>
+      <button class="btn" onclick="logout()">تسجيل خروج</button>
+
       
 
 
@@ -304,8 +342,10 @@
   <button id="tabB" class="active">البنرات</button>
   <button id="tabP">الباقات</button>
   <button id="tabC">العيادات</button>
-   <button id="tabD">الأطباء</button>
+  <button id="tabD">الأطباء</button>
+  <button id="tabA" style="display:none">إعدادات الحسابات</button>
 </div>
+
   
 
 
@@ -405,6 +445,32 @@
 
   <div id="clinics" class="row"></div>
 </section>
+<section id="panelA" class="panel">
+  <h3>إعدادات الحسابات</h3>
+  <div class="desc">إدارة الموظفين وسجل التعديلات</div>
+  <h4 style="margin-top:20px">تغيير كلمة المرور</h4>
+<div class="form-row">
+  <input id="oldPass" type="password" placeholder="كلمة المرور الحالية">
+  <input id="newPassChange" type="password" placeholder="كلمة المرور الجديدة">
+  <button class="btn primary" onclick="changePassword()">تغيير</button>
+</div>
+
+
+  <h4>إضافة موظف</h4>
+  <div class="form-row">
+    <input id="staffName" type="text" placeholder="اسم الموظف">
+    <input id="staffUser" type="text" placeholder="اسم المستخدم">
+    <button class="btn primary" onclick="addStaff()">إضافة</button>
+  </div>
+
+  <h4>الموظفون</h4>
+  <div id="staffList" class="row"></div>
+
+  <h4 style="margin-top:20px">سجل التعديلات</h4>
+  <div id="auditList" class="audit-list"></div>
+
+</section>
+
 
 
 </div>
@@ -463,9 +529,7 @@ tabD.onclick = () => {
 
 
 
-function staffHeaders(){
-  return { 'x-staff-key': document.getElementById('key').value };
-}
+
 
 async function loadAll(){
   const b = await fetch('/api/banners').then(r=>r.json());
@@ -474,7 +538,7 @@ async function loadAll(){
   renderPackages(p.packages||[]);
   loadClinicsAdmin();
 }
-loadAll();
+
 
 function renderBanners(list){
   const el = document.getElementById('banners'); el.innerHTML='';
@@ -504,15 +568,20 @@ async function addBanner(){
   const fd = new FormData();
   for (const f of files) fd.append('files', f);
 
-  const r=await fetch('/api/admin/banners',{method:'POST',headers:staffHeaders(),body:fd});
+  const r=await fetch('/api/admin/banners',{
+  method:'POST',
+   
+  body: fd
+});
+
   if(!r.ok) return alert('فشل');
-  loadAll();
+  
 }
 
 async function delBanner(id){
   if(!confirm('تأكيد الحذف؟')) return;
   await fetch('/api/admin/banners/'+id,{method:'DELETE',headers:staffHeaders()});
-  loadAll();
+  
 }
 
 async function addPackage(){
@@ -529,24 +598,25 @@ async function addPackage(){
 
   const r = await fetch('/api/admin/packages',{
     method:'POST',
-    headers: staffHeaders(),
+    
     body: fd
   });
 
   if(!r.ok) return alert('فشل');
-  loadAll();
+  
 }
 
 async function delPackage(id){
   if(!confirm('تأكيد الحذف؟')) return;
   await fetch('/api/admin/packages/'+id,{method:'DELETE',headers:staffHeaders()});
-  loadAll();
+  
 }
 // ================= CLINICS ADMIN =================
 let currentClinicId = null;
 
 async function openClinicEdit(id){
-  const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
+  const r = await fetch('/api/admin/clinics')
+;
   const data = await r.json();
   const c = (data.clinics || []).find(x => x.id === id);
   if(!c) return alert('العيادة غير موجودة');
@@ -594,7 +664,8 @@ function backToClinics(){
 
 
 async function loadClinicsAdmin(){
-  const r = await fetch('/api/admin/clinics', { headers: staffHeaders() });
+  const r = await fetch('/api/admin/clinics')
+;
   const data = await r.json();
   renderClinics(data.clinics || []);
 }
@@ -657,7 +728,7 @@ async function delClinic(id){
   if(!confirm('تأكيد الحذف؟')) return;
   await fetch('/api/admin/clinics/'+id,{
     method:'DELETE',
-    headers: staffHeaders()
+    
   });
   loadClinicsAdmin();
 }
@@ -715,7 +786,7 @@ async function saveDoctorEdit(){
 
   await fetch('/api/admin/doctors/'+currentDoctorId,{
     method:'PUT',
-    headers: staffHeaders(),
+    
     body: fd
   });
 
@@ -750,28 +821,7 @@ async function delDoctor(id){
   loadDoctors();
 }
 
-const REAL_KEY = 'AQZa123@'; // غيره
 
-const input = document.getElementById('key');
-const app   = document.getElementById('adminApp');
-
-input.addEventListener('input', () => {
-  const ok = input.value === REAL_KEY;
-  app.style.display = ok ? 'block' : 'none';
-
-  if (ok) {
-    loadAll();
-
-    // 🔥 افتح تبويب العيادات تلقائيًا
-    tabC.classList.add('active');
-    tabB.classList.remove('active');
-    tabP.classList.remove('active');
-
-    panelC.classList.add('active');
-    panelB.classList.remove('active');
-    panelP.classList.remove('active');
-  }
-});
 
 </script>
 <div id="editDoctorModal" class="modal">
@@ -788,6 +838,246 @@ input.addEventListener('input', () => {
     </div>
   </div>
 </div>
+<script>
+// ===== LOGIN =====
+async function login(){
+  async function setPassword(){
+  const p1 = newPass.value;
+  const p2 = newPass2.value;
+
+  if(p1 !== p2) return alert('غير متطابقة');
+
+  const r = await fetch('/api/auth/set-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ newPassword:p1 })
+  });
+
+  if(!r.ok) return alert('فشل');
+
+  setPasswordScreen.style.display='none';
+  adminApp.style.display='block';
+  loadAll();
+}
+
+  const username = loginUser.value.trim();
+  const password = loginPass.value;
+
+  const r = await fetch('/api/auth/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password })
+  });
+
+  const j = await r.json();
+  if(!j.ok) return alert('فشل تسجيل الدخول');
+
+  loginScreen.style.display='none';
+
+  // موظف جديد → تعيين كلمة مرور
+  if(j.mustSetPassword){
+    setPasswordScreen.style.display='flex';
+    return;
+  }
+
+  adminApp.style.display='block';
+  loadAll();
+
+  if(j.role === 'admin'){
+    tabA.style.display='inline-block';
+  }
+}
+
+
+// ===== SET PASSWORD =====
+async function setPassword(){
+  const p1 = newPass.value;
+  const p2 = newPass2.value;
+
+  if(p1 !== p2) return alert('غير متطابقة');
+
+  const r = await fetch('/api/auth/set-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ newPassword:p1 })
+  });
+
+  if(!r.ok) return alert('فشل');
+
+  setPasswordScreen.style.display='none';
+  adminApp.style.display='block';
+  loadAll();
+}
+
+// ===== LOGOUT =====
+async function logout(){
+  await fetch('/api/auth/logout', { method:'POST' });
+
+  adminApp.style.display='none';
+  setPasswordScreen.style.display='none';
+  loginScreen.style.display='flex';
+}
+tabA.onclick = () => {
+  // حماية إضافية
+  if (tabA.style.display === 'none') return;
+
+  // إخفاء كل الأقسام
+  [panelB, panelP, panelC, panelD].forEach(p => p.classList.remove('active'));
+
+  // إظهار إعدادات الحسابات
+  panelA.classList.add('active');
+
+  loadStaff();
+  loadAudit();
+};
+async function changePassword(){
+  const oldP = oldPass.value;
+  const newP = newPassChange.value;
+
+  if(!oldP || !newP) return alert('أكمل الحقول');
+
+  const r = await fetch('/api/auth/change-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      oldPassword: oldP,
+      newPassword: newP
+    })
+  });
+
+  if(!r.ok) return alert('فشل تغيير كلمة المرور');
+
+  alert('تم تغيير كلمة المرور');
+  oldPass.value = '';
+  newPassChange.value = '';
+}
+
+async function loadAudit(){
+  const r = await fetch('/api/admin/audit');
+  const j = await r.json();
+
+  auditList.innerHTML = '';
+
+  j.logs.forEach(l=>{
+    auditList.innerHTML += `
+      <div style="padding:8px;border-bottom:1px solid #eee;font-size:13px">
+        • ${l.time} — ${l.by} (${l.action})
+      </div>
+    `;
+  });
+  // ===== TAB A =====
+tabA.onclick = ()=>{
+  if(tabA.style.display === 'none') return;
+
+  [panelB,panelP,panelC,panelD].forEach(p=>p.classList.remove('active'));
+  panelA.classList.add('active');
+
+  loadStaff();
+  loadAudit();
+};
+// ===== AUDIT LOG =====
+async function loadAudit(){
+  const r = await fetch('/api/admin/audit');
+  const j = await r.json();
+
+  auditList.innerHTML='';
+  j.logs.forEach(l=>{
+    auditList.innerHTML += `
+      <div class="audit-item ${l.action}">
+        <div>${l.by} — ${l.action}</div>
+        <div class="time">${l.time}</div>
+      </div>
+    `;
+  });
+}
+// ===== CHANGE PASSWORD =====
+async function changePassword(){
+  const oldP = oldPass.value;
+  const newP = newPassChange.value;
+
+  if(!oldP || !newP) return alert('أكمل الحقول');
+
+  const r = await fetch('/api/auth/change-password',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ oldPassword: oldP, newPassword: newP })
+  });
+
+  if(!r.ok) return alert('فشل تغيير كلمة المرور');
+
+  alert('تم تغيير كلمة المرور');
+  oldPass.value='';
+  newPassChange.value='';
+}
+
+}
+</script>
+
+<script>
+async function addStaff(){
+  const name = document.getElementById('staffName').value.trim();
+  const username = document.getElementById('staffUser').value.trim();
+
+  if(!name || !username){
+    alert('أدخل اسم الموظف واسم المستخدم');
+    return;
+  }
+
+  const r = await fetch('/api/admin/staff', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ name, username })
+  });
+
+  if(!r.ok){
+    alert('فشل إضافة الموظف');
+    return;
+  }
+
+  alert('تمت إضافة الموظف');
+  staffName.value = '';
+  staffUser.value = '';
+  loadStaff();
+}
+
+async function loadStaff(){
+  const r = await fetch('/api/admin/staff', {
+    credentials:'include'
+  });
+  const j = await r.json();
+
+  staffList.innerHTML = '';
+  (j.staff || []).forEach(s=>{
+    staffList.innerHTML += `
+      <div class="card">
+        <div class="title">${s.name}</div>
+        <div class="sub">@${s.username}</div>
+
+        <button class="btn danger" onclick="deleteStaff('${s.id}')">
+          حذف
+        </button>
+      </div>
+    `;
+  });
+}
+async function deleteStaff(id){
+  if(!confirm('تأكيد حذف الموظف؟')) return;
+
+  const r = await fetch('/api/admin/staff/' + id, {
+    method:'DELETE',
+    credentials:'include'
+  });
+
+  if(!r.ok){
+    alert('فشل حذف الموظف');
+    return;
+  }
+
+  loadStaff();
+}
+
+</script>
 
 </body>
 </html>

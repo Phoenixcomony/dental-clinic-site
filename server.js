@@ -1,12 +1,16 @@
 // ==============================
 // Phoenix Clinic - Backend Server
 // ===============================
+require('dotenv').config();
+
 console.log('RUN:', __filename);
 console.log('PWD:', process.cwd());
-
-
-
 const express = require('express');
+const session = require('express-session');
+const { RedisStore } = require('connect-redis');
+
+
+const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const puppeteer = require('puppeteer');
@@ -14,8 +18,14 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const Redis = require('ioredis');
+
 // ================= CLINICS STORAGE =================
 const CLINICS_FILE = path.join(process.env.PERSIST_ROOT || '/data', 'clinics.json');
+function getAdminPasswordHash(){
+  const p = path.join(__dirname, 'admin.pass');
+  if (!fs.existsSync(p)) return null;
+  return fs.readFileSync(p, 'utf8').trim();
+}
 
 
 function readClinics() {
@@ -72,6 +82,41 @@ const redis = new Redis(process.env.REDIS_URL, {
     return Math.min(times * 100, 2000);
   }
 });
+// ===== Admin Credentials =====
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || '';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || '';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'CHANGE_ME';
+
+// ===== Staff Users =====
+const STAFF_USERS_KEY = 'staff:users:v1';
+
+// ===== Audit Log =====
+const AUDIT_KEY = 'audit:logs:v1';
+const AUDIT_MAX = 500;
+
+async function readStaffUsers() {
+  const raw = await redis.get(STAFF_USERS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+async function writeStaffUsers(list) {
+  await redis.set(STAFF_USERS_KEY, JSON.stringify(list || []));
+}
+
+function genStaffId() {
+  return 'u_' + Date.now() + '_' + Math.random().toString(16).slice(2);
+}
+
+async function auditLog({ by, role, action, section, target, ok }) {
+  const rec = {
+    time: new Date().toISOString(),
+    by, role, action, section, target,
+    ok: ok !== false
+  };
+  await redis.lpush(AUDIT_KEY, JSON.stringify(rec));
+  await redis.ltrim(AUDIT_KEY, 0, AUDIT_MAX - 1);
+}
+
 // ===============================
 // CLINICS SOURCE (REDIS ONLY)
 // ===============================
@@ -396,6 +441,33 @@ for (const c of clinics) {
 
 /* ================= Express ================= */
 const app = express();
+app.set('trust proxy', 1);
+const { createClient } = require('redis');
+
+const redisClient = createClient({
+  url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
+});
+
+redisClient.connect().catch(console.error);
+
+app.use(session({
+  
+ store: new RedisStore({
+  client: redisClient
+}),
+
+  name: 'phoenix.sid',
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  }
+}));
+
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 /* 🔁 تحويل الدومين بدون www إلى www (أول شيء) */
@@ -435,12 +507,229 @@ app.get('/:slug', (req, res, next) => {
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
+// ===== Auth Guards =====
+function requireAuth(req, res, next) {
+  if (req.session && req.session.user) return next();
+  return res.status(401).json({ ok:false, error:'Unauthorized' });
+}
+
+function requireAdmin(req, res, next) {
+  if (req.session?.user?.role === 'admin') return next();
+  return res.status(403).json({ ok:false, error:'Forbidden' });
+}
+
 app.use((err, req, res, next) => {
   if (err?.type === 'entity.aborted') {
     console.warn('⚠️ Request aborted by client');
     return;
   }
   next(err);
+});
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body || {};
+
+  // ADMIN
+  if (username === ADMIN_USERNAME) {
+    const adminHash = getAdminPasswordHash();
+if (!adminHash || !bcrypt.compareSync(password, adminHash)) {
+
+      await auditLog({ by: username, role:'admin', action:'LOGIN_FAIL', section:'auth', target:'admin', ok:false });
+      return res.status(401).json({ ok:false });
+    }
+
+    req.session.user = { id:'admin', username, role:'admin' };
+    await auditLog({ by: username, role:'admin', action:'LOGIN_OK', section:'auth', target:'admin', ok:true });
+    return res.json({ ok:true, role:'admin' });
+  }
+
+  // STAFF
+  const list = await readStaffUsers();
+  const staff = list.find(x => x.username === username);
+  if (!staff) {
+    await auditLog({ by: username, role:'staff', action:'LOGIN_FAIL', section:'auth', target:'staff', ok:false });
+    return res.status(401).json({ ok:false });
+  }
+
+  if (!staff.passwordHash) {
+    req.session.user = { id: staff.id, username, role:'staff', mustSetPassword:true };
+    return res.json({ ok:true, mustSetPassword:true });
+  }
+
+  if (!bcrypt.compareSync(password, staff.passwordHash)) {
+    await auditLog({ by: username, role:'staff', action:'LOGIN_FAIL', section:'auth', target:staff.id, ok:false });
+    return res.status(401).json({ ok:false });
+  }
+
+  req.session.user = { id: staff.id, username, role:'staff' };
+  return res.json({ ok:true });
+});
+// ===== CHANGE PASSWORD (ADMIN / STAFF) =====
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  const { oldPassword, newPassword } = req.body || {};
+  const user = req.session.user;
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ ok:false });
+  }
+
+ // ===== ADMIN =====
+if (user.role === 'admin') {
+  const currentHash = getAdminPasswordHash();
+
+  if (!currentHash || !bcrypt.compareSync(oldPassword, currentHash)) {
+    return res.status(401).json({ ok:false });
+  }
+
+  const newHash = bcrypt.hashSync(newPassword, 10);
+  fs.writeFileSync(
+    path.join(__dirname, 'admin.pass'),
+    newHash,
+    'utf8'
+  );
+
+  await auditLog({
+    by: user.username,
+    role: 'admin',
+    action: 'CHANGE_PASSWORD',
+    section: 'accounts',
+    target: 'admin',
+    ok: true
+  });
+
+  return res.json({ ok:true });
+}
+
+
+  // ===== STAFF =====
+  const list = await readStaffUsers();
+  const staff = list.find(u => u.id === user.id);
+  if (!staff) return res.status(404).json({ ok:false });
+
+  if (!bcrypt.compareSync(oldPassword, staff.passwordHash)) {
+    return res.status(401).json({ ok:false });
+  }
+
+  staff.passwordHash = bcrypt.hashSync(newPassword, 10);
+  staff.mustSetPassword = false;
+
+  await writeStaffUsers(list);
+
+  await auditLog({
+    by: user.username,
+    role: 'staff',
+    action: 'CHANGE_PASSWORD',
+    section: 'accounts',
+    target: user.username,
+    ok: true
+  });
+
+  res.json({ ok:true });
+});
+
+app.post('/api/auth/set-password', requireAuth, async (req, res) => {
+  const { newPassword } = req.body || {};
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ ok:false, message:'weak password' });
+  }
+
+  // admin لا يغير هنا
+  if (req.session.user.role === 'admin') {
+    return res.status(403).json({ ok:false });
+  }
+
+  const list = await readStaffUsers();
+  const staff = list.find(u => u.id === req.session.user.id);
+  if (!staff) {
+    return res.status(404).json({ ok:false });
+  }
+
+  staff.passwordHash = bcrypt.hashSync(newPassword, 10);
+  staff.mustSetPassword = false;
+
+  await writeStaffUsers(list);
+
+  req.session.user.mustSetPassword = false;
+
+  await auditLog({
+    by: staff.username,
+    role: 'staff',
+    action: 'SET_PASSWORD',
+    section: 'auth',
+    target: staff.username,
+    ok: true
+  });
+
+  res.json({ ok:true });
+});
+
+
+// ================= STAFF ACCOUNTS (ADMIN ONLY) =================
+app.get('/api/admin/staff', requireAdmin, async (req, res) => {
+  const list = await readStaffUsers();
+  res.json({ ok:true, staff:list });
+});
+
+app.post('/api/admin/staff', requireAdmin, async (req, res) => {
+  const { name, username } = req.body || {};
+  const list = await readStaffUsers();
+
+  if (list.some(u => u.username === username)) {
+    return res.status(409).json({ ok:false, message:'username exists' });
+  }
+
+  list.push({
+    id: genStaffId(),
+    name,
+    username,
+    passwordHash: null,
+    mustSetPassword: true,
+    createdAt: Date.now()
+  });
+
+  await writeStaffUsers(list);
+
+  await auditLog({
+    by: req.session.user.username,
+    role: 'admin',
+    action: 'ADD_STAFF',
+    section: 'accounts',
+    target: username,
+    ok: true
+  });
+
+  res.json({ ok:true });
+});
+app.delete('/api/admin/staff/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  const list = await readStaffUsers();
+  const idx = list.findIndex(u => u.id === id);
+
+  if (idx === -1) {
+    return res.status(404).json({ ok:false, message:'staff not found' });
+  }
+
+  const removed = list.splice(idx, 1)[0];
+  await writeStaffUsers(list);
+
+  await auditLog({
+    by: req.session.user.username,
+    role: 'admin',
+    action: 'DELETE_STAFF',
+    section: 'accounts',
+    target: removed.username,
+    ok: true
+  });
+await auditLog({
+  by: req.session.user.username,
+  role: 'admin',
+  action: 'DELETE_STAFF',
+  section: 'accounts',
+  target: staff.username,
+  ok: true
+});
+
+  res.json({ ok:true });
 });
 
 
@@ -2715,6 +3004,7 @@ app.get('/api/clinics', (req, res) => {
   const clinics = readClinics();
   res.json({ success: true, clinics });
 });
+
 // ================= CLINICS (ADMIN) =================
 app.get('/api/admin/clinics', requireStaff, (req, res) => {
   res.json({
@@ -2755,6 +3045,15 @@ app.post('/api/admin/clinics', requireStaff, async (req, res) => {
 
   clinics.push(item);
   writeClinics(clinics);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'ADD_CLINIC',
+  section: 'clinics',
+  target: label,
+  ok: true
+});
+
   saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
 // 🧹 مسح كاش العيادة بعد التعديل
 const clinicValue = req.body.value;
@@ -2784,6 +3083,15 @@ app.delete('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   const clinics = readClinics();
   const next = clinics.filter(c => c.id !== req.params.id);
   writeClinics(next);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'DELETE_CLINIC',
+  section: 'clinics',
+  target: req.params.id,
+  ok: true
+});
+
   saveClinicsToRedis(next).then(syncClinicsToRuntime);
 
   await saveClinicsToRedis(next);
@@ -2821,6 +3129,15 @@ app.put('/api/admin/clinics/:id', requireStaff, async (req, res) => {
 
 
   writeClinics(clinics);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'EDIT_CLINIC',
+  section: 'clinics',
+  target: id,
+  ok: true
+});
+
   saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
 
 await saveClinicsToRedis(clinics);
@@ -2848,6 +3165,15 @@ app.post('/api/admin/banners', requireStaff, uploadBanner.any(), async (req, res
   }));
 
   await writeRedisArray(REDIS_BANNERS_KEY, [...added, ...banners]);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'ADD_BANNER',
+  section: 'banners',
+  target: 'banner',
+  ok: true
+});
+
   res.json({ ok:true });
 });
 
@@ -2858,11 +3184,28 @@ app.delete('/api/admin/banners/:id', requireStaff, async (req, res) => {
 
   const [removed] = banners.splice(idx, 1);
   await writeRedisArray(REDIS_BANNERS_KEY, banners);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'DELETE_BANNER',
+  section: 'banners',
+  target: req.params.id,
+  ok: true
+});
+
 
   try {
     const local = path.join(UPLOADS_DIR, removed.src.replace('/uploads/', ''));
     if (fs.existsSync(local)) fs.unlinkSync(local);
   } catch {}
+await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'DELETE_BANNER',
+  section: 'banners',
+  target: req.params.id,
+  ok: true
+});
 
   res.json({ ok:true });
 });
@@ -2899,6 +3242,15 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
 
   // ✅ خله يطلع أول واحد
   await writeRedisArray(REDIS_DOCTORS_KEY, [item, ...doctors]);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'ADD_DOCTOR',
+  section: 'doctors',
+  target: name,
+  ok: true
+});
+
 
   res.json({ ok:true, doctor: item });
 });
@@ -2921,6 +3273,15 @@ app.put('/api/admin/doctors/:id', requireStaff, uploadDoctor.single('file'), asy
   }
 
   await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'EDIT_DOCTOR',
+  section: 'doctors',
+  target: id,
+  ok: true
+});
+
   res.json({ ok:true, doctor: doctors[idx] });
 });
 
@@ -2939,6 +3300,15 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
 
   const [removed] = doctors.splice(idx, 1);
   await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'DELETE_DOCTOR',
+  section: 'doctors',
+  target: req.params.id,
+  ok: true
+});
+
 
   try {
     const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
@@ -3001,6 +3371,14 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
     const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
     if (fs.existsSync(local)) fs.unlinkSync(local);
   } catch {}
+await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'DELETE_PACKAGE',
+  section: 'packages',
+  target: req.params.id,
+  ok: true
+});
 
   res.json({ ok:true });
 });
