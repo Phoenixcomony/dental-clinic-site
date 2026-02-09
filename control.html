@@ -291,6 +291,71 @@
   color:#6b7280;
   font-size:11px;
 }
+.audit-controls{
+  display:flex;
+  gap:10px;
+  margin-bottom:12px;
+  flex-wrap:wrap;
+}
+
+.audit-controls input,
+.audit-controls select{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font-family:inherit;
+  background:#fafafa;
+}
+
+.audit-table{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.audit-row{
+  display:grid;
+  grid-template-columns:140px 1fr 120px 160px;
+  gap:10px;
+  padding:12px;
+  border-radius:12px;
+  background:#fafafa;
+  border:1px solid var(--border);
+  font-size:13px;
+  align-items:center;
+}
+
+.audit-row .user{
+  font-weight:700;
+}
+
+.audit-row .time{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.audit-row.add{border-right:5px solid #16a34a}
+.audit-row.update{border-right:5px solid #2563eb}
+.audit-row.delete{border-right:5px solid #dc2626}
+
+.audit-tag{
+  padding:4px 10px;
+  border-radius:999px;
+  font-size:11px;
+  text-align:center;
+  width:fit-content;
+}
+
+.audit-tag.add{background:#dcfce7;color:#166534}
+.audit-tag.update{background:#dbeafe;color:#1e40af}
+.audit-tag.delete{background:#fee2e2;color:#7f1d1d}
+
+@media(max-width:700px){
+  .audit-row{
+    grid-template-columns:1fr;
+    gap:6px;
+  }
+}
 
 
   </style>
@@ -466,8 +531,20 @@
   <h4>الموظفون</h4>
   <div id="staffList" class="row"></div>
 
-  <h4 style="margin-top:20px">سجل التعديلات</h4>
-  <div id="auditList" class="audit-list"></div>
+ <h4 style="margin-top:20px">سجل التعديلات</h4>
+
+<div class="audit-controls">
+  <input id="auditSearch" type="text" placeholder="بحث (مستخدم / عملية)">
+  <select id="auditFilter">
+    <option value="">كل العمليات</option>
+    <option value="ADD">إضافة</option>
+    <option value="UPDATE">تعديل</option>
+    <option value="DELETE">حذف</option>
+  </select>
+</div>
+
+<div id="auditList" class="audit-table"></div>
+
 
 </section>
 
@@ -982,19 +1059,47 @@ async function changePassword(){
   newPassChange.value = '';
 }
 
+let auditCache = [];
+
 async function loadAudit(){
   const r = await fetch('/api/admin/audit');
   const j = await r.json();
+  auditCache = j.logs || [];
+  renderAudit(auditCache);
+}
+
+function renderAudit(list){
+  const q = auditSearch.value.toLowerCase();
+  const f = auditFilter.value;
 
   auditList.innerHTML = '';
 
-  j.logs.forEach(l=>{
-    auditList.innerHTML += `
-      <div style="padding:8px;border-bottom:1px solid #eee;font-size:13px">
-        • ${l.time} — ${l.by} (${l.action})
-      </div>
-    `;
-  });
+  list
+    .filter(l=>{
+      const hit =
+        l.by.toLowerCase().includes(q) ||
+        l.action.toLowerCase().includes(q);
+
+      const ok = !f || l.action === f;
+      return hit && ok;
+    })
+    .forEach(l=>{
+      const type = l.action.toLowerCase();
+
+      auditList.innerHTML += `
+        <div class="audit-row ${type}">
+          <div class="user">${l.by}</div>
+          <div>${l.action}</div>
+          <div class="audit-tag ${type}">${l.action}</div>
+          <div class="time">${l.time}</div>
+        </div>
+      `;
+    });
+
+
+auditSearch.oninput = ()=>renderAudit(auditCache);
+auditFilter.onchange = ()=>renderAudit(auditCache);
+
   // ===== TAB A =====
 tabA.onclick = ()=>{
   if(tabA.style.display === 'none') return;
