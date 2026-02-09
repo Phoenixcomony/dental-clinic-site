@@ -600,6 +600,28 @@ tabC.onclick=()=>{
   panelP.classList.remove('active');
 }
 tabD.onclick = () => {
+  // ===== TAB A (إعدادات الحسابات) =====
+tabA.onclick = () => {
+  if (tabA.style.display === 'none') return;
+
+  // إزالة active من كل التابات
+  [tabB, tabP, tabC, tabD, tabA].forEach(t =>
+    t.classList.remove('active')
+  );
+
+  // إخفاء كل الصفحات
+  [panelB, panelP, panelC, panelD, panelEditClinic].forEach(p =>
+    p.classList.remove('active')
+  );
+
+  // تفعيل إعدادات الحسابات
+  tabA.classList.add('active');
+  panelA.classList.add('active');
+
+  loadStaff();
+  loadAudit();
+};
+
   [tabB, tabP, tabC].forEach(t => t.classList.remove('active'));
   [panelB, panelP, panelC, panelEditClinic].forEach(p => p.classList.remove('active'));
 
@@ -608,6 +630,7 @@ tabD.onclick = () => {
 
   loadDoctors();
 };
+
 
 
 

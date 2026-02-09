@@ -730,37 +730,35 @@ app.post('/api/admin/staff', requireAdmin, async (req, res) => {
   res.json({ ok:true });
 });
 app.delete('/api/admin/staff/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const list = await readStaffUsers();
-  const idx = list.findIndex(u => u.id === id);
+    const list = await readStaffUsers();
+    const idx = list.findIndex(u => u.id === id);
 
-  if (idx === -1) {
-    return res.status(404).json({ ok:false, message:'staff not found' });
+    if (idx === -1) {
+      return res.status(404).json({ ok:false, message:'staff not found' });
+    }
+
+    const removed = list.splice(idx, 1)[0];
+    await writeStaffUsers(list);
+
+    await auditLog({
+      by: req.session.user.username,
+      role: 'admin',
+      action: 'DELETE_STAFF',
+      section: 'accounts',
+      target: removed.username, // ✅ الصحيح
+      ok: true
+    });
+
+    res.json({ ok:true });
+  } catch (err) {
+    console.error('[DELETE STAFF ERROR]', err);
+    res.status(500).json({ ok:false });
   }
-
-  const removed = list.splice(idx, 1)[0];
-  await writeStaffUsers(list);
-
-  await auditLog({
-    by: req.session.user.username,
-    role: 'admin',
-    action: 'DELETE_STAFF',
-    section: 'accounts',
-    target: removed.username,
-    ok: true
-  });
-await auditLog({
-  by: req.session.user.username,
-  role: 'admin',
-  action: 'DELETE_STAFF',
-  section: 'accounts',
-  target: staff.username,
-  ok: true
 });
 
-  res.json({ ok:true });
-});
 
 
 /* الصفحة الرئيسية */
