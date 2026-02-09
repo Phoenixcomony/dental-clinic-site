@@ -3260,14 +3260,15 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
 
   // ✅ خله يطلع أول واحد
   await writeRedisArray(REDIS_DOCTORS_KEY, [item, ...doctors]);
-  await auditLog({
+ await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'ADD_DOCTOR',
+  action: 'add',
   section: 'doctors',
   target: name,
   ok: true
 });
+
 
 
   res.json({ ok:true, doctor: item });
