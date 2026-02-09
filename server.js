@@ -441,6 +441,17 @@ for (const c of clinics) {
 
 /* ================= Express ================= */
 const app = express();
+// 🚫 تعطيل ETag نهائيًا (سبب 304)
+app.disable('etag');
+
+// 🚫 تعطيل الكاش للـ API (خصوصًا admin)
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 app.set('trust proxy', 1);
 const { createClient } = require('redis');
 
