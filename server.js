@@ -679,6 +679,12 @@ app.get('/api/admin/staff', requireAdmin, async (req, res) => {
   const list = await readStaffUsers();
   res.json({ ok:true, staff:list });
 });
+// ================= AUDIT (ADMIN) =================
+app.get('/api/admin/audit', requireStaff, async (req, res) => {
+  const raw = await redis.lrange(AUDIT_KEY, 0, 200);
+  const logs = raw.map(x => JSON.parse(x));
+  res.json({ logs });
+});
 
 app.post('/api/admin/staff', requireAdmin, async (req, res) => {
   const { name, username } = req.body || {};
@@ -3254,13 +3260,14 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
 
   // ✅ خله يطلع أول واحد
   await writeRedisArray(REDIS_DOCTORS_KEY, [item, ...doctors]);
-await auditLog({
-  by: req.session.user.username,   // عبود
-  action: 'add',                   // مهم
-  target: 'doctor',                // مهم
-  targetName: name                 // اسم الطبيب
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'ADD_DOCTOR',
+  section: 'doctors',
+  target: name,
+  ok: true
 });
-
 
 
   res.json({ ok:true, doctor: item });
@@ -3311,11 +3318,13 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
 
   const [removed] = doctors.splice(idx, 1);
   await writeRedisArray(REDIS_DOCTORS_KEY, doctors);
- await auditLog({
-  by: req.session.user.username,   // عبود
-  action: 'delete',                // مهم جدا
-  target: 'doctor',                // مهم
-  targetName: removed.name         // اسم الطبيب
+  await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'delete',
+  section: 'doctors',
+  target: removed.name,
+  ok: true
 });
 
 
