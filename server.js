@@ -3000,10 +3000,11 @@ app.post('/api/stats/booking-success', async (req, res) => {
   }
 });
 // ================= CLINICS (PUBLIC) =================
-app.get('/api/clinics', (req, res) => {
-  const clinics = readClinics();
+app.get('/api/clinics', async (req, res) => {
+  const clinics = await getClinicsFromRedis(); // ✅
   res.json({ success: true, clinics });
 });
+
 
 // ================= CLINICS (ADMIN) =================
 app.get('/api/admin/clinics', requireStaff, (req, res) => {
