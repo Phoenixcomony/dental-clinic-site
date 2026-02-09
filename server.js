@@ -680,11 +680,15 @@ app.get('/api/admin/staff', requireAdmin, async (req, res) => {
   res.json({ ok:true, staff:list });
 });
 // ================= AUDIT (ADMIN) =================
-app.get('/api/admin/audit', requireStaff, async (req, res) => {
+app.get('/api/admin/audit', (req, res, next) => {
+  if (req.session?.user) return next();
+  return res.status(403).json({ ok:false });
+}, async (req, res) => {
   const raw = await redis.lrange(AUDIT_KEY, 0, 200);
   const logs = raw.map(x => JSON.parse(x));
   res.json({ logs });
 });
+
 
 app.post('/api/admin/staff', requireAdmin, async (req, res) => {
   const { name, username } = req.body || {};
