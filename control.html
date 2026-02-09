@@ -987,21 +987,7 @@ tabA.onclick = ()=>{
   loadStaff();
   loadAudit();
 };
-// ===== AUDIT LOG =====
-async function loadAudit(){
-  const r = await fetch('/api/admin/audit');
-  const j = await r.json();
 
-  auditList.innerHTML='';
-  j.logs.forEach(l=>{
-    auditList.innerHTML += `
-      <div class="audit-item ${l.action}">
-        <div>${l.by} — ${l.action}</div>
-        <div class="time">${l.time}</div>
-      </div>
-    `;
-  });
-}
 // ===== CHANGE PASSWORD =====
 async function changePassword(){
   const oldP = oldPass.value;

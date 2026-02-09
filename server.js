@@ -109,7 +109,16 @@ function genStaffId() {
 
 async function auditLog({ by, role, action, section, target, ok }) {
   const rec = {
-    time: new Date().toISOString(),
+    time: new Date().toLocaleString('ar-SA', {
+  timeZone: 'Asia/Riyadh',
+  hour12: true,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: 'numeric',
+  minute: '2-digit'
+}),
+
     by, role, action, section, target,
     ok: ok !== false
   };
@@ -2983,11 +2992,20 @@ app.post('/api/open', async (req, res) => {
 
 app.get('/health', (_req, res) => res.json({
   ok: true,
-  time: new Date().toISOString(),
+  time: new Date().toLocaleString('ar-SA', {
+    timeZone: 'Asia/Riyadh',
+    hour12: true,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    minute: '2-digit'
+  }),
   chrome: CHROMIUM_PATH || 'bundled',
   baseCacheDir: BASE_DL_DIR,
   debug: DEBUG_BROWSER
 }));
+
 
 const PORT = process.env.PORT || 3000;
 app.get('/health', async (req, res) => {
