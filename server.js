@@ -3086,11 +3086,12 @@ app.post('/api/admin/clinics', requireStaff, async (req, res) => {
   await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'ADD_CLINIC',
-  section: 'clinics',
+  action: 'إضافة عيادة',
+  section: 'العيادات',
   target: label,
   ok: true
 });
+
 
   saveClinicsToRedis(clinics).then(syncClinicsToRuntime);
 // 🧹 مسح كاش العيادة بعد التعديل
@@ -3121,14 +3122,15 @@ app.delete('/api/admin/clinics/:id', requireStaff, async (req, res) => {
   const clinics = readClinics();
   const next = clinics.filter(c => c.id !== req.params.id);
   writeClinics(next);
-  await auditLog({
+await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'DELETE_CLINIC',
-  section: 'clinics',
+  action: 'حذف عيادة',
+  section: 'العيادات',
   target: req.params.id,
   ok: true
 });
+
 
   saveClinicsToRedis(next).then(syncClinicsToRuntime);
 
@@ -3206,30 +3208,32 @@ app.post('/api/admin/banners', requireStaff, uploadBanner.any(), async (req, res
   await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'ADD_BANNER',
-  section: 'banners',
-  target: 'banner',
+  action: 'إضافة بنر',
+  section: 'البنرات',
+  target: 'بنر جديد',
   ok: true
 });
+
 
   res.json({ ok:true });
 });
 
-app.delete('/api/admin/banners/:id', requireStaff, async (req, res) => {
+app.delete('/api/admin/banners/:id', requireAuth, async (req, res) => {
   const banners = await readRedisArray(REDIS_BANNERS_KEY);
   const idx = banners.findIndex(b => b.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok:false });
 
   const [removed] = banners.splice(idx, 1);
   await writeRedisArray(REDIS_BANNERS_KEY, banners);
-  await auditLog({
+await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'DELETE_BANNER',
-  section: 'banners',
+  action: 'حذف بنر',
+  section: 'البنرات',
   target: req.params.id,
   ok: true
 });
+
 
 
   try {
@@ -3283,11 +3287,12 @@ app.post('/api/admin/doctors', requireStaff, uploadDoctor.single('file'), async 
  await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'add',
-  section: 'doctors',
+  action: 'إضافة طبيب',
+  section: 'الأطباء',
   target: name,
   ok: true
 });
+
 
 
 
@@ -3387,6 +3392,14 @@ app.post(
         title: title.trim(),
         desc: (desc || '').trim()
       };
+await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'إضافة باقة',
+  section: 'الباقات',
+  target: title,
+  ok: true
+});
 
       await writeRedisArray(REDIS_PACKAGES_KEY, [item, ...packages]);
       res.json({ ok: true });
@@ -3399,7 +3412,7 @@ app.post(
 
 
 
-app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
+app.delete('/api/admin/packages/:id', requireAuth, async (req, res) => {
   const packages = await readRedisArray(REDIS_PACKAGES_KEY);
   const idx = packages.findIndex(p => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ ok:false });
@@ -3414,11 +3427,12 @@ app.delete('/api/admin/packages/:id', requireStaff, async (req, res) => {
 await auditLog({
   by: req.session.user.username,
   role: req.session.user.role,
-  action: 'DELETE_PACKAGE',
-  section: 'packages',
-  target: req.params.id,
+  action: 'حذف باقة',
+  section: 'الباقات',
+  target: removed.title || req.params.id,
   ok: true
 });
+
 
   res.json({ ok:true });
 });
@@ -3434,6 +3448,14 @@ app.delete('/api/admin/doctors/:id', requireStaff, async (req, res) => {
     const local = path.join(UPLOADS_DIR, removed.img.replace('/uploads/', ''));
     if (fs.existsSync(local)) fs.unlinkSync(local);
   } catch {}
+await auditLog({
+  by: req.session.user.username,
+  role: req.session.user.role,
+  action: 'حذف طبيب',
+  section: 'الأطباء',
+  target: removed.name,
+  ok: true
+});
 
   res.json({ ok:true });
 });
