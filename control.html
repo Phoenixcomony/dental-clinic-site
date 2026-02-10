@@ -702,9 +702,17 @@ async function addBanner(){
 
 async function delBanner(id){
   if(!confirm('تأكيد الحذف؟')) return;
-  await fetch('/api/admin/banners/'+id,{method:'DELETE',headers:staffHeaders()});
-  
+
+  const r = await fetch('/api/admin/banners/'+id,{
+    method:'DELETE',
+    headers:staffHeaders()
+  });
+
+  if(r.ok){
+    loadAll(); // ✅ هذا السطر هو المهم
+  }
 }
+
 
 async function addPackage(){
   const t = document.getElementById('pkgTitle').value.trim();
@@ -736,9 +744,17 @@ loadAll();
 
 async function delPackage(id){
   if(!confirm('تأكيد الحذف؟')) return;
-  await fetch('/api/admin/packages/'+id,{method:'DELETE',headers:staffHeaders()});
-  
+
+  const r = await fetch('/api/admin/packages/'+id,{
+    method:'DELETE',
+    headers:staffHeaders()
+  });
+
+  if(r.ok){
+    loadAll(); // ✅ نفس الحل
+  }
 }
+
 // ================= CLINICS ADMIN =================
 let currentClinicId = null;
 
@@ -1250,16 +1266,17 @@ async function deleteStaff(id){
 </script>
 <script>
 function actionArabic(action){
-  const map = {
-    add: 'إضافة',
-    delete: 'حذف',
-    update: 'تعديل',
-    login_ok: 'تسجيل دخول',
-    login_fail: 'فشل تسجيل دخول'
-  };
+  if(!action) return '';
 
-  return map[action.toLowerCase()] || action;
+  if(action.startsWith('ADD')) return 'إضافة';
+  if(action.startsWith('DELETE')) return 'حذف';
+  if(action.startsWith('UPDATE')) return 'تعديل';
+  if(action === 'LOGIN_OK') return 'تسجيل دخول';
+  if(action === 'LOGIN_FAIL') return 'فشل تسجيل دخول';
+
+  return action;
 }
+
 </script>
 
 </body>
