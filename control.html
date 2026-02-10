@@ -370,6 +370,24 @@
   background:#dbeafe;
   color:#1e40af;
 }
+.audit-row.add{border-right:5px solid #16a34a}
+.audit-row.update{border-right:5px solid #2563eb}
+.audit-row.delete{border-right:5px solid #dc2626}
+
+.audit-tag.add{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.audit-tag.delete{
+  background:#fee2e2;
+  color:#7f1d1d;
+}
+
+.audit-tag.update{
+  background:#dbeafe;
+  color:#1e40af;
+}
 
 
   </style>
@@ -1146,7 +1164,13 @@ function renderAudit(list){
       return hit && ok;
     })
     .forEach(l=>{
-      const type = l.action.toLowerCase();
+      let type = '';
+
+if (l.action.startsWith('ADD')) type = 'add';
+else if (l.action.startsWith('DELETE')) type = 'delete';
+else if (l.action.startsWith('UPDATE')) type = 'update';
+else type = 'update'; // احتياطي
+
 
       auditList.innerHTML += `
         <div class="audit-row ${type}">
