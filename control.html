@@ -356,6 +356,20 @@
     gap:6px;
   }
 }
+.audit-tag.add{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.audit-tag.delete{
+  background:#fee2e2;
+  color:#7f1d1d;
+}
+
+.audit-tag.update{
+  background:#dbeafe;
+  color:#1e40af;
+}
 
 
   </style>
@@ -673,15 +687,18 @@ async function addBanner(){
   const fd = new FormData();
   for (const f of files) fd.append('files', f);
 
-  const r=await fetch('/api/admin/banners',{
-  method:'POST',
-   
-  body: fd
-});
+  const r = await fetch('/api/admin/banners',{
+    method:'POST',
+    headers: staffHeaders(),   // ✅ هذا السطر هو الحل
+    body: fd
+  });
 
-  if(!r.ok) return alert('فشل');
-  
+  if(!r.ok) return alert('فشل حفظ البنرات');
+
+  alert('تم حفظ البنرات بنجاح');
+  loadAll(); // لإعادة العرض
 }
+
 
 async function delBanner(id){
   if(!confirm('تأكيد الحذف؟')) return;
@@ -702,13 +719,19 @@ async function addPackage(){
   fd.append('desc', d);
 
   const r = await fetch('/api/admin/packages',{
-    method:'POST',
-    
-    body: fd
-  });
+  method:'POST',
+  headers: staffHeaders(),   // ✅ هذا السطر هو الحل
+  body: fd
+});
 
-  if(!r.ok) return alert('فشل');
-  
+if(!r.ok){
+  alert('فشل حفظ الباقة');
+  return;
+}
+
+alert('تم حفظ الباقة بنجاح');
+loadAll();
+
 }
 
 async function delPackage(id){
@@ -1113,7 +1136,10 @@ function renderAudit(list){
         <div class="audit-row ${type}">
           <div class="user">${l.by}</div>
           <div>${l.action}</div>
-          <div class="audit-tag ${type}">${l.action}</div>
+          <div class="audit-tag ${type}">
+  ${actionArabic(l.action)}
+</div>
+
           <div class="time">${l.time}</div>
         </div>
       `;
@@ -1221,6 +1247,19 @@ async function deleteStaff(id){
   loadStaff();
 }
 
+</script>
+<script>
+function actionArabic(action){
+  const map = {
+    add: 'إضافة',
+    delete: 'حذف',
+    update: 'تعديل',
+    login_ok: 'تسجيل دخول',
+    login_fail: 'فشل تسجيل دخول'
+  };
+
+  return map[action.toLowerCase()] || action;
+}
 </script>
 
 </body>
